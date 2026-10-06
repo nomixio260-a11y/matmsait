@@ -112,11 +112,11 @@ describe('createGitHubClient', () => {
       );
     }) as typeof fetch;
     const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
-    await client.dispatchWorkflow('update.yml', 'main', { summarize: '10' });
+    await client.dispatchWorkflow('update.yml', 'main');
     expect(calls[0]).toMatchObject({
       method: 'POST',
       url: 'https://api.github.com/repos/owner/repo/actions/workflows/update.yml/dispatches',
-      body: { ref: 'main', inputs: { summarize: '10' } },
+      body: { ref: 'main', inputs: {} },
     });
     const runs = await client.listWorkflowRuns('update.yml', 3);
     expect(calls[1].url).toBe('https://api.github.com/repos/owner/repo/actions/workflows/update.yml/runs?per_page=3');

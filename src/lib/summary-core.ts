@@ -35,7 +35,7 @@ export interface PromptOptions {
   points: boolean;
 }
 
-/** 要約の書き方のルール（手作業用のプロンプトと API での自動要約で共通） */
+/** 要約の書き方のルール */
 export function summaryRules(length: SummaryLength, points: boolean): string[] {
   const { min, max } = SUMMARY_LENGTHS[length];
   return [

@@ -1,5 +1,5 @@
 // 管理画面（/admin/）: 要約待ちの記事を選んでプロンプトを作り、AI の回答を検証して GitHub に保存する。
-// GitHub Actions の更新・AI 自動要約の実行もここから行う
+// サイトの更新（GitHub Actions の実行）もここから行う
 import {
   BLOCKLIST_PATH,
   emptyBlocklist,
@@ -161,8 +161,6 @@ const ui = {
   deleteSelected: $<HTMLButtonElement>('delete-selected'),
   deleteStatus: $('delete-status'),
   runUpdate: $<HTMLButtonElement>('run-update'),
-  runSummarize: $<HTMLButtonElement>('run-summarize'),
-  autoCount: $<HTMLSelectElement>('auto-count'),
   runStatus: $('run-status'),
   runList: $<HTMLUListElement>('run-list'),
   includeSummarized: $<HTMLInputElement>('include-summarized'),
@@ -884,7 +882,7 @@ function setupBlocklist() {
   renderHiddenList();
 }
 
-// ===== サイトの更新・AI で自動要約（GitHub Actions のワークフローを実行） =====
+// ===== サイトの更新（GitHub Actions のワークフローを実行） =====
 
 const WORKFLOW = 'update.yml';
 const RUN_EVENTS: Record<string, string> = {
@@ -945,28 +943,16 @@ async function renderRuns() {
   }
 }
 
-/** summarize: AI で要約する件数（'0' なら更新だけ） */
-async function runWorkflow(summarize: string, button: HTMLButtonElement) {
-  if (summarize !== '0') {
-    const ok = confirm(
-      `AI（Claude API）で最大${summarize}件の記事を要約してサイトを更新します。\n` +
-        `費用の目安は $${(Number(summarize) * 0.02).toFixed(2)}〜$${(Number(summarize) * 0.06).toFixed(2)} です（既定のモデルの場合）。実行しますか？`,
-    );
-    if (!ok) return;
-  }
+/** 収集とサイトの更新を今すぐ実行する */
+async function runUpdate() {
+  const button = ui.runUpdate;
   button.disabled = true;
   setStatus(ui.runStatus, '実行を依頼しています…');
   try {
     const client = githubClient();
     const { defaultBranch } = await client.repository();
-    await client.dispatchWorkflow(WORKFLOW, defaultBranch, { summarize });
-    setStatus(
-      ui.runStatus,
-      summarize === '0'
-        ? '更新を開始しました。2〜3分ほどでサイトに反映されます。'
-        : `AIによる要約（最大${summarize}件）と更新を開始しました。5〜10分ほどでサイトに反映されます。`,
-      'ok',
-    );
+    await client.dispatchWorkflow(WORKFLOW, defaultBranch);
+    setStatus(ui.runStatus, '更新を開始しました。2〜3分ほどでサイトに反映されます。', 'ok');
     // 実行が一覧に現れるまで少しかかる
     setTimeout(renderRuns, 4000);
   } catch (error) {
@@ -978,8 +964,7 @@ async function runWorkflow(summarize: string, button: HTMLButtonElement) {
 }
 
 function setupRuns() {
-  ui.runUpdate.addEventListener('click', () => runWorkflow('0', ui.runUpdate));
-  ui.runSummarize.addEventListener('click', () => runWorkflow(ui.autoCount.value, ui.runSummarize));
+  ui.runUpdate.addEventListener('click', runUpdate);
   $('refresh-runs').addEventListener('click', renderRuns);
 }
 

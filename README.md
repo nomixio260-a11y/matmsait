@@ -72,6 +72,9 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 
 ## AI要約（管理画面）
 
+要約の JSON は運営者が作ります。管理画面でプロンプトを作ってコピーし、自分でチャット AI（ChatGPT・Gemini など）に貼り付け、返ってきた JSON を管理画面に貼り付けて保存します。
+サイト側から有料の AI API を呼ぶ仕組みはありません（費用はかかりません）。
+
 記事ごとに AI の要約を載せられます。要約のある記事は一覧に要約が表示され、タイトルから当サイトの要約ページ（`/summary/<記事ID>/`）に移動します。
 要約ページは元記事が古くなって一覧から消えても残り、検索エンジンにも送信されます。
 
@@ -80,7 +83,7 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 公開サイトの `/admin/`（例: https://nomixio260-a11y.github.io/matmsait/admin/ ）を開きます。
 
 1. **記事を選ぶ** — 件数（10 / 20 / 30 / 50件）・カテゴリ・並び順（はてブの多い順 / 新しい順）を選ぶと、要約のない記事が上から選ばれます。チェックで個別に外せます
-2. **プロンプトをコピー** — 「プロンプトをコピー」で丸ごとコピーし、ChatGPT・Claude・Gemini など Web ページを読める AI にそのまま貼り付けます。要約の長さ・要点（箇条書き）の有無も選べます
+2. **プロンプトをコピー** — 「プロンプトをコピー」で丸ごとコピーし、ChatGPT や Gemini など Web ページを読めるチャット AI にそのまま貼り付けます。要約の長さ・要点（箇条書き）の有無も選べます
 3. **AI の回答を貼り付けて確認** — AI は ```` ```json ```` のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして貼り付け、「内容を確認する」。一覧にない id、短すぎ・長すぎる要約、「アクセスできませんでした」のような断り文ははじかれます。保存したくない要約はチェックを外せます
 4. **保存して公開** — GitHub に1つのコミットとして保存し、1〜3分ほどでサイトに反映されます
 
@@ -107,35 +110,6 @@ AI の回答が多少崩れていても読み込めるようにしています�
 - **削除**: 「保存済みの要約」で選んで削除すると、その記事は要約待ちに戻ります
 - 管理画面で扱えるのは新しい300件までです。それより古い要約は GitHub 上で `data/summaries/YYYY-MM.json` を直接編集してください
 
-### Claude API で自動要約する（コピペ不要）
-
-API キーを設定すると、管理画面の「AIで自動要約して更新」ボタン（または毎時の定期更新）で、AI への受け渡しまで自動で行えます。
-
-1. [Claude Console](https://platform.claude.com/settings/keys) で API キーを作成
-2. リポジトリの Settings → Secrets and variables → Actions → **Secrets** に `ANTHROPIC_API_KEY` として登録
-3. 管理画面で使うトークンに **Actions: Read and write** 権限も付ける（下記）
-4. 管理画面で件数（5〜50件）を選んで「AIで自動要約して更新」
-
-GitHub Actions が要約のない記事をカテゴリが偏らないように選び、記事ページから本文を取得して（RSS 収集と同じブラウザ相当の通信）、Claude に1件ずつ要約させます。
-回答は管理画面と同じ検証（長さ・断り文など）を通してから保存し、本文を取得できない記事や AI が「読めない」と判断した記事は見送ります。
-本文はAIに渡すためだけに使い、サイトには掲載しません。結果（保存・見送りの一覧、トークン数、費用の目安）は Actions の実行ページの Summary に表示されます。
-
-Variables（Settings → Secrets and variables → Actions → **Variables**）で動作を変えられます。
-
-| 変数 | 内容 | 既定 |
-| --- | --- | --- |
-| `AUTO_SUMMARY_COUNT` | 毎時の定期更新のたびに要約する件数（未設定なら定期更新では要約しない） | なし |
-| `SUMMARY_MODEL` | 使うモデル | `claude-opus-5-5` |
-| `SUMMARY_EFFORT` | 考える深さ（`low` / `medium` / `high`） | `low` |
-| `SUMMARY_LENGTH` | 要約の長さ（`short` / `normal` / `long`） | `normal` |
-
-費用の目安は、既定のモデル（`claude-opus-5-5`、入力 $4 / 出力 $20 per 100万トークン）で **1件あたり約 $0.02〜0.06** です
-（本文は最大5,000字に切り詰めて渡します）。`AUTO_SUMMARY_COUNT` を 5 にすると1日120件・月 $70〜200 程度になるため、
-まずは手動実行で試し、予算に合わせて件数を決めてください。`SUMMARY_MODEL` を `claude-sonnet-5-5`（約半額）や `claude-haiku-4-5`（約4分の1）にすると安くなりますが、
-要約の質は下がることがあります。Claude Console で月の利用上限を設定しておくと安心です。
-
-コマンドラインでは `npm run auto-summarize -- --count 5`（`--dry-run` で本文の取得だけを確認、`--order popular|latest`、`--category tech`）。
-
 ### 記事の非表示（NGワード・サイト・個別）
 
 管理画面の「記事の非表示」で、見出しに含まれると非表示にする **NGワード** と、記事を載せない **サイト**（サブドメインを含む）を設定できます。
@@ -151,7 +125,7 @@ AdSense などの広告は、成人向け・暴力的・ショッキングな内
 
 1. https://github.com/settings/personal-access-tokens/new で **Fine-grained** トークンを作成
 2. Repository access で **このリポジトリだけ** を選択
-3. Repository permissions の **Contents** を **Read and write** にする（「今すぐ更新」「AIで自動要約」も使うなら **Actions** も **Read and write**。有効期限も設定推奨）
+3. Repository permissions の **Contents** を **Read and write** にする（「今すぐ更新」も使うなら **Actions** も **Read and write**。有効期限も設定推奨）
 4. 管理画面の「GitHub との連携」に貼り付けて「接続を確認」
 
 トークンはブラウザから GitHub API に直接送るだけで、サイトには保存・公開されません（「このブラウザに記憶する」を選んだ場合のみ、その端末のブラウザに保存）。
@@ -197,7 +171,7 @@ npm run check     # 型チェック（.astro ファイルを含む）
 
 - 毎時 23 分（UTC）の定期実行
 - 既定ブランチへの push（管理画面から要約を保存したときも）
-- 管理画面の「今すぐ更新」「AIで自動要約して更新」ボタン、または Actions タブからの手動実行（Run workflow）
+- 管理画面の「今すぐ更新」ボタン、または Actions タブからの手動実行（Run workflow）
 
 GitHub Pages の設定（Settings → Pages → Source）は **GitHub Actions** にしてください。
 定期実行は、リポジトリに 60 日間動きがないと GitHub に停止されますが、収集データを毎時コミットしているので通常は止まりません。
@@ -209,7 +183,7 @@ Actions タブで「定期更新」（schedule）の実行が続かない場合�
 ```sh
 curl -X POST -H "Authorization: Bearer <トークン>" -H "Accept: application/vnd.github+json" \
   https://api.github.com/repos/<owner>/<repo>/actions/workflows/update.yml/dispatches \
-  -d '{"ref":"<既定ブランチ>","inputs":{"summarize":"0"}}'
+  -d '{"ref":"<既定ブランチ>"}'
 ```
 
 ### 独自ドメインを使う場合

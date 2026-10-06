@@ -10,7 +10,6 @@ import { href } from '../../lib/items.ts';
       <h1>AI要約の管理</h1>
       <p>
         要約のない記事を選んでAI用のプロンプトを作り、AIの回答（JSON）を貼り付けて保存すると、サイトの各記事に要約が載ります。
-        Claude API を設定すれば、ボタン1つで自動要約もできます。
       </p>
       <p class="data-info" id="data-info" aria-live="polite">記事データを読み込んでいます…</p>
     </div>
@@ -45,7 +44,7 @@ import { href } from '../../lib/items.ts';
             </li>
             <li>「Repository access」で <code id="repo-name">このサイトのリポジトリ</code> だけを選ぶ</li>
             <li>
-              「Repository permissions」の <b>Contents</b> を <b>Read and write</b> にして作成（「今すぐ更新」「AIで自動要約」も使う場合は
+              「Repository permissions」の <b>Contents</b> を <b>Read and write</b> にして作成（「今すぐ更新」も使う場合は
               <b>Actions</b> も <b>Read and write</b> に）
             </li>
             <li>表示されたトークンを上の欄に貼り付けて「接続を確認」</li>
@@ -56,25 +55,14 @@ import { href } from '../../lib/items.ts';
     </details>
 
     <section class="card">
-      <h2><span class="step" aria-hidden="true">⚡</span>サイトの更新・AIで自動要約</h2>
+      <h2><span class="step" aria-hidden="true">⚡</span>サイトの更新</h2>
       <div class="card-body">
         <p class="note">
-          記事の収集とサイトの更新は1時間ごとに自動で行われます。すぐに更新したいときや、AI（Claude
-          API）にまとめて要約させたいときに使います。
+          記事の収集とサイトの更新は1時間ごとに自動で行われます。すぐに最新の記事を集めて更新したいときに使います（GitHub Actions
+          で動くので費用はかかりません）。
         </p>
         <div class="controls run-controls">
-          <button type="button" id="run-update">今すぐ更新</button>
-          <label class="field inline">
-            <span>AIで要約する件数</span>
-            <select id="auto-count">
-              <option value="5">5件</option>
-              <option value="10" selected>10件</option>
-              <option value="20">20件</option>
-              <option value="30">30件</option>
-              <option value="50">50件</option>
-            </select>
-          </label>
-          <button type="button" id="run-summarize" class="primary">AIで自動要約して更新</button>
+          <button type="button" id="run-update" class="primary">今すぐ更新</button>
         </div>
         <p class="status" id="run-status" aria-live="polite"></p>
         <div class="runs">
@@ -86,27 +74,6 @@ import { href } from '../../lib/items.ts';
             <li class="pick-meta">トークンを設定すると表示されます。</li>
           </ul>
         </div>
-        <details class="help">
-          <summary>AIで自動要約を使うには（最初の1回だけ）</summary>
-          <ol>
-            <li>
-              <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Claude Console</a>
-              で API キーを作成する
-            </li>
-            <li>
-              GitHub のリポジトリの <b>Settings → Secrets and variables → Actions</b> で、シークレット
-              <code>ANTHROPIC_API_KEY</code> を作成して API キーを貼り付ける
-            </li>
-            <li>上の「GitHub との連携」のトークンに <b>Actions</b> の <b>Read and write</b> 権限を付ける</li>
-          </ol>
-          <p>
-            GitHub Actions が記事ページから本文を取得して Claude に要約させ、検証してから保存します（読めない記事は見送り）。
-            費用の目安は1件あたり約 $0.02〜0.06（既定のモデル claude-opus-5-5 の場合）。結果は実行ページの「Summary」で確認できます。
-          </p>
-          <p>
-            毎時の自動更新のたびに要約させるには、同じ画面の Variables に <code>AUTO_SUMMARY_COUNT</code>（1回あたりの件数）を設定します。
-          </p>
-        </details>
       </div>
     </section>
 
@@ -178,7 +145,7 @@ import { href } from '../../lib/items.ts';
           <span class="note" id="prompt-info"></span>
         </div>
         <p class="hint">
-          プロンプトを丸ごとコピーして、ChatGPT・Claude・Gemini など Web ページを読める AI に貼り付けてください。
+          プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けてください。
           AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。
           一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残ります。
         </p>

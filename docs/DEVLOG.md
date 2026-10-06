@@ -9,7 +9,7 @@
 - 新しい記録は「開発の記録」のいちばん上に追加する（新しい順）。書き方は下の「記録のひな形」に合わせる。
 - 「現在の状態」と「未解決の課題・次にやること」は、記録を追加するたびに最新の内容へ書き換える（古い情報を残さない）。
 - GitHub Actions による自動更新（`chore:` で始まるコミット）は記録しない。
-- 秘密の値（トークン・API キー・パスワード）は書かない。設定した「事実」だけを書く（例: `ANTHROPIC_API_KEY を登録済み`）。
+- 秘密の値（トークン・API キー・パスワード）は書かない。設定した「事実」だけを書く（例: `PUBLIC_ADSENSE_CLIENT を設定済み`）。
 
 ### 記録のひな形
 
@@ -27,6 +27,8 @@
 
 ## 現在の状態（2026-10-06 時点）
 
+> **運営者の方針**: 費用のかかる AI API（Claude API など）は使わない。要約の JSON は運営者が管理画面のプロンプトをチャット AI に貼り付けて作り、管理画面に貼り付けて保存する。
+
 ### 公開先
 
 | 項目 | 場所 |
@@ -39,7 +41,7 @@
 
 ### 自動で動いているもの
 
-- **収集・公開**（`update.yml`）: 定期実行（毎時23分 UTC）・push・手動実行（管理画面のボタン / Actions の Run workflow）で、テスト → フィード取得 → （指定があれば AI 要約）→ データをコミット → ビルド → Pages へ公開 → IndexNow・WebSub へ通知 → SNS 投稿（設定時のみ）。
+- **収集・公開**（`update.yml`）: 定期実行（毎時23分 UTC）・push・手動実行（管理画面の「今すぐ更新」/ Actions の Run workflow）で、テスト → フィード取得 → データをコミット → ビルド → Pages へ公開 → IndexNow・WebSub へ通知 → SNS 投稿（設定時のみ）。
 - 収集元は `sources.yaml` の23件（ニュース・経済・テクノロジー・エンタメ・ゲーム・スポーツ・ライフ）。記事は直近30日・最大3000件を `data/items.json` に保存。
 
 ### 運営者の設定状況
@@ -47,9 +49,8 @@
 | 設定 | 状態 |
 | --- | --- |
 | GitHub Pages（Source: GitHub Actions） | 設定済み・公開中 |
-| `ANTHROPIC_API_KEY`（AI 自動要約） | 未設定（設定するまで自動要約は何もしない） |
-| `AUTO_SUMMARY_COUNT` などの変数 | 未設定（定期実行では要約しない） |
-| 管理画面用の GitHub トークン | 運営者のブラウザにのみ保存（Contents: Read and write、ボタン実行には Actions: Read and write も必要） |
+| AI 要約 | 運営者が管理画面で作成（有料の AI API は使わない） |
+| 管理画面用の GitHub トークン | 運営者のブラウザにのみ保存（Contents: Read and write、「今すぐ更新」には Actions: Read and write も必要） |
 | SNS（X・Bluesky・Mastodon・Misskey） | 未設定 |
 | AdSense・アクセス解析・Search Console | 未設定（変数を設定すると有効になる） |
 | 独自ドメイン | なし（収益化の段階で取得を推奨） |
@@ -62,7 +63,6 @@
 | `src/config/site.ts` | サイト名・カテゴリ・運営者情報などの設定 |
 | `scripts/fetch-feeds.ts` | フィード取得（ブラウザ相当の通信は `scripts/lib/http.ts`） |
 | `scripts/lib/store.ts` | 記事のマージ・重複（同じ URL・同じ見出し）のまとめ・保存 |
-| `scripts/auto-summarize.ts`, `scripts/lib/auto-summary.ts`, `scripts/lib/article.ts` | Claude API による自動要約（本文の取得・抽出・API 呼び出し） |
 | `scripts/summaries.ts` | 要約のプロンプト作成・取り込み（コマンドライン） |
 | `scripts/notify.ts` | 公開後の通知（IndexNow・WebSub）と SNS 投稿 |
 | `src/lib/summary-core.ts` | 要約のプロンプト・回答の読み取りと検証・要約ファイルの読み書き（管理画面と共通） |
@@ -83,11 +83,9 @@ npm test          # ユニットテスト（vitest）
 npm run check     # 型チェック（.astro を含む）
 SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npm run build
 npx astro preview # ビルド結果の確認（Astro 7 の preview は常駐するので、止めるときは npx astro preview stop）
-npm run auto-summarize -- --count 5 --dry-run   # 自動要約の本文取得だけを確認（API は呼ばない）
 ```
 
 - 管理画面の動作は、Playwright で GitHub API をモックして確かめている（実際の GitHub には書き込まない）。
-- 自動要約は、`ANTHROPIC_BASE_URL` を模擬サーバーに向けて、リクエストの中身と応答の処理を確かめている。
 - テストのために `data/` に作ったファイル（要約・非表示の設定など）は**コミットしない**。
 
 ---
@@ -95,15 +93,26 @@ npm run auto-summarize -- --count 5 --dry-run   # 自動要約の本文取得だ
 ## 未解決の課題・次にやること
 
 1. **定期実行（schedule）が一度も動いていない**（2026-10-06 07:30 UTC 時点）。push・手動実行は正常。cron を「毎時7分」→「毎時23分」に変えて登録し直した。動かない場合は、README の「公開・自動更新」にある外部 cron（cron-job.org など）からの手動実行 API 呼び出しで代わりにできる。管理画面には「3時間以上更新がない」警告と「今すぐ更新」ボタンがある。
-2. **AI 自動要約は本物の API では未確認**（`ANTHROPIC_API_KEY` 未設定のため）。模擬サーバーで、リクエストの形（モデル・effort・構造化出力・fallbacks）、断られた場合、API キーが無効な場合、fallbacks 非対応の場合の再試行、取り込みまで確認済み。キーを設定したら、まず5件で試して Actions の Summary で結果と費用を確認する。
-3. **管理画面から GitHub への保存・ワークフロー実行は、本物のトークンでは未確認**（モックでは確認済み）。
-4. SNS 自動投稿は未設定・未確認（X の署名は公式の例と一致することを確認済み）。
-5. 管理画面で編集できる要約は新しい300件まで。それより古い要約は `data/summaries/YYYY-MM.json` を直接編集する。
-6. 収益化の前に: 独自ドメインの取得、AdSense の審査（オリジナルの内容として AI 要約を増やす）、`ads.txt` の設置、気になる記事の非表示。
+2. **管理画面から GitHub への保存・ワークフロー実行は、本物のトークンでは未確認**（モックでは確認済み）。
+3. SNS 自動投稿は未設定・未確認（X の署名は公式の例と一致することを確認済み）。
+4. 管理画面で編集できる要約は新しい300件まで。それより古い要約は `data/summaries/YYYY-MM.json` を直接編集する。
+5. 収益化の前に: 独自ドメインの取得、AdSense の審査（オリジナルの内容として AI 要約を増やす）、`ads.txt` の設置、気になる記事の非表示。
 
 ---
 
 ## 開発の記録（新しい順）
+
+### 2026-10-06 Claude API による自動要約を削除
+
+- 依頼・目的: 運営者から「コピペ不要ではない。記事の JSON（要約）は自分で作る。費用のかかる Claude（API）は絶対に使わない」との指示。
+- やったこと:
+  - 自動要約の仕組みをすべて削除した: `scripts/auto-summarize.ts`・`scripts/lib/auto-summary.ts`・`scripts/lib/article.ts` とそのテスト、依存パッケージ（`@anthropic-ai/sdk`・`@mozilla/readability`・`linkedom`）、`npm run auto-summarize`。
+  - ワークフローから、手動実行の入力「要約する件数」、変数 `AUTO_SUMMARY_COUNT` による定期要約、`ANTHROPIC_API_KEY` を使う手順、要約の取り込みを削除した。サイトから有料の AI API を呼ぶ処理は残っていない。
+  - 管理画面から「AIで自動要約して更新」ボタン・件数・API キーの説明を削除し、「サイトの更新」（今すぐ更新・最近の実行）だけを残した。チャット AI の例から Claude を外した。
+  - README・開発記録・`CLAUDE.md` に「有料の AI API は使わない、要約の JSON は運営者が作る」方針を書いた。
+- 主な変更ファイル: `.github/workflows/update.yml`, `src/pages/admin/index.astro`, `src/scripts/admin.ts`, `package.json`, `README.md`, `docs/DEVLOG.md`, `CLAUDE.md`
+- 確認したこと: ユニットテスト、型チェック、actionlint、ビルド、リポジトリ内に API を呼ぶコード・設定が残っていないこと（`anthropic` / `ANTHROPIC` / `auto-summarize` で検索）、管理画面の E2E（今すぐ更新・保存・編集・非表示）。
+- 残った課題・注意点: なし（以前の「AI 自動要約を本物の API で確認する」課題は削除した）。
 
 ### 2026-10-06 AI 用プロンプトの詳細化・要約の編集と作り直し・開発記録の開始
 
@@ -120,7 +129,7 @@ npm run auto-summarize -- --count 5 --dry-run   # 自動要約の本文取得だ
 - 確認したこと: ユニットテスト（プロンプトの中の出力例と記事一覧が JSON として読めること、回答の各種の形、断り文の判定をニュースの文4例・断り文5例で確認）、型チェック、ビルド、Playwright で管理画面（要約済みの記事が候補に出ないこと、絞り込み、編集の検証と保存、作り直しの上書き保存、非表示・実行ボタンの既存テスト）、アクセシビリティ検査（axe）0件。
 - 残った課題・注意点: 管理画面で編集できるのは新しい300件まで。
 
-### 2026-10-06 開発の継続（Claude API による自動要約ほか）
+### 2026-10-06 開発の継続（Claude API による自動要約ほか ※自動要約はこのあと削除）
 
 - 依頼・目的: 「時間がもったいない、すぐに開発を継続し改善」。定期実行が動いていない問題への対処と、要約の手作業を減らすための自動化。
 - やったこと:
