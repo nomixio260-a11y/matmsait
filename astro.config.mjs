@@ -46,8 +46,8 @@ export default defineConfig({
       // 掲載元別・新着の一覧は外部サイトへのリンクが並ぶだけなので、検索エンジンにはトップ・カテゴリ・要約・話題・日別まとめを見てもらう
       filter: (page) =>
         !/\/\d+\/$/.test(page) &&
-        !/\/(search|admin|saved|latest)\/$/.test(page) &&
-        !/\/source\//.test(page) &&
+        !/\/(search|saved|latest)\/$/.test(page) &&
+        !/\/(admin|source)\//.test(page) &&
         (summarizedAt.size > 0 || !/\/summaries\/$/.test(page)),
       // 更新されるページには最終更新日時を付け、検索エンジンに再クロールを促す
       serialize(item) {
