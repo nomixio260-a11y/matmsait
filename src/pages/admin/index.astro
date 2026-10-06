@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { SUMMARY_LENGTHS } from '../../lib/summary-core.ts';
+import { ARTICLE_TEXT_MAX, SUMMARY_LENGTHS } from '../../lib/summary-core.ts';
+import { COPY_ARTICLE_BOOKMARKLET } from '../../lib/bookmarklet.ts';
 import { href } from '../../lib/items.ts';
 ---
 
@@ -94,6 +95,33 @@ import { href } from '../../lib/items.ts';
       </div>
     </section>
 
+    <details class="card" id="paste-card">
+      <summary>
+        <span class="summary-title">AI が開けない記事（本文を貼り付けて要約）</span><span class="badge" id="paste-count">0件</span>
+      </summary>
+      <div class="card-body">
+        <p class="hint">
+          サイトのボット対策などで AI が記事を開けず「unavailable」になった記事は、ここに集まります。自分のブラウザで記事を開いて本文をコピーし、下の欄に貼り付けると、AI が URL を開かずに本文から要約します（その記事は自動で選ばれ、手順2のプロンプトに本文が入ります）。同じ話題を別のサイトも報じていれば、そちらの記事に切り替えることもできます。
+        </p>
+        <p class="hint">
+          貼り付けた本文はこのタブの中でプロンプトを作るのに使うだけで、サイトや GitHub には保存・公開しません（タブを閉じると消えます）。本文は1記事{ARTICLE_TEXT_MAX.toLocaleString()}字までを使います。
+        </p>
+        <div class="bookmarklet-row">
+          <a class="bookmarklet" id="bookmarklet" href={COPY_ARTICLE_BOOKMARKLET} draggable="true">本文をコピー（トピあつめ）</a>
+          <span class="note">
+            このボタンをブックマークバーにドラッグして登録しておくと、記事のページで押すだけで本文をコピーできます。うまく取れないときは、本文を選んでから押すか、本文を選んでコピーしてください。
+          </span>
+        </div>
+        <p class="note" id="paste-flagged" hidden></p>
+        <ul class="paste-list" id="paste-list"></ul>
+        <div class="actions">
+          <button type="button" id="select-pasted" class="small">本文を貼った記事だけを選ぶ</button>
+          <span class="note">本文を貼った記事だけでプロンプトを作ります（本文つきのプロンプトは長くなるので、5件程度ずつがおすすめです）</span>
+        </div>
+        <p class="status" id="paste-status" aria-live="polite"></p>
+      </div>
+    </details>
+
     <section class="card">
       <h2><span class="step">2</span>プロンプトをコピーしてAIに渡す</h2>
       <div class="card-body">
@@ -122,7 +150,7 @@ import { href } from '../../lib/items.ts';
           <span class="note" id="prompt-info"></span>
         </div>
         <p class="hint">
-          プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けてください。AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残ります。
+          プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けてください。AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残って「AI が開けない記事」に移ります（次からは自動で選ばれません）。
         </p>
       </div>
     </section>
@@ -288,6 +316,112 @@ import { href } from '../../lib/items.ts';
   }
   .connection .note {
     margin: 4px 0 0;
+  }
+  :global(.admin .note.warn) {
+    color: var(--hot);
+  }
+  :global(.unavailable-note) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--hot);
+    border-radius: 10px;
+  }
+  :global(.unavailable-note .note) {
+    flex: 1;
+    min-width: 220px;
+    margin: 0;
+  }
+  .bookmarklet-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 4px 0 12px;
+  }
+  .bookmarklet {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px dashed var(--accent);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: grab;
+  }
+  .bookmarklet-row .note {
+    flex: 1;
+    min-width: 220px;
+  }
+  .paste-list {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  :global(.paste-item) {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  :global(.paste-item .pick-title) {
+    color: var(--text);
+    text-decoration: none;
+  }
+  :global(.paste-item .pick-title:hover) {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  :global(.admin .paste-item textarea) {
+    font-family: inherit;
+    font-size: 0.82rem;
+  }
+  :global(.paste-info) {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  :global(.paste-info.warn) {
+    color: var(--hot);
+  }
+  :global(.paste-actions) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+  }
+  :global(.paste-actions .alt) {
+    font-size: 0.78rem;
+    color: var(--text-2);
+  }
+  :global(.pick-row) {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  :global(.pick-row > label) {
+    flex: 1;
+    min-width: 0;
+  }
+  :global(.pick-row > button) {
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+  :global(.badge-inline.warn) {
+    color: var(--hot);
+    border-color: var(--hot);
+  }
+  :global(.badge-inline.ok) {
+    color: #15803d;
+    border-color: #15803d;
   }
   .summary-title {
     flex: 1;
@@ -678,8 +812,10 @@ import { href } from '../../lib/items.ts';
     }
     :global(:root:not([data-theme='light']) .status.ok),
     :global(:root:not([data-theme='light']) .result-state.ok),
-    :global(:root:not([data-theme='light']) .run-state.ok) {
+    :global(:root:not([data-theme='light']) .run-state.ok),
+    :global(:root:not([data-theme='light']) .badge-inline.ok) {
       color: #7ee2a1;
+      border-color: #1f5a35;
     }
   }
   :global(:root[data-theme='dark'] .badge.ok) {
@@ -689,7 +825,9 @@ import { href } from '../../lib/items.ts';
   }
   :global(:root[data-theme='dark'] .status.ok),
   :global(:root[data-theme='dark'] .result-state.ok),
-  :global(:root[data-theme='dark'] .run-state.ok) {
+  :global(:root[data-theme='dark'] .run-state.ok),
+  :global(:root[data-theme='dark'] .badge-inline.ok) {
     color: #7ee2a1;
+    border-color: #1f5a35;
   }
 </style>

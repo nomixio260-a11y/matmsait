@@ -10,12 +10,15 @@ import {
 } from '../lib/blocklist-core.ts';
 import { createGitHubClient, GitHubError, type Repository, type WorkflowRun } from '../lib/github-commit.ts';
 import {
+  ARTICLE_TEXT_MAX,
   buildSummaryPrompt,
+  comparePastedUrl,
   editSummaryRecord,
   extractJson,
   groupByFile,
   mergeSummaryRecords,
   normalizeEntries,
+  parsePastedText,
   parseSummaryFile,
   serializeSummaryFile,
   summaryFilePath,
@@ -31,6 +34,8 @@ import { requireSession, watchSession } from './admin-common.ts';
 
 interface AdminArticle extends Item {
   site: string;
+  /** 同じ話題（同じ出来事を報じた記事のまとまり）のキー。ほかの掲載元も報じている記事だけ */
+  topic?: string;
 }
 
 interface AdminSummary extends AdminArticle {
@@ -79,6 +84,8 @@ const KEYS = {
   unhidden: 'admin.unhiddenIds',
   edited: 'admin.editedSummaries',
   options: 'admin.options',
+  unavailable: 'admin.unavailable',
+  readable: 'admin.aiReadable',
 };
 /** 保存・削除した記事を、サイトに反映されるまで一覧から隠しておく時間 */
 const HIDE_FOR = 6 * 60 * 60 * 1000;
@@ -164,6 +171,12 @@ const ui = {
   runUpdate: $<HTMLButtonElement>('run-update'),
   runStatus: $('run-status'),
   runList: $<HTMLUListElement>('run-list'),
+  pasteCard: $<HTMLDetailsElement>('paste-card'),
+  pasteCount: $('paste-count'),
+  pasteList: $<HTMLUListElement>('paste-list'),
+  pasteFlagged: $('paste-flagged'),
+  pasteStatus: $('paste-status'),
+  selectPasted: $<HTMLButtonElement>('select-pasted'),
   includeSummarized: $<HTMLInputElement>('include-summarized'),
   savedFilter: $<HTMLInputElement>('saved-filter'),
   hideSelected: $<HTMLButtonElement>('hide-selected'),
@@ -216,6 +229,10 @@ let validation: ValidationResult | undefined;
 const excluded = new Set<string>();
 /** ログイン中に使う GitHub のトークン（ログインページで暗号化を解いたもの。このタブの中だけで使う） */
 let token = '';
+/** 運営者が貼り付けた記事の本文（記事ID → 本文）。プロンプトを作るのに使うだけで、サイトや GitHub には保存・公開しない */
+const texts = new Map<string, string>();
+/** 「本文を貼る」で、本文を貼り付ける記事に加えた記事 */
+const pasteIds = new Set<string>();
 
 const categoryName = (slug: string) => data?.categories.find((c) => c.slug === slug)?.name ?? slug;
 
@@ -267,13 +284,17 @@ function findArticle(id: string): { article: AdminArticle; summarized: boolean }
 
 function autoSelect() {
   selected.clear();
-  // 要約済みの記事（作り直し）は自動では選ばず、チェックしたものだけを作り直す
-  const pending = pendingArticles().filter((article) => !findArticle(article.id)?.summarized);
+  // 要約済みの記事（作り直し）は自動では選ばず、チェックしたものだけを作り直す。
+  // AI が開けなかった記事と、開けないことが多いサイトの記事も（本文を貼るまでは）選ばない
+  const blocked = aiBlocked();
+  const pending = pendingArticles().filter((article) => !findArticle(article.id)?.summarized && !blocked(article));
   for (const article of pending.slice(0, Number(ui.count.value))) selected.add(article.id);
 }
 
 function renderPickList() {
   const list = pendingArticles();
+  const marks = readUnavailable();
+  const flagged = flaggedSources(marks);
   ui.pickList.replaceChildren(
     ...list.slice(0, LIST_LIMIT).map((article) => {
       const item = el('li');
@@ -289,8 +310,17 @@ function renderPickList() {
       });
       const meta = el('span', 'pick-meta', articleMeta(article));
       if (findArticle(article.id)?.summarized) meta.append(el('span', 'badge-inline', '要約済み・作り直し'));
+      if (texts.has(article.id)) meta.append(el('span', 'badge-inline ok', '本文あり'));
+      else if (marks.has(article.id)) meta.append(el('span', 'badge-inline warn', 'AI が開けなかった'));
+      else if (flagged.has(article.sourceId)) meta.append(el('span', 'badge-inline warn', 'AI が開けないことが多いサイト'));
       label.append(box, el('span', 'pick-title', article.title), meta);
-      item.append(label);
+      item.className = 'pick-row';
+      item.dataset.id = article.id;
+      const paste = el('button', 'ghost small', '本文を貼る');
+      paste.type = 'button';
+      paste.title = 'AI が記事を開けないときに、本文を貼り付けて要約する';
+      paste.addEventListener('click', () => addToPaste(article.id));
+      item.append(label, paste);
       return item;
     }),
   );
@@ -298,28 +328,351 @@ function renderPickList() {
   renderCounter(list.length);
 }
 
+/** 一覧のチェックを、選んだ記事に合わせる（一覧を作り直さずに） */
+function syncPickList() {
+  for (const box of ui.pickList.querySelectorAll<HTMLInputElement>('li[data-id] input[type="checkbox"]')) {
+    box.checked = selected.has(box.closest<HTMLElement>('li')!.dataset.id!);
+  }
+  renderCounter(pendingArticles().length);
+}
+
 function renderCounter(total: number) {
   const shown = Math.min(total, LIST_LIMIT);
-  ui.counter.textContent = `要約待ち ${total}件${total > shown ? `（上位${shown}件を表示）` : ''} ・ 選択中 ${selected.size}件`;
+  const blocked = aiBlocked();
+  const skipped = pendingArticles().filter(blocked).length;
+  ui.counter.textContent = [
+    `要約待ち ${total}件${total > shown ? `（上位${shown}件を表示）` : ''}`,
+    `選択中 ${selected.size}件`,
+    skipped > 0 ? `AI が開けない記事 ${skipped}件は自動では選びません` : '',
+  ]
+    .filter(Boolean)
+    .join(' ・ ');
 }
 
 // ===== 2. プロンプト =====
 
+/** 選んでいる記事（カテゴリで絞り込んでいても、選んだ記事はすべてプロンプトに入れる） */
+function selectedArticles(): AdminArticle[] {
+  const saved = readMarks(KEYS.saved);
+  const hidden = readMarks(KEYS.hidden);
+  return [...selected].flatMap((id) => {
+    const found = findArticle(id);
+    return found && !saved.has(id) && !hidden.has(id) ? [found.article] : [];
+  });
+}
+
+/** この字数を超えるプロンプトは、チャット AI に貼り付けられないことがある */
+const PROMPT_WARN_CHARS = 30_000;
+
 function renderPrompt() {
   if (!data) return;
-  batch = pendingArticles().filter((article) => selected.has(article.id));
+  batch = selectedArticles();
   saveDraft();
   if (batch.length === 0) {
     ui.prompt.value = '';
     ui.promptInfo.textContent = '記事を選ぶとプロンプトが表示されます';
+    ui.promptInfo.className = 'note';
     return;
   }
   ui.prompt.value = buildSummaryPrompt(
-    batch.map(({ id, title, url, site, excerpt }) => ({ id, title, url, site, excerpt })),
+    batch.map(({ id, title, url, site, excerpt }) => ({ id, title, url, site, excerpt, text: texts.get(id) })),
     { siteName: data.siteName, length: ui.length.value as SummaryLength, points: ui.points.checked },
   );
-  ui.promptInfo.textContent = `${batch.length}件 ・ ${ui.prompt.value.length.toLocaleString()}字`;
+  const withText = batch.filter((article) => texts.has(article.id)).length;
+  const long = ui.prompt.value.length > PROMPT_WARN_CHARS;
+  ui.promptInfo.textContent = [
+    `${batch.length}件${withText > 0 ? `（本文あり ${withText}件）` : ''} ・ ${ui.prompt.value.length.toLocaleString()}字`,
+    long ? '長すぎると AI に貼り付けられなかったり回答が途中で切れたりします。記事を減らしてください' : '',
+  ]
+    .filter(Boolean)
+    .join(' ・ ');
+  ui.promptInfo.className = long ? 'note warn' : 'note';
   saveOptions();
+}
+
+// ===== AI が開けない記事（本文の貼り付け・同じ話題の別の記事） =====
+
+/** AI が開けなかった記事の記録（このブラウザに残す） */
+interface UnavailableMark {
+  at: number;
+  sourceId: string;
+  site: string;
+  /** 「リストから外す」で一覧から外した（自動の選択からは引き続き外す） */
+  dismissed?: boolean;
+}
+/** AI が開けなかった記録を残す期間 */
+const UNAVAILABLE_FOR = 14 * 24 * 60 * 60 * 1000;
+/** AI が開けなかった記事がこの件数以上あるサイトは、本文を貼るまで自動では選ばない */
+const FLAG_THRESHOLD = 2;
+
+function readUnavailable(): Map<string, UnavailableMark> {
+  try {
+    const entries = JSON.parse(storage.get(KEYS.unavailable) ?? '[]') as [string, UnavailableMark][];
+    return new Map(entries.filter(([, mark]) => typeof mark?.at === 'number' && Date.now() - mark.at < UNAVAILABLE_FOR));
+  } catch {
+    return new Map();
+  }
+}
+
+function writeUnavailable(marks: Map<string, UnavailableMark>) {
+  storage.set(KEYS.unavailable, JSON.stringify([...marks]));
+}
+
+/** 本文を貼らずに要約できた（AI が開けた）最後の時刻（掲載元ID → 時刻） */
+function readReadable(): Record<string, number> {
+  try {
+    return JSON.parse(storage.get(KEYS.readable) ?? '{}') as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+/** AI が開けないことが多いサイト（最後に開けたあとに、開けなかった記事が FLAG_THRESHOLD 件以上あるサイト） */
+function flaggedSources(marks = readUnavailable()): Map<string, { site: string; count: number }> {
+  const readable = readReadable();
+  const counts = new Map<string, { site: string; count: number }>();
+  for (const mark of marks.values()) {
+    if (mark.at <= (readable[mark.sourceId] ?? 0)) continue;
+    const entry = counts.get(mark.sourceId) ?? { site: mark.site, count: 0 };
+    entry.count++;
+    counts.set(mark.sourceId, entry);
+  }
+  return new Map([...counts].filter(([, entry]) => entry.count >= FLAG_THRESHOLD));
+}
+
+/** 本文を貼るまで自動では選ばない記事か（AI が開けなかった記事と、開けないことが多いサイトの記事） */
+function aiBlocked(): (article: AdminArticle) => boolean {
+  const marks = readUnavailable();
+  const flagged = flaggedSources(marks);
+  return (article) => !texts.has(article.id) && (marks.has(article.id) || flagged.has(article.sourceId));
+}
+
+/** AI が開けなかった記事を記録して、「AI が開けない記事」に出す */
+function markUnavailable(ids: string[]) {
+  const marks = readUnavailable();
+  for (const id of ids) {
+    const found = findArticle(id);
+    if (found) marks.set(id, { at: Date.now(), sourceId: found.article.sourceId, site: found.article.site });
+  }
+  writeUnavailable(marks);
+  renderPickList();
+  renderPasteList();
+}
+
+/** 保存した記事を片付ける。本文を貼らずに要約できたサイトは「AI が開けた」と記録する */
+function clearPasted(ids: string[]) {
+  const marks = readUnavailable();
+  const readable = readReadable();
+  for (const id of ids) {
+    const found = findArticle(id);
+    if (found && !texts.has(id)) readable[found.article.sourceId] = Date.now();
+    marks.delete(id);
+    texts.delete(id);
+    pasteIds.delete(id);
+  }
+  writeUnavailable(marks);
+  storage.set(KEYS.readable, JSON.stringify(readable));
+  renderPasteList();
+}
+
+/** 本文を貼り付ける記事（AI が開けなかった記事・「本文を貼る」で加えた記事・本文を貼った記事） */
+function pasteArticles(marks = readUnavailable()): AdminArticle[] {
+  const saved = readMarks(KEYS.saved);
+  const ids = [
+    ...[...marks]
+      .filter(([, mark]) => !mark.dismissed)
+      .sort((a, b) => b[1].at - a[1].at)
+      .map(([id]) => id),
+    ...pasteIds,
+    ...texts.keys(),
+  ];
+  return [...new Set(ids)].flatMap((id) => {
+    const found = findArticle(id);
+    return found && !saved.has(id) ? [found.article] : [];
+  });
+}
+
+/** 同じ話題を報じたほかの掲載元の記事（要約待ちで AI が開けそうなもの）と、同じ話題の要約済みの記事 */
+function sameTopic(article: AdminArticle): { pending: AdminArticle[]; summarized?: AdminArticle } {
+  if (!data || !article.topic) return { pending: [] };
+  const blocked = aiBlocked();
+  const saved = readMarks(KEYS.saved);
+  const others = (list: AdminArticle[]) => list.filter((other) => other.topic === article.topic && other.id !== article.id);
+  const summarized = others(data.summarized)[0] ?? others(data.pending).find((other) => saved.has(other.id));
+  const pending = others(data.pending).filter(
+    (other) => other.sourceId !== article.sourceId && !saved.has(other.id) && !blocked(other),
+  );
+  return { pending, summarized };
+}
+
+const shorten = (text: string, max: number) => (Array.from(text).length > max ? `${Array.from(text).slice(0, max).join('')}…` : text);
+
+function openPasteCard(focusId?: string) {
+  ui.pasteCard.open = true;
+  ui.pasteCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (focusId) {
+    ui.pasteList.querySelector<HTMLTextAreaElement>(`li[data-id="${CSS.escape(focusId)}"] textarea`)?.focus({ preventScroll: true });
+  }
+}
+
+/** 「本文を貼る」: 記事を本文を貼り付ける記事に加えて選ぶ */
+function addToPaste(id: string) {
+  pasteIds.add(id);
+  selected.add(id);
+  const marks = readUnavailable();
+  const mark = marks.get(id);
+  if (mark?.dismissed) {
+    delete mark.dismissed;
+    writeUnavailable(marks);
+  }
+  syncPickList();
+  renderPasteList();
+  renderPrompt();
+  openPasteCard(id);
+}
+
+/** 本文を貼り付ける記事から外す（AI が開けなかった記録は残し、自動では選ばないままにする） */
+function removeFromPaste(id: string) {
+  const marks = readUnavailable();
+  const mark = marks.get(id);
+  if (mark) {
+    mark.dismissed = true;
+    writeUnavailable(marks);
+  }
+  pasteIds.delete(id);
+  texts.delete(id);
+  selected.delete(id);
+}
+
+/** AI が開けない記事の代わりに、同じ話題の別の記事を選ぶ */
+function switchTo(article: AdminArticle, other: AdminArticle) {
+  removeFromPaste(article.id);
+  selected.add(other.id);
+  syncPickList();
+  renderPasteList();
+  renderPrompt();
+  setStatus(ui.pasteStatus, `代わりに「${other.title}」（${other.site}）を選びました。手順2のプロンプトに入っています。`, 'ok');
+}
+
+function pasteRow(article: AdminArticle, marks: Map<string, UnavailableMark>): HTMLLIElement {
+  const item = el('li', 'paste-item');
+  item.dataset.id = article.id;
+  const title = el('a', 'pick-title', `${article.title} ↗`);
+  title.href = article.url;
+  title.target = '_blank';
+  title.rel = 'noopener noreferrer';
+  title.title = '記事を新しいタブで開く';
+  const meta = el('div', 'pick-meta', articleMeta(article));
+  if (marks.has(article.id)) meta.append(el('span', 'badge-inline warn', 'AI が開けなかった'));
+
+  const area = el('textarea');
+  area.rows = 4;
+  area.spellcheck = false;
+  area.placeholder = '記事のページで本文をコピーして、ここに貼り付け（「本文をコピー」ボタンを使うと本文だけを取り出せます）';
+  area.value = texts.get(article.id) ?? '';
+  area.setAttribute('aria-label', `「${article.title}」の本文`);
+  const info = el('p', 'paste-info');
+  /** 本文を読み取って表示を更新する。貼り付けたとき（pasted）は、その記事を選ぶ */
+  const update = (pasted: boolean) => {
+    const parsed = parsePastedText(area.value);
+    if (parsed.text) texts.set(article.id, parsed.text);
+    else texts.delete(article.id);
+    const warnings: string[] = [];
+    if (parsed.url) {
+      const match = comparePastedUrl(parsed.url, article.url);
+      if (match === 'other') warnings.push('別のサイトのページの本文のようです。貼り間違えていないか確かめてください。');
+      if (match === 'same-site') warnings.push('記事の URL と違うページの本文です。同じ記事か確かめてください。');
+    }
+    const length = Array.from(parsed.text).length;
+    if (parsed.truncated) warnings.push(`長いので先頭の${ARTICLE_TEXT_MAX.toLocaleString()}字だけを使います。`);
+    else if (parsed.text && length < 200) warnings.push('本文が短いようです。本文全体をコピーできているか確かめてください。');
+    info.textContent = parsed.text
+      ? [`本文 ${length.toLocaleString()}字（AI は URL を開かずに、この本文から要約します）。`, ...warnings].join(' ')
+      : '本文はまだありません（このままでは AI が URL を開こうとします）。';
+    info.className = warnings.length > 0 ? 'paste-info warn' : 'paste-info';
+    ui.selectPasted.disabled = texts.size === 0;
+    if (pasted && parsed.text && !selected.has(article.id)) {
+      selected.add(article.id);
+      syncPickList();
+    }
+  };
+  area.addEventListener('input', () => {
+    update(true);
+    renderPrompt();
+  });
+  update(false);
+
+  const actions = el('div', 'paste-actions');
+  const { pending, summarized } = sameTopic(article);
+  if (summarized) {
+    actions.append(el('span', 'alt', `同じ話題は「${shorten(summarized.title, 30)}」（${summarized.site}）で要約済みです。この記事は外してもかまいません。`));
+  }
+  for (const other of pending.slice(0, 2)) {
+    const button = el('button', 'small', `代わりに ${other.site} の記事を選ぶ`);
+    button.type = 'button';
+    button.title = `同じ話題: ${other.title}`;
+    button.addEventListener('click', () => switchTo(article, other));
+    actions.append(button);
+  }
+  const remove = el('button', 'ghost small', 'リストから外す');
+  remove.type = 'button';
+  remove.addEventListener('click', () => {
+    removeFromPaste(article.id);
+    syncPickList();
+    renderPasteList();
+    renderPrompt();
+  });
+  actions.append(remove);
+  item.append(title, meta, area, info, actions);
+  return item;
+}
+
+function renderPasteList() {
+  if (!data) return;
+  const marks = readUnavailable();
+  const list = pasteArticles(marks);
+  ui.pasteCount.textContent = `${list.length}件`;
+  ui.pasteList.replaceChildren(...list.map((article) => pasteRow(article, marks)));
+  if (list.length === 0) {
+    ui.pasteList.append(el('li', 'pick-meta', 'AI が開けなかった記事はまだありません。手順1の「本文を貼る」で加えることもできます。'));
+  }
+  ui.selectPasted.disabled = texts.size === 0;
+
+  const flagged = flaggedSources(marks);
+  ui.pasteFlagged.hidden = flagged.size === 0;
+  ui.pasteFlagged.replaceChildren();
+  if (flagged.size > 0) {
+    const names = [...flagged.values()].map((entry) => `${entry.site}（${entry.count}件）`).join('、');
+    const reset = el('button', 'ghost small', '記録を消す');
+    reset.type = 'button';
+    reset.addEventListener('click', () => {
+      if (!confirm('AI が開けなかった記録をすべて消しますか？（貼り付けた本文は消えません）')) return;
+      writeUnavailable(new Map());
+      renderPickList();
+      renderPasteList();
+    });
+    ui.pasteFlagged.append(
+      `AI が開けないことが多いサイト: ${names}。これらのサイトの記事は、本文を貼るまで手順1で自動では選びません。 `,
+      reset,
+    );
+  }
+}
+
+function setupPaste() {
+  ui.selectPasted.addEventListener('click', () => {
+    const ids = [...texts.keys()].filter((id) => findArticle(id));
+    if (ids.length === 0) return;
+    selected.clear();
+    for (const id of ids) selected.add(id);
+    syncPickList();
+    renderPrompt();
+    setStatus(ui.pasteStatus, `本文を貼った${ids.length}件を選びました。手順2のプロンプトをコピーしてください。`, 'ok');
+  });
+  // ブックマークレットは管理画面では動かない（ブックマークバーに登録して記事のページで使う）
+  $('bookmarklet').addEventListener('click', (event) => {
+    event.preventDefault();
+    setStatus(ui.pasteStatus, 'このボタンはブックマークバーにドラッグして登録し、記事のページを開いてから押してください。');
+  });
 }
 
 // ===== 作業中の内容（自動ログアウトやページの再読み込みで消えないようにする） =====
@@ -330,6 +683,10 @@ interface Draft {
   response: string;
   category: string;
   includeSummarized: boolean;
+  /** 貼り付けた本文（記事ID と本文） */
+  texts?: [string, string][];
+  /** 本文を貼り付ける記事に加えた記事 */
+  pasteIds?: string[];
   savedAt: number;
 }
 const DRAFT_KEY = 'admin.draft';
@@ -341,6 +698,8 @@ function saveDraft() {
     response: ui.response.value,
     category: ui.category.value,
     includeSummarized: ui.includeSummarized.checked,
+    texts: [...texts],
+    pasteIds: [...pasteIds],
     savedAt: Date.now(),
   };
   try {
@@ -359,12 +718,20 @@ function restoreDraft(): boolean {
     return false;
   }
   if (!draft || !Array.isArray(draft.selected) || Date.now() - (draft.savedAt ?? 0) > DRAFT_TTL) return false;
-  if (draft.selected.length === 0 && !draft.response) return false;
+  const draftTexts = Array.isArray(draft.texts) ? draft.texts : [];
+  if (draft.selected.length === 0 && !draft.response && draftTexts.length === 0) return false;
   ui.includeSummarized.checked = draft.includeSummarized === true;
   if ([...ui.category.options].some((option) => option.value === draft.category)) ui.category.value = draft.category ?? '';
-  const available = new Set(pendingArticles().map((article) => article.id));
+  const saved = readMarks(KEYS.saved);
+  const exists = (id: string) => findArticle(id) !== undefined && !saved.has(id);
   selected.clear();
-  for (const id of draft.selected) if (available.has(id)) selected.add(id);
+  for (const id of draft.selected) if (exists(id)) selected.add(id);
+  texts.clear();
+  for (const entry of draftTexts) {
+    if (Array.isArray(entry) && typeof entry[1] === 'string' && exists(entry[0])) texts.set(entry[0], entry[1]);
+  }
+  pasteIds.clear();
+  for (const id of Array.isArray(draft.pasteIds) ? draft.pasteIds : []) if (exists(id)) pasteIds.add(id);
   ui.response.value = typeof draft.response === 'string' ? draft.response : '';
   return true;
 }
@@ -506,6 +873,25 @@ function checkResponse() {
     table.append(row);
   }
   ui.checkResult.append(summary, table);
+
+  // AI が開けなかった記事を記録し、「AI が開けない記事」に移す（次からは自動で選ばない）
+  const unavailable = validation.skipped.filter((issue) => issue.unavailable).map((issue) => issue.id);
+  if (unavailable.length > 0) {
+    markUnavailable(unavailable);
+    const note = el('div', 'unavailable-note');
+    note.append(
+      el(
+        'p',
+        'note',
+        `AI が開けなかった記事 ${unavailable.length}件を「AI が開けない記事」に移しました。保存のあと、本文を貼り付けるか、同じ話題の別の記事に切り替えて、もう一度プロンプトを作ってください。`,
+      ),
+    );
+    const go = el('button', 'small', '「AI が開けない記事」を開く');
+    go.type = 'button';
+    go.addEventListener('click', () => openPasteCard());
+    note.append(go);
+    ui.checkResult.append(note);
+  }
   renderSaveArea();
 }
 
@@ -559,6 +945,7 @@ async function saveSummaries() {
   try {
     const { changed } = await commitSummaries(records, [], `要約を追加（${records.length}件）`);
     addMarks(KEYS.saved, records.map((record) => record.id));
+    clearPasted(records.map((record) => record.id));
     // 作り直した要約は、サイトに反映されるまで「保存済みの要約」に新しい内容を出す
     for (const record of records) {
       if (!findArticle(record.id)?.summarized) continue;
@@ -1144,6 +1531,7 @@ async function main() {
 
   restoreOptions();
   setupConnection();
+  setupPaste();
   try {
     const res = await fetch(`${base}/admin/data.json`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1217,6 +1605,7 @@ async function main() {
   if (restoreDraft()) {
     renderPickList();
     renderPrompt();
+    if (texts.size > 0) ui.pasteCard.open = true;
     ui.dataInfo.after(
       el('p', 'note', `前回の作業（選んだ記事 ${selected.size}件${ui.response.value.trim() ? '・貼り付けた回答' : ''}）を戻しました。`),
     );
@@ -1224,6 +1613,7 @@ async function main() {
   } else {
     refresh();
   }
+  renderPasteList();
   renderSavedList();
   renderSaveArea();
   setupRuns();

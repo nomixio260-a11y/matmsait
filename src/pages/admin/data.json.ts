@@ -5,20 +5,30 @@ import { getBlocklist } from '../../lib/blocklist.ts';
 import { blockReason } from '../../lib/blocklist-core.ts';
 import { allowsSummary, builtAt, getAllItems, getItems, getSources, siteOf } from '../../lib/items.ts';
 import { getAllSummaries, getSummaries, getSummary } from '../../lib/summaries.ts';
-import { coverageOf } from '../../lib/topics.ts';
+import { coverageOf, topicOf } from '../../lib/topics.ts';
 import type { Item } from '../../lib/types.ts';
 
-const article = (item: Item) => ({
-  id: item.id,
-  title: item.title,
-  url: item.url,
-  excerpt: item.excerpt,
-  sourceId: item.sourceId,
-  category: item.category,
-  publishedAt: item.publishedAt,
-  ...(coverageOf(item.id) >= 2 ? { coverage: coverageOf(item.id) } : {}),
-  site: siteOf(item).label,
-});
+/** 同じ話題（同じ出来事を報じた記事のまとまり）を見分けるキー。AI が開けない記事の代わりに、同じ話題の別の記事を選ぶのに使う */
+function topicKey(id: string): string | undefined {
+  const topic = topicOf(id);
+  return topic && topic.coverage >= 2 ? topic.items.map((item) => item.id).sort()[0] : undefined;
+}
+
+const article = (item: Item) => {
+  const topic = topicKey(item.id);
+  return {
+    id: item.id,
+    title: item.title,
+    url: item.url,
+    excerpt: item.excerpt,
+    sourceId: item.sourceId,
+    category: item.category,
+    publishedAt: item.publishedAt,
+    ...(coverageOf(item.id) >= 2 ? { coverage: coverageOf(item.id) } : {}),
+    ...(topic ? { topic } : {}),
+    site: siteOf(item).label,
+  };
+};
 
 /** 管理画面に渡す要約待ちの記事の数（新着順）。収集元が多いと全件では管理画面の読み込みが重くなる */
 const PENDING_LATEST = 3000;
