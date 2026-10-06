@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ANSWER_FILE_NAME,
   ARTICLE_TEXT_MAX,
   PASTE_MARKER,
   buildSummaryPrompt,
@@ -11,6 +12,8 @@ import {
   normalizeEntries,
   parsePastedText,
   parseSummaryFile,
+  splitPastedBlocks,
+  splitPromptArticles,
   serializeSummaryFile,
   summaryFilePath,
   toSummaryRecord,
@@ -110,6 +113,80 @@ describe('buildSummaryPrompt', () => {
     expect(prompt).toContain('url のページを開いて本文を読む');
     expect(prompt).not.toContain('# 記事の本文');
     expect(prompt).not.toContain('"text"');
+  });
+});
+
+describe('回答のしかた・プロンプトの分割', () => {
+  const options = { siteName: 'テスト', length: 'normal' as const, points: true };
+  const article = (n: number, text?: string) => ({
+    id: n.toString(16).padStart(16, '0'),
+    title: `記事${n}`,
+    url: `https://e.com/${n}`,
+    site: 's',
+    ...(text ? { text } : {}),
+  });
+
+  it('ファイルで回答してもらう指定では、JSON ファイルを作るよう頼む（作れなければコードブロック）', () => {
+    const prompt = buildSummaryPrompt([article(1)], { ...options, answer: 'file' });
+    expect(prompt).toContain(`ファイル名は ${ANSWER_FILE_NAME}`);
+    expect(prompt).toContain('ファイルを作れない場合は、```json で始まり');
+    expect(buildSummaryPrompt([article(1)], options)).not.toContain(ANSWER_FILE_NAME);
+  });
+
+  it('上限に収まれば分けず、収まらなければ順番を変えずに上限以内の回に分ける', () => {
+    const articles = [1, 2, 3, 4, 5].map((n) => article(n, '本文'.repeat(600)));
+    const whole = buildSummaryPrompt(articles, options).length;
+    expect(splitPromptArticles(articles, options, whole)).toEqual([articles]);
+    expect(splitPromptArticles(articles, options, 0)).toEqual([articles]);
+    // 1回に2件まで入る上限にする
+    const sized = (count: number) =>
+      buildSummaryPrompt(articles.slice(0, count), { ...options, part: { index: 1, total: 3 } }).length;
+    const max = sized(2) + Math.floor((sized(2) - sized(1)) / 2);
+    expect(max).toBeLessThan(whole);
+    const groups = splitPromptArticles(articles, options, max);
+    expect(groups.map((group) => group.length)).toEqual([2, 2, 1]);
+    expect(groups.flat()).toEqual(articles);
+    groups.forEach((group, i) => {
+      const prompt = buildSummaryPrompt(group, { ...options, part: { index: i + 1, total: groups.length } });
+      expect(prompt.length).toBeLessThanOrEqual(max);
+      expect(prompt).toContain(`全${groups.length}回に分けています。これは${i + 1}回目です`);
+    });
+  });
+
+  it('1件だけで上限を超える記事は、その記事だけで1回分にする', () => {
+    const articles = [article(1), article(2, 'あ'.repeat(5000)), article(3)];
+    const groups = splitPromptArticles(articles, options, 6000);
+    expect(groups.map((group) => group.map((a) => a.title))).toEqual([['記事1'], ['記事2'], ['記事3']]);
+  });
+});
+
+describe('splitPastedBlocks', () => {
+  it('ブックマークレットでコピーした本文をいくつか並べたものを、本文ごとに分ける', () => {
+    const raw = [
+      'メモ: 今日の分',
+      PASTE_MARKER,
+      'タイトル: 記事A',
+      'URL: https://a.example.jp/1',
+      '',
+      'Aの本文です。',
+      '',
+      PASTE_MARKER,
+      'タイトル: 記事B',
+      'URL: https://b.example.jp/2',
+      '',
+      'Bの本文です。',
+    ].join('\n');
+    const blocks = splitPastedBlocks(raw);
+    expect(blocks.map((block) => [block.url, block.text])).toEqual([
+      [undefined, 'メモ: 今日の分'],
+      ['https://a.example.jp/1', 'Aの本文です。'],
+      ['https://b.example.jp/2', 'Bの本文です。'],
+    ]);
+  });
+
+  it('目印がなければ全体を1つの本文にし、空なら何も返さない', () => {
+    expect(splitPastedBlocks('本文だけ').map((block) => block.text)).toEqual(['本文だけ']);
+    expect(splitPastedBlocks('  \n ')).toEqual([]);
   });
 });
 

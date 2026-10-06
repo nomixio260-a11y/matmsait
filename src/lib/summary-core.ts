@@ -30,12 +30,26 @@ export interface PromptArticle {
   text?: string;
 }
 
+/**
+ * AI の回答のしかた。
+ * codeblock: コードブロックで表示してもらい、コピーして貼り付ける。
+ * file: JSON ファイルを作ってもらい、ダウンロードして管理画面で読み込む（長い回答でもコピーの手間や切れる心配がない）
+ */
+export type AnswerMode = 'codeblock' | 'file';
+
 export interface PromptOptions {
   siteName: string;
   length: SummaryLength;
   /** 要点（箇条書き）も書かせるか */
   points: boolean;
+  /** AI の回答のしかた（既定はコードブロック） */
+  answer?: AnswerMode;
+  /** プロンプトを何回かに分けたときの、何回目か */
+  part?: { index: number; total: number };
 }
+
+/** 回答を JSON ファイルで作ってもらうときのファイル名 */
+export const ANSWER_FILE_NAME = 'summaries.json';
 
 /** プロンプトに入れる本文の長さの上限（字）。長すぎると AI が受け付けなかったり、回答が途中で切れたりする */
 export const ARTICLE_TEXT_MAX = 6000;
@@ -75,6 +89,48 @@ export function parsePastedText(raw: string, max = ARTICLE_TEXT_MAX): PastedText
   const truncated = chars.length > max;
   if (truncated) text = `${chars.slice(0, max).join('')}…（以下略）`;
   return { text, ...(url ? { url } : {}), ...(title ? { title } : {}), truncated };
+}
+
+/**
+ * 記事を、1回分のプロンプトが maxChars 字以内に収まるように何回かに分ける（記事の順番は変えない）。
+ * チャット AI には一度に貼り付けられる長さに上限があるため。maxChars が0なら分けない。
+ * 1件だけで上限を超える記事は、その記事だけで1回分にする
+ */
+export function splitPromptArticles(articles: PromptArticle[], options: PromptOptions, maxChars: number): PromptArticle[][] {
+  if (maxChars <= 0 || articles.length <= 1) return articles.length > 0 ? [articles] : [];
+  // 「全N回のうちk回目」の行を入れた長さで測る（回数は最大2桁とみなす）
+  const measure = (group: PromptArticle[]) =>
+    buildSummaryPrompt(group, { ...options, part: { index: 99, total: 99 } }).length;
+  if (buildSummaryPrompt(articles, { ...options, part: undefined }).length <= maxChars) return [articles];
+  const groups: PromptArticle[][] = [];
+  let current: PromptArticle[] = [];
+  for (const article of articles) {
+    if (current.length > 0 && measure([...current, article]) > maxChars) {
+      groups.push(current);
+      current = [article];
+    } else {
+      current = [...current, article];
+    }
+  }
+  if (current.length > 0) groups.push(current);
+  return groups;
+}
+
+/**
+ * まとめて貼り付けた本文（ブックマークレットでコピーしたものをいくつか並べたもの、またはファイルの中身）を、
+ * 本文ごとに分けて整える。目印の行がなければ全体を1つの本文とみなす
+ */
+export function splitPastedBlocks(raw: string): PastedText[] {
+  const text = raw.replace(/\r\n?/g, '\n');
+  const marker = PASTE_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const starts = [...text.matchAll(new RegExp(`^\\s*${marker}\\s*$`, 'gm'))].map((match) => match.index ?? 0);
+  if (starts.length === 0) {
+    const single = parsePastedText(text);
+    return single.text ? [single] : [];
+  }
+  const head = text.slice(0, starts[0]).trim();
+  const blocks = starts.map((start, i) => text.slice(start, starts[i + 1] ?? text.length).replace(/^\s+/, ''));
+  return [...(head ? [head] : []), ...blocks].map((block) => parsePastedText(block)).filter((block) => block.text);
 }
 
 /**
@@ -135,7 +191,10 @@ const EXAMPLE_SUMMARIES: Record<SummaryLength, string> = {
  * AI に丸ごと貼り付けて使うプロンプト。
  * 回答の JSON はそのまま管理画面で読み込むので、形式の指示をできるだけ具体的に書く
  */
-export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length, points }: PromptOptions): string {
+export function buildSummaryPrompt(
+  articles: PromptArticle[],
+  { siteName, length, points, answer = 'codeblock', part }: PromptOptions,
+): string {
   const { min, max } = SUMMARY_LENGTHS[length];
   const count = articles.length;
   const withText = articles.filter((article) => article.text?.trim());
@@ -166,6 +225,11 @@ export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length
       : withText.length > 0
         ? `下の「記事一覧」にある${count}件の記事について、それぞれの url のページを開いて本文を読み（"text": true の記事は開かずに、いちばん下の「記事の本文」を読み）、日本語で要約してください。`
         : `下の「記事一覧」にある${count}件の記事について、それぞれの url のページを開いて本文を読み、日本語で要約してください。`,
+    ...(part && part.total > 1
+      ? [
+          `（記事が多いため、依頼を全${part.total}回に分けています。これは${part.index}回目です。この回の「記事一覧」にある記事だけを要約してください。前の回の記事は出力しないでください。）`,
+        ]
+      : []),
     'あなたの回答はプログラムがそのまま読み込んでサイトに掲載します。下の「出力形式」と少しでも違うと読み込めないため、形式を厳密に守ってください。',
     '',
     '# 作業の手順',
@@ -192,8 +256,16 @@ export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length
       : []),
     '',
     '# 出力形式（必ず守る）',
-    '- 回答は ```json で始まり ``` で終わるコードブロック1つだけにする。コードブロックの前後に説明・あいさつ・注意書きを書かない。',
-    `- コードブロックの中身は JSON 配列。記事一覧の1件につきオブジェクト1つを、記事一覧と同じ順番で、ちょうど${count}件入れる。`,
+    ...(answer === 'file'
+      ? [
+          `- 回答は、JSON の配列だけを書いたファイル（ファイル名は ${ANSWER_FILE_NAME}、文字コードは UTF-8）を作り、ダウンロードできるようにする。ファイルの中には JSON 以外（説明・コードブロックの記号）を書かない。`,
+          '- ファイルを作れない場合は、```json で始まり ``` で終わるコードブロック1つで出力する。どちらの場合も、前後に長い説明やあいさつを書かない。',
+          `- JSON の配列には、記事一覧の1件につきオブジェクト1つを、記事一覧と同じ順番で、ちょうど${count}件入れる。`,
+        ]
+      : [
+          '- 回答は ```json で始まり ``` で終わるコードブロック1つだけにする。コードブロックの前後に説明・あいさつ・注意書きを書かない。',
+          `- コードブロックの中身は JSON 配列。記事一覧の1件につきオブジェクト1つを、記事一覧と同じ順番で、ちょうど${count}件入れる。`,
+        ]),
     '- 各オブジェクトには次の6つの項目だけを入れる（項目名は英字のまま。ほかの項目は足さない）。',
     '  - "id"（文字列）: 記事一覧の id を1文字も変えずにそのまま書き写す。',
     '  - "status"（文字列）: 要約できた記事は "ok"、本文を読めなかった記事は "unavailable"。この2つ以外の値にしない。',
@@ -222,7 +294,9 @@ export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length
     '- 読めなかった記事を推測で要約せず、status を "unavailable" にしたか',
     ...(withText.length > 0 ? ['- 「記事の本文」がある記事を、本文があるのに "unavailable" にしていないか'] : []),
     '- 数字・日付・固有名詞が本文と一致しているか。本文を書き写した文や、記事にない推測・感想が入っていないか',
-    '- 出力がコードブロック1つだけで、JSON として正しい形（括弧・カンマ・ダブルクォート）になっているか',
+    answer === 'file'
+      ? `- 出力が ${ANSWER_FILE_NAME}（作れない場合はコードブロック1つ）だけで、JSON として正しい形（括弧・カンマ・ダブルクォート）になっているか`
+      : '- 出力がコードブロック1つだけで、JSON として正しい形（括弧・カンマ・ダブルクォート）になっているか',
     '',
     `# 記事一覧（${count}件）`,
     '```json',

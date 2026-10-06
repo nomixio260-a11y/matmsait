@@ -1,6 +1,6 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { ARTICLE_TEXT_MAX, SUMMARY_LENGTHS } from '../../lib/summary-core.ts';
+import { ANSWER_FILE_NAME, ARTICLE_TEXT_MAX, SUMMARY_LENGTHS } from '../../lib/summary-core.ts';
 import { COPY_ARTICLE_BOOKMARKLET } from '../../lib/bookmarklet.ts';
 import { href } from '../../lib/items.ts';
 ---
@@ -101,7 +101,7 @@ import { href } from '../../lib/items.ts';
       </summary>
       <div class="card-body">
         <p class="hint">
-          サイトのボット対策などで AI が記事を開けず「unavailable」になった記事は、ここに集まります。自分のブラウザで記事を開いて本文をコピーし、下の欄に貼り付けると、AI が URL を開かずに本文から要約します（その記事は自動で選ばれ、手順2のプロンプトに本文が入ります）。同じ話題を別のサイトも報じていれば、そちらの記事に切り替えることもできます。
+          サイトのボット対策などで AI が記事を開けず「unavailable」になった記事は、ここに集まります。自分のブラウザで記事を開いて本文をコピーし、ここに貼り付けると、いちばん下に<b>本文入りのプロンプト</b>ができます。それをコピー（またはファイルで保存）して AI に渡すと、AI は URL を開かずに本文から要約の JSON を書きます。回答は手順3で確認・保存します。同じ話題を別のサイトも報じていれば、そちらの記事に切り替えることもできます。
         </p>
         <p class="hint">
           貼り付けた本文はこのタブの中でプロンプトを作るのに使うだけで、サイトや GitHub には保存・公開しません（タブを閉じると消えます）。本文は1記事{ARTICLE_TEXT_MAX.toLocaleString()}字までを使います。
@@ -112,13 +112,35 @@ import { href } from '../../lib/items.ts';
             このボタンをブックマークバーにドラッグして登録しておくと、記事のページで押すだけで本文をコピーできます。うまく取れないときは、本文を選んでから押すか、本文を選んでコピーしてください。
           </span>
         </div>
+        <div class="bulk-paste">
+          <label class="field" for="bulk-text">本文をまとめて貼り付け（ページの URL で記事に自動で振り分けます）</label>
+          <textarea
+            id="bulk-text"
+            rows="3"
+            spellcheck="false"
+            placeholder="「本文をコピー」でコピーした本文をここに貼り付けます（いくつ続けて貼ってもかまいません）"></textarea>
+          <div class="actions">
+            <button type="button" id="bulk-assign" class="small">振り分ける</button>
+            <button type="button" id="text-file-button" class="small">本文のファイルを読み込む</button>
+            <input type="file" id="text-file" accept=".txt,.md,text/plain" multiple hidden />
+            <span class="note">「本文をコピー」の「ファイルで保存」で保存した本文を、まとめて読み込めます（この欄にドラッグしても読み込めます）。</span>
+          </div>
+        </div>
         <p class="note" id="paste-flagged" hidden></p>
         <ul class="paste-list" id="paste-list"></ul>
-        <div class="actions">
-          <button type="button" id="select-pasted" class="small">本文を貼った記事だけを選ぶ</button>
-          <span class="note">本文を貼った記事だけでプロンプトを作ります（本文つきのプロンプトは長くなるので、5件程度ずつがおすすめです）</span>
-        </div>
         <p class="status" id="paste-status" aria-live="polite"></p>
+        <div class="prompt-panel" id="paste-prompt-panel" hidden>
+          <h3>本文入りのプロンプト（本文を貼った記事の要約を AI に依頼する）</h3>
+          <div class="prompt-parts" id="paste-prompt-parts" hidden></div>
+          <textarea id="paste-prompt" rows="8" readonly aria-label="本文入りのプロンプト"></textarea>
+          <div class="actions">
+            <button type="button" id="paste-prompt-copy" class="primary">プロンプトをコピー</button>
+            <button type="button" id="paste-prompt-download">ファイルで保存</button>
+            <button type="button" id="paste-prompt-download-all" hidden>全部を1つのファイルで保存</button>
+            <span class="note" id="paste-prompt-info"></span>
+          </div>
+          <div class="status" id="paste-prompt-status" aria-live="polite"></div>
+        </div>
       </div>
     </details>
 
@@ -138,19 +160,39 @@ import { href } from '../../lib/items.ts';
               }
             </select>
           </label>
+          <label class="field inline">
+            <span>1回に貼り付ける長さの上限</span>
+            <select id="max-chars">
+              <option value="0">上限なし</option>
+              <option value="8000">8,000字</option>
+              <option value="15000" selected>15,000字</option>
+              <option value="30000">30,000字</option>
+              <option value="60000">60,000字</option>
+            </select>
+          </label>
+          <label class="field inline">
+            <span>AI の回答のしかた</span>
+            <select id="answer-mode">
+              <option value="codeblock" selected>コードブロック（コピー）</option>
+              <option value="file">JSON ファイル（ダウンロード）</option>
+            </select>
+          </label>
           <label class="check">
             <input id="points" type="checkbox" checked />
             要点（箇条書き）も作る
           </label>
         </div>
+        <div class="prompt-parts" id="prompt-parts" hidden></div>
         <textarea id="prompt" rows="12" readonly aria-label="AIに渡すプロンプト"></textarea>
         <div class="actions">
           <button type="button" id="copy-prompt" class="primary">プロンプトをコピー</button>
-          <button type="button" id="download-prompt">テキストで保存</button>
+          <button type="button" id="download-prompt">ファイルで保存</button>
+          <button type="button" id="download-prompt-all" hidden>全部を1つのファイルで保存</button>
           <span class="note" id="prompt-info"></span>
         </div>
+        <div class="status" id="prompt-status" aria-live="polite"></div>
         <p class="hint">
-          プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けてください。AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残って「AI が開けない記事」に移ります（次からは自動で選ばれません）。
+          プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けてください。チャット AI に貼り付けられる長さには上限があるので、上限を超えるプロンプトは何回かに分けます（1回ずつコピーして渡し、回答をそれぞれ確認・保存します）。貼り付けられないときは「ファイルで保存」して AI にファイルとして添付できます。「AI の回答のしかた」を「JSON ファイル」にすると、AI に {ANSWER_FILE_NAME} を作ってもらい、ダウンロードしたファイルを手順3で読み込めます（ファイルを作れる AI で使えます。作れない AI はコードブロックで答えます）。AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残って「AI が開けない記事」に移ります（次からは自動で選ばれません）。
         </p>
       </div>
     </section>
@@ -166,8 +208,14 @@ import { href } from '../../lib/items.ts';
           placeholder='[{"id": "...", "status": "ok", "summary": "...", "points": ["..."]}]'></textarea>
         <div class="actions">
           <button type="button" id="check" class="primary">内容を確認する</button>
+          <button type="button" id="response-file-button">ファイルから読み込む</button>
+          <input type="file" id="response-file" accept=".json,.txt,.md,application/json,text/plain" multiple hidden />
           <button type="button" id="clear-response" class="ghost">クリア</button>
         </div>
+        <p class="note">
+          AI が作った JSON ファイル（{ANSWER_FILE_NAME}）や、回答を保存したファイル・「保存用JSON」も読み込めます（複数のファイルを一度に選べます。この欄にドラッグしても読み込めます）。
+        </p>
+        <p class="status" id="response-file-status" aria-live="polite"></p>
         <div id="check-result" aria-live="polite"></div>
       </div>
     </section>
@@ -335,6 +383,59 @@ import { href } from '../../lib/items.ts';
     min-width: 220px;
     margin: 0;
   }
+  .bulk-paste {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 10px;
+  }
+  .bulk-paste .actions {
+    margin-top: 0;
+  }
+  .prompt-panel {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .prompt-panel[hidden] {
+    display: none;
+  }
+  .prompt-panel h3 {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+  .prompt-panel .actions {
+    margin-top: 0;
+  }
+  :global(.prompt-parts) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  :global(.prompt-parts[hidden]) {
+    display: none;
+  }
+  :global(.admin .prompt-parts button[aria-pressed='true']) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+  :global(.admin textarea.dragging) {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+  }
+  :global(.file-message) {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
   .bookmarklet-row {
     display: flex;
     flex-wrap: wrap;
@@ -478,6 +579,9 @@ import { href } from '../../lib/items.ts';
     font-size: 0.85rem;
   }
   :global(.admin input[type='password']),
+  :global(.admin select) {
+    max-width: 100%;
+  }
   :global(.admin select),
   :global(.admin textarea) {
     font: inherit;

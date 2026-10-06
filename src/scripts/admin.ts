@@ -11,6 +11,7 @@ import {
 import { createGitHubClient, GitHubError, type Repository, type WorkflowRun } from '../lib/github-commit.ts';
 import {
   ARTICLE_TEXT_MAX,
+  PASTE_MARKER,
   buildSummaryPrompt,
   comparePastedUrl,
   editSummaryRecord,
@@ -20,11 +21,17 @@ import {
   normalizeEntries,
   parsePastedText,
   parseSummaryFile,
+  splitPastedBlocks,
+  splitPromptArticles,
   serializeSummaryFile,
   summaryFilePath,
   toSummaryRecord,
   validateEntries,
   type AcceptedSummary,
+  type AnswerMode,
+  type PastedText,
+  type PromptArticle,
+  type PromptOptions,
   type SummaryEdit,
   type SummaryLength,
   type ValidationResult,
@@ -158,6 +165,13 @@ const ui = {
   points: $<HTMLInputElement>('points'),
   prompt: $<HTMLTextAreaElement>('prompt'),
   promptInfo: $('prompt-info'),
+  promptParts: $('prompt-parts'),
+  promptStatus: $('prompt-status'),
+  downloadPromptAll: $<HTMLButtonElement>('download-prompt-all'),
+  maxChars: $<HTMLSelectElement>('max-chars'),
+  answerMode: $<HTMLSelectElement>('answer-mode'),
+  responseFile: $<HTMLInputElement>('response-file'),
+  responseFileStatus: $('response-file-status'),
   response: $<HTMLTextAreaElement>('response'),
   checkResult: $('check-result'),
   saveInfo: $('save-info'),
@@ -176,7 +190,9 @@ const ui = {
   pasteList: $<HTMLUListElement>('paste-list'),
   pasteFlagged: $('paste-flagged'),
   pasteStatus: $('paste-status'),
-  selectPasted: $<HTMLButtonElement>('select-pasted'),
+  bulkText: $<HTMLTextAreaElement>('bulk-text'),
+  textFile: $<HTMLInputElement>('text-file'),
+  pastePromptPanel: $('paste-prompt-panel'),
   includeSummarized: $<HTMLInputElement>('include-summarized'),
   savedFilter: $<HTMLInputElement>('saved-filter'),
   hideSelected: $<HTMLButtonElement>('hide-selected'),
@@ -343,7 +359,7 @@ function renderCounter(total: number) {
   ui.counter.textContent = [
     `要約待ち ${total}件${total > shown ? `（上位${shown}件を表示）` : ''}`,
     `選択中 ${selected.size}件`,
-    skipped > 0 ? `AI が開けない記事 ${skipped}件は自動では選びません` : '',
+    skipped > 0 ? `AI が開けない記事・本文を貼った記事 ${skipped}件は自動では選びません` : '',
   ]
     .filter(Boolean)
     .join(' ・ ');
@@ -361,33 +377,204 @@ function selectedArticles(): AdminArticle[] {
   });
 }
 
-/** この字数を超えるプロンプトは、チャット AI に貼り付けられないことがある */
-const PROMPT_WARN_CHARS = 30_000;
+// ===== プロンプトの表示（上限を超えるときは何回かに分ける・ファイルで保存する） =====
+
+/** 1回分のプロンプトと、その記事 */
+interface PromptPart {
+  text: string;
+  ids: string[];
+}
+
+interface PromptPanel {
+  /** 保存するファイル名の先頭 */
+  name: string;
+  textarea: HTMLTextAreaElement;
+  parts: HTMLElement;
+  info: HTMLElement;
+  status: HTMLElement;
+  downloadAll: HTMLButtonElement;
+  list: PromptPart[];
+  /** 分けないプロンプト全体（ファイルで AI に渡すとき用） */
+  whole: string;
+  current: number;
+  empty: string;
+}
+
+/** プロンプトのファイルを AI に添付したときに一緒に送る一言 */
+const FILE_MESSAGE = '添付したファイルは記事の要約の依頼です。ファイルに書かれた指示どおりに、記事の要約を作ってください。';
+
+const promptPanel: PromptPanel = {
+  name: 'summary-prompt',
+  textarea: ui.prompt,
+  parts: ui.promptParts,
+  info: ui.promptInfo,
+  status: ui.promptStatus,
+  downloadAll: ui.downloadPromptAll,
+  list: [],
+  whole: '',
+  current: 0,
+  empty: '記事を選ぶとプロンプトが表示されます',
+};
+
+const pastePanel: PromptPanel = {
+  name: 'honbun-prompt',
+  textarea: $<HTMLTextAreaElement>('paste-prompt'),
+  parts: $('paste-prompt-parts'),
+  info: $('paste-prompt-info'),
+  status: $('paste-prompt-status'),
+  downloadAll: $<HTMLButtonElement>('paste-prompt-download-all'),
+  list: [],
+  whole: '',
+  current: 0,
+  empty: '',
+};
+
+function promptOptions(): PromptOptions {
+  return {
+    siteName: data?.siteName ?? '',
+    length: ui.length.value as SummaryLength,
+    points: ui.points.checked,
+    answer: ui.answerMode.value as AnswerMode,
+  };
+}
+
+const maxChars = () => Number(ui.maxChars.value) || 0;
+
+const toPromptArticle = ({ id, title, url, site, excerpt }: AdminArticle): PromptArticle => ({
+  id,
+  title,
+  url,
+  site,
+  excerpt,
+  text: texts.get(id),
+});
+
+/** パネルにプロンプトを出す（1回に貼り付ける長さの上限を超えるときは何回かに分ける） */
+function fillPanel(panel: PromptPanel, articles: AdminArticle[]) {
+  const options = promptOptions();
+  const groups = splitPromptArticles(articles.map(toPromptArticle), options, maxChars());
+  panel.list = groups.map((group, i) => ({
+    text: buildSummaryPrompt(group, { ...options, part: groups.length > 1 ? { index: i + 1, total: groups.length } : undefined }),
+    ids: group.map((article) => article.id),
+  }));
+  panel.whole = groups.length > 1 ? buildSummaryPrompt(articles.map(toPromptArticle), options) : (panel.list[0]?.text ?? '');
+  panel.current = Math.min(panel.current, Math.max(0, panel.list.length - 1));
+  showPart(panel);
+}
+
+function showPart(panel: PromptPanel) {
+  const part = panel.list[panel.current];
+  const total = panel.list.length;
+  panel.textarea.value = part?.text ?? '';
+  panel.parts.hidden = total <= 1;
+  panel.downloadAll.hidden = total <= 1;
+  panel.parts.replaceChildren();
+  if (total > 1) {
+    panel.parts.append(el('span', 'note', `長いので${total}回に分けました:`));
+    panel.list.forEach((item, i) => {
+      const button = el('button', 'small', `${i + 1}回目（${item.ids.length}件）`);
+      button.type = 'button';
+      button.setAttribute('aria-pressed', String(i === panel.current));
+      button.addEventListener('click', () => {
+        panel.current = i;
+        showPart(panel);
+      });
+      panel.parts.append(button);
+    });
+  }
+  if (!part) {
+    panel.info.textContent = panel.empty;
+    panel.info.className = 'note';
+    return;
+  }
+  const withText = part.ids.filter((id) => texts.has(id)).length;
+  const over = maxChars() > 0 && part.text.length > maxChars();
+  panel.info.textContent = [
+    total > 1 ? `${panel.current + 1}回目:` : '',
+    `${part.ids.length}件${withText > 0 ? `（本文あり ${withText}件）` : ''} ・ ${part.text.length.toLocaleString()}字`,
+    over ? '1件だけで上限を超えています。「ファイルで保存」して AI に添付するか、上限を上げてください' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  panel.info.className = over ? 'note warn' : 'note';
+}
+
+/** 「ファイルで保存」のあとに、AI にファイルを添付するときの一言をコピーできるようにする */
+function fileSavedMessage(panel: PromptPanel, filename: string) {
+  panel.status.replaceChildren();
+  const box = el('span', 'file-message');
+  box.append(`${filename} を保存しました。AI の画面でこのファイルを添付し、次の一言を送ってください: 「${FILE_MESSAGE}」`);
+  const copy = el('button', 'small', '一言をコピー');
+  copy.type = 'button';
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(FILE_MESSAGE);
+      copy.textContent = 'コピーしました';
+    } catch {
+      copy.textContent = 'コピーできませんでした';
+    }
+  });
+  box.append(copy);
+  panel.status.append(box);
+  panel.status.className = 'status';
+}
+
+function setupPanel(panel: PromptPanel, copyButton: HTMLButtonElement, downloadButton: HTMLButtonElement) {
+  copyButton.addEventListener('click', async () => {
+    const part = panel.list[panel.current];
+    if (!part) return;
+    const label = copyButton.textContent;
+    try {
+      await navigator.clipboard.writeText(part.text);
+      copyButton.textContent = 'コピーしました';
+    } catch {
+      panel.textarea.select();
+      copyButton.textContent = '選択しました（Ctrl+C でコピー）';
+    }
+    setTimeout(() => (copyButton.textContent = label), 2500);
+    const total = panel.list.length;
+    setStatus(
+      panel.status,
+      total > 1
+        ? `${panel.current + 1}回目（全${total}回）をコピーしました。AI の回答を手順3で確認・保存したら、${panel.current + 1 < total ? `次の${panel.current + 2}回目に進んでください。` : 'すべての回が終わりです。'}`
+        : 'コピーしました。AI に貼り付けて、回答を手順3で確認・保存してください。',
+    );
+  });
+  downloadButton.addEventListener('click', () => {
+    const part = panel.list[panel.current];
+    if (!part) return;
+    const total = panel.list.length;
+    const filename = `${panel.name}-${stamp()}${total > 1 ? `-${panel.current + 1}of${total}` : ''}.txt`;
+    download(filename, part.text, 'text/plain');
+    fileSavedMessage(panel, filename);
+  });
+  panel.downloadAll.addEventListener('click', () => {
+    if (!panel.whole) return;
+    const filename = `${panel.name}-${stamp()}-all.txt`;
+    download(filename, panel.whole, 'text/plain');
+    fileSavedMessage(panel, filename);
+  });
+}
 
 function renderPrompt() {
   if (!data) return;
   batch = selectedArticles();
   saveDraft();
-  if (batch.length === 0) {
-    ui.prompt.value = '';
-    ui.promptInfo.textContent = '記事を選ぶとプロンプトが表示されます';
-    ui.promptInfo.className = 'note';
-    return;
-  }
-  ui.prompt.value = buildSummaryPrompt(
-    batch.map(({ id, title, url, site, excerpt }) => ({ id, title, url, site, excerpt, text: texts.get(id) })),
-    { siteName: data.siteName, length: ui.length.value as SummaryLength, points: ui.points.checked },
-  );
-  const withText = batch.filter((article) => texts.has(article.id)).length;
-  const long = ui.prompt.value.length > PROMPT_WARN_CHARS;
-  ui.promptInfo.textContent = [
-    `${batch.length}件${withText > 0 ? `（本文あり ${withText}件）` : ''} ・ ${ui.prompt.value.length.toLocaleString()}字`,
-    long ? '長すぎると AI に貼り付けられなかったり回答が途中で切れたりします。記事を減らしてください' : '',
-  ]
-    .filter(Boolean)
-    .join(' ・ ');
-  ui.promptInfo.className = long ? 'note warn' : 'note';
+  fillPanel(promptPanel, batch);
   saveOptions();
+}
+
+/** 本文を貼った記事の、本文入りのプロンプト */
+function renderPastePrompt() {
+  if (!data) return;
+  const articles = pasteArticles().filter((article) => texts.has(article.id));
+  ui.pastePromptPanel.hidden = articles.length === 0;
+  fillPanel(pastePanel, articles);
+}
+
+/** AI の回答がどの回のプロンプトに対するものか（回答に含まれる記事で見分ける） */
+function promptGroupsFor(answered: Set<string>): string[][] {
+  return [...promptPanel.list, ...pastePanel.list].map((part) => part.ids).filter((ids) => ids.some((id) => answered.has(id)));
 }
 
 // ===== AI が開けない記事（本文の貼り付け・同じ話題の別の記事） =====
@@ -440,11 +627,14 @@ function flaggedSources(marks = readUnavailable()): Map<string, { site: string; 
   return new Map([...counts].filter(([, entry]) => entry.count >= FLAG_THRESHOLD));
 }
 
-/** 本文を貼るまで自動では選ばない記事か（AI が開けなかった記事と、開けないことが多いサイトの記事） */
+/**
+ * 手順1で自動では選ばない記事か（AI が開けなかった記事、開けないことが多いサイトの記事、
+ * 本文を貼った記事。本文を貼った記事は「本文入りのプロンプト」で依頼する）
+ */
 function aiBlocked(): (article: AdminArticle) => boolean {
   const marks = readUnavailable();
   const flagged = flaggedSources(marks);
-  return (article) => !texts.has(article.id) && (marks.has(article.id) || flagged.has(article.sourceId));
+  return (article) => texts.has(article.id) || marks.has(article.id) || flagged.has(article.sourceId);
 }
 
 /** AI が開けなかった記事を記録して、「AI が開けない記事」に出す */
@@ -518,7 +708,7 @@ function openPasteCard(focusId?: string) {
 /** 「本文を貼る」: 記事を本文を貼り付ける記事に加えて選ぶ */
 function addToPaste(id: string) {
   pasteIds.add(id);
-  selected.add(id);
+  selected.delete(id);
   const marks = readUnavailable();
   const mark = marks.get(id);
   if (mark?.dismissed) {
@@ -572,8 +762,8 @@ function pasteRow(article: AdminArticle, marks: Map<string, UnavailableMark>): H
   area.value = texts.get(article.id) ?? '';
   area.setAttribute('aria-label', `「${article.title}」の本文`);
   const info = el('p', 'paste-info');
-  /** 本文を読み取って表示を更新する。貼り付けたとき（pasted）は、その記事を選ぶ */
-  const update = (pasted: boolean) => {
+  /** 本文を読み取って表示を更新する */
+  const update = () => {
     const parsed = parsePastedText(area.value);
     if (parsed.text) texts.set(article.id, parsed.text);
     else texts.delete(article.id);
@@ -590,17 +780,19 @@ function pasteRow(article: AdminArticle, marks: Map<string, UnavailableMark>): H
       ? [`本文 ${length.toLocaleString()}字（AI は URL を開かずに、この本文から要約します）。`, ...warnings].join(' ')
       : '本文はまだありません（このままでは AI が URL を開こうとします）。';
     info.className = warnings.length > 0 ? 'paste-info warn' : 'paste-info';
-    ui.selectPasted.disabled = texts.size === 0;
-    if (pasted && parsed.text && !selected.has(article.id)) {
-      selected.add(article.id);
-      syncPickList();
-    }
   };
+  let timer: ReturnType<typeof setTimeout> | undefined;
   area.addEventListener('input', () => {
-    update(true);
-    renderPrompt();
+    update();
+    // 本文入りのプロンプトを作り直す（打つたびに作り直さないよう少し待つ）
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      renderPastePrompt();
+      if (selected.has(article.id)) renderPrompt();
+      else saveDraft();
+    }, 250);
   });
-  update(false);
+  update();
 
   const actions = el('div', 'paste-actions');
   const { pending, summarized } = sameTopic(article);
@@ -636,7 +828,7 @@ function renderPasteList() {
   if (list.length === 0) {
     ui.pasteList.append(el('li', 'pick-meta', 'AI が開けなかった記事はまだありません。手順1の「本文を貼る」で加えることもできます。'));
   }
-  ui.selectPasted.disabled = texts.size === 0;
+  renderPastePrompt();
 
   const flagged = flaggedSources(marks);
   ui.pasteFlagged.hidden = flagged.size === 0;
@@ -658,21 +850,160 @@ function renderPasteList() {
   }
 }
 
-function setupPaste() {
-  ui.selectPasted.addEventListener('click', () => {
-    const ids = [...texts.keys()].filter((id) => findArticle(id));
-    if (ids.length === 0) return;
-    selected.clear();
-    for (const id of ids) selected.add(id);
+/** ページの URL から記事を探す（本文を貼り付ける記事を先に探す） */
+function findArticleByUrl(url: string): AdminArticle | undefined {
+  if (!data) return undefined;
+  const saved = readMarks(KEYS.saved);
+  return [...pasteArticles(), ...data.pending, ...data.summarized].find(
+    (article) => !saved.has(article.id) && comparePastedUrl(url, article.url) === 'same',
+  );
+}
+
+/** 貼り付けた本文を、ページの URL で記事に振り分ける。振り分けられなかった本文を返す */
+function assignTexts(blocks: PastedText[]): { assigned: AdminArticle[]; unmatched: PastedText[] } {
+  const assigned: AdminArticle[] = [];
+  const unmatched: PastedText[] = [];
+  for (const block of blocks) {
+    const article = block.url ? findArticleByUrl(block.url) : undefined;
+    if (!article) {
+      unmatched.push(block);
+      continue;
+    }
+    texts.set(article.id, block.text);
+    pasteIds.add(article.id);
+    selected.delete(article.id);
+    assigned.push(article);
+  }
+  return { assigned, unmatched };
+}
+
+/** 振り分けた結果を知らせる */
+function reportAssigned(assigned: AdminArticle[], unmatched: string[], problems: string[] = []) {
+  if (assigned.length > 0) {
     syncPickList();
+    renderPasteList();
     renderPrompt();
-    setStatus(ui.pasteStatus, `本文を貼った${ids.length}件を選びました。手順2のプロンプトをコピーしてください。`, 'ok');
+  }
+  const messages = [
+    assigned.length > 0 ? `${assigned.length}件の本文を振り分けました（${assigned.map((article) => shorten(article.title, 20)).join('、')}）。下の本文入りのプロンプトに入っています。` : '',
+    unmatched.length > 0
+      ? `${unmatched.length}件はどの記事の本文か分かりませんでした（${unmatched.join('、')}）。URL のない本文や、一覧にない記事の本文は、記事ごとの欄に貼り付けてください。`
+      : '',
+    ...problems,
+  ].filter(Boolean);
+  setStatus(ui.pasteStatus, messages.join(' '), unmatched.length > 0 || problems.length > 0 ? 'error' : 'ok');
+}
+
+const blockLabel = (block: PastedText) => shorten(block.title ?? block.text.replace(/\s+/g, ' '), 20);
+
+/** 「本文をまとめて貼り付け」の欄を振り分ける（振り分けられなかった本文は欄に残す） */
+function assignBulkText() {
+  const blocks = splitPastedBlocks(ui.bulkText.value);
+  if (blocks.length === 0) return;
+  const { assigned, unmatched } = assignTexts(blocks);
+  ui.bulkText.value = unmatched
+    .map((block) =>
+      block.url || block.title
+        ? [PASTE_MARKER, ...(block.title ? [`タイトル: ${block.title}`] : []), ...(block.url ? [`URL: ${block.url}`] : []), '', block.text].join('\n')
+        : block.text,
+    )
+    .join('\n\n');
+  reportAssigned(assigned, unmatched.map(blockLabel));
+}
+
+/** 本文のファイルを読み込んで、記事に振り分ける */
+async function loadTextFiles(files: FileList | File[]) {
+  const { loaded, problems } = await readTextFiles(files);
+  const assigned: AdminArticle[] = [];
+  const unmatched: string[] = [];
+  for (const file of loaded) {
+    const result = assignTexts(splitPastedBlocks(file.text));
+    assigned.push(...result.assigned);
+    unmatched.push(...result.unmatched.map((block) => `${file.name}: ${blockLabel(block)}`));
+  }
+  reportAssigned(assigned, unmatched, problems);
+}
+
+function setupPaste() {
+  setupPanel(pastePanel, $<HTMLButtonElement>('paste-prompt-copy'), $<HTMLButtonElement>('paste-prompt-download'));
+  $('bulk-assign').addEventListener('click', assignBulkText);
+  // 貼り付けたらすぐに振り分ける
+  ui.bulkText.addEventListener('paste', () => setTimeout(assignBulkText, 0));
+  $('text-file-button').addEventListener('click', () => ui.textFile.click());
+  ui.textFile.addEventListener('change', () => {
+    if (ui.textFile.files?.length) void loadTextFiles(ui.textFile.files);
+    ui.textFile.value = '';
   });
+  acceptDroppedFiles(ui.bulkText, loadTextFiles);
   // ブックマークレットは管理画面では動かない（ブックマークバーに登録して記事のページで使う）
   $('bookmarklet').addEventListener('click', (event) => {
     event.preventDefault();
     setStatus(ui.pasteStatus, 'このボタンはブックマークバーにドラッグして登録し、記事のページを開いてから押してください。');
   });
+}
+
+// ===== ファイルの読み込み =====
+
+/** 読み込むファイルの大きさの上限（1ファイル） */
+const FILE_MAX_BYTES = 5 * 1024 * 1024;
+
+/** テキストのファイルを読む（大きすぎるファイル・読めないファイルは理由をつけて返す） */
+async function readTextFiles(files: FileList | File[]): Promise<{ loaded: { name: string; text: string }[]; problems: string[] }> {
+  const loaded: { name: string; text: string }[] = [];
+  const problems: string[] = [];
+  for (const file of Array.from(files).slice(0, 50)) {
+    if (file.size > FILE_MAX_BYTES) {
+      problems.push(`${file.name}: ファイルが大きすぎます（5MB まで）`);
+      continue;
+    }
+    try {
+      loaded.push({ name: file.name, text: await file.text() });
+    } catch {
+      problems.push(`${file.name}: 読み込めませんでした`);
+    }
+  }
+  return { loaded, problems };
+}
+
+/** 欄にファイルをドラッグして読み込めるようにする */
+function acceptDroppedFiles(target: HTMLElement, handler: (files: FileList) => void | Promise<void>) {
+  const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes('Files');
+  target.addEventListener('dragover', (event) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    target.classList.add('dragging');
+  });
+  target.addEventListener('dragleave', () => target.classList.remove('dragging'));
+  target.addEventListener('drop', (event) => {
+    target.classList.remove('dragging');
+    if (!event.dataTransfer?.files.length) return;
+    event.preventDefault();
+    void handler(event.dataTransfer.files);
+  });
+}
+
+/** AI の回答のファイル（JSON・回答を保存したテキスト・保存用JSON）を読み込んで、内容を確認する */
+async function loadResponseFiles(files: FileList | File[]) {
+  const { loaded, problems } = await readTextFiles(files);
+  const entries: ReturnType<typeof normalizeEntries> = [];
+  for (const file of loaded) {
+    try {
+      entries.push(...normalizeEntries(extractJson(file.text)));
+    } catch (error) {
+      problems.push(`${file.name}: ${errorText(error)}`);
+    }
+  }
+  if (entries.length > 0) {
+    ui.response.value = JSON.stringify(entries, null, 1);
+    saveDraft();
+    checkResponse();
+  }
+  const names = loaded.map((file) => file.name).filter((name) => !problems.some((problem) => problem.startsWith(`${name}:`)));
+  setStatus(
+    ui.responseFileStatus,
+    [names.length > 0 ? `${names.join('、')} を読み込みました（${entries.length}件）。` : '', ...problems].filter(Boolean).join(' '),
+    problems.length > 0 ? 'error' : 'ok',
+  );
 }
 
 // ===== 作業中の内容（自動ログアウトやページの再読み込みで消えないようにする） =====
@@ -744,6 +1075,8 @@ function saveOptions() {
       sort: ui.sort.value,
       length: ui.length.value,
       points: ui.points.checked,
+      maxChars: ui.maxChars.value,
+      answer: ui.answerMode.value,
     }),
   );
 }
@@ -755,6 +1088,11 @@ function restoreOptions() {
     if (typeof options.sort === 'string') ui.sort.value = options.sort;
     if (typeof options.length === 'string') ui.length.value = options.length;
     if (typeof options.points === 'boolean') ui.points.checked = options.points;
+    if (typeof options.maxChars === 'string') ui.maxChars.value = options.maxChars;
+    if (typeof options.answer === 'string') ui.answerMode.value = options.answer;
+    // 選択肢にない値が残っていたら既定に戻す
+    if (!ui.maxChars.value) ui.maxChars.value = '15000';
+    if (!ui.answerMode.value) ui.answerMode.value = 'codeblock';
   } catch {
     // 既定値のまま
   }
@@ -819,7 +1157,12 @@ function checkResponse() {
     return found ? { summarized: found.summarized } : undefined;
   });
   const answered = new Set(entries.map((entry) => entry.id));
-  const missing = batch.filter((article) => !answered.has(article.id));
+  const missing = [...new Set(promptGroupsFor(answered).flat())]
+    .filter((id) => !answered.has(id))
+    .flatMap((id) => {
+      const found = findArticle(id);
+      return found ? [found.article] : [];
+    });
 
   const summary = el('div', 'result-summary');
   summary.append(
@@ -1572,25 +1915,22 @@ async function main() {
   ui.category.addEventListener('change', refresh);
   ui.sort.addEventListener('change', refresh);
   $('reselect').addEventListener('click', refresh);
-  ui.length.addEventListener('change', renderPrompt);
-  ui.points.addEventListener('change', renderPrompt);
-
-  $('copy-prompt').addEventListener('click', async (event) => {
-    const button = event.currentTarget as HTMLButtonElement;
-    if (!ui.prompt.value) return;
-    try {
-      await navigator.clipboard.writeText(ui.prompt.value);
-      button.textContent = 'コピーしました';
-    } catch {
-      ui.prompt.select();
-      button.textContent = '選択しました（Ctrl+C でコピー）';
-    }
-    setTimeout(() => (button.textContent = 'プロンプトをコピー'), 2500);
-  });
-  $('download-prompt').addEventListener('click', () => {
-    if (ui.prompt.value) download(`summary-prompt-${stamp()}.txt`, ui.prompt.value, 'text/plain');
-  });
+  const rerenderPrompts = () => {
+    renderPrompt();
+    renderPastePrompt();
+  };
+  ui.length.addEventListener('change', rerenderPrompts);
+  ui.points.addEventListener('change', rerenderPrompts);
+  ui.maxChars.addEventListener('change', rerenderPrompts);
+  ui.answerMode.addEventListener('change', rerenderPrompts);
+  setupPanel(promptPanel, $<HTMLButtonElement>('copy-prompt'), $<HTMLButtonElement>('download-prompt'));
   $('check').addEventListener('click', checkResponse);
+  $('response-file-button').addEventListener('click', () => ui.responseFile.click());
+  ui.responseFile.addEventListener('change', () => {
+    if (ui.responseFile.files?.length) void loadResponseFiles(ui.responseFile.files);
+    ui.responseFile.value = '';
+  });
+  acceptDroppedFiles(ui.response, loadResponseFiles);
   ui.response.addEventListener('input', saveDraft);
   $('clear-response').addEventListener('click', () => {
     ui.response.value = '';

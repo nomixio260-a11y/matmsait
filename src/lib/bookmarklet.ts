@@ -74,6 +74,21 @@ export async function copyArticleText(): Promise<string> {
   const title = (textOf(document.querySelector('h1')) || document.title).replace(/\s+/g, ' ');
   const output = [MARKER, `タイトル: ${title}`, `URL: ${location.href}`, '', body.slice(0, MAX)].join('\n');
 
+  /** 本文をテキストファイルとして保存する（管理画面の「本文のファイルを読み込む」でまとめて読み込める） */
+  const saveFile = () => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const time = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const url = URL.createObjectURL(new Blob([output], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `article-${location.hostname}-${time}.txt`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   /** ページの右上に短い案内を出す（コピーできなかったときは、手でコピーできるように本文の欄も出す） */
   const notice = (message: string, manual: boolean) => {
     const box = document.createElement('div');
@@ -87,13 +102,28 @@ export async function copyArticleText(): Promise<string> {
       box.append(area);
       setTimeout(() => area.select(), 0);
     }
+    const buttonStyle = 'margin:8px 8px 0 0;padding:2px 10px;color:#111;background:#fff;border:0;border-radius:6px;cursor:pointer;font:13px/1.6 sans-serif';
+    const save = document.createElement('button');
+    save.textContent = 'ファイルで保存';
+    save.style.cssText = buttonStyle;
+    save.addEventListener('click', () => {
+      saveFile();
+      save.textContent = '保存しました';
+    });
     const close = document.createElement('button');
     close.textContent = '閉じる';
-    close.style.cssText = 'display:block;margin-top:8px;padding:2px 10px;color:#111;background:#fff;border:0;border-radius:6px;cursor:pointer';
+    close.style.cssText = buttonStyle;
     close.addEventListener('click', () => box.remove());
-    box.append(close);
+    box.append(document.createElement('br'), save, close);
     document.body.append(box);
-    if (!manual) setTimeout(() => box.remove(), 4000);
+    // しばらくしたら消す（マウスを乗せている間は消さない）
+    if (!manual) {
+      let hover = false;
+      box.addEventListener('mouseenter', () => (hover = true));
+      box.addEventListener('mouseleave', () => (hover = false));
+      const hide = () => (hover ? setTimeout(hide, 2000) : box.remove());
+      setTimeout(hide, 8000);
+    }
   };
 
   let copied = false;
@@ -115,9 +145,9 @@ export async function copyArticleText(): Promise<string> {
   }
   const length = Array.from(body).length;
   if (copied) {
-    notice(`本文をコピーしました（${length.toLocaleString()}字）。管理画面の本文の欄に貼り付けてください。`, false);
+    notice(`本文をコピーしました（${length.toLocaleString()}字）。管理画面の「AI が開けない記事」に貼り付けてください。`, false);
   } else {
-    notice('自動でコピーできませんでした。下の欄の文字を Ctrl+C（Mac は ⌘+C）でコピーしてください。', true);
+    notice('自動でコピーできませんでした。下の欄の文字を Ctrl+C（Mac は ⌘+C）でコピーするか、「ファイルで保存」を押してください。', true);
   }
   return output;
 }
