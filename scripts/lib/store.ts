@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { mainTitle } from '../../src/lib/related.ts';
 import type { Item } from '../../src/lib/types.ts';
 
 export interface PruneOptions {
@@ -18,12 +19,7 @@ const MIN_TITLE_KEY_LENGTH = 12;
  * 配信元の付け足しと、記号・空白を除く。短すぎる見出しは undefined（比べない）
  */
 export function titleKey(title: string): string | undefined {
-  const main = title
-    .normalize('NFKC')
-    .split(/\s+[-–—]\s+|\s*\|\s*/)[0]
-    .replace(/\s*:[^:]{1,12}$/, '')
-    .replace(/\s*\([^()]{1,30}\)$/, '');
-  const key = main.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
+  const key = mainTitle(title).toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
   return Array.from(key).length >= MIN_TITLE_KEY_LENGTH ? key : undefined;
 }
 

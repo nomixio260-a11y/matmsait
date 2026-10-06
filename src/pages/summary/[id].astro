@@ -5,6 +5,7 @@ import ItemList from '../../components/ItemList.astro';
 import ShareButtons from '../../components/ShareButtons.astro';
 import { site } from '../../config/site.ts';
 import { faviconUrl, formatDateTime, getCategory, getItemsByCategory, href, siteOf } from '../../lib/items.ts';
+import { getRelatedIndex } from '../../lib/topics.ts';
 import { clampDescription } from '../../lib/seo.ts';
 import { getSummaries, summaryPath } from '../../lib/summaries.ts';
 import type { SummaryRecord } from '../../lib/types.ts';
@@ -21,11 +22,12 @@ const source = siteOf(record);
 const url = new URL(href(summaryPath(record.id)), Astro.site).toString();
 const hatebu = record.hatebu ?? 0;
 
-// 同じカテゴリの他の要約と、同じカテゴリの新着記事
+// 同じ話題の記事（別のサイトの報道など）、同じカテゴリの他の要約、同じカテゴリの新着記事
+const sameTopic = getRelatedIndex().related(record, 5);
 const relatedSummaries = getSummaries()
-  .filter((other) => other.category === record.category && other.id !== record.id)
+  .filter((other) => other.category === record.category && other.id !== record.id && !sameTopic.includes(other))
   .slice(0, 5);
-const relatedIds = new Set([record.id, ...relatedSummaries.map((other) => other.id)]);
+const relatedIds = new Set([record.id, ...sameTopic.map((item) => item.id), ...relatedSummaries.map((other) => other.id)]);
 const latestInCategory = getItemsByCategory(record.category)
   .filter((item) => !relatedIds.has(item.id))
   .slice(0, 6);
@@ -114,6 +116,17 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
     </section>
 
     <ShareButtons url={url} text={`${record.title}【要約】｜${site.name}`} />
+
+    {
+      sameTopic.length > 0 && (
+        <section class="panel">
+          <div class="panel-head">
+            <h2>この話題の関連記事</h2>
+          </div>
+          <ItemList items={sameTopic} group={false} showExcerpt={false} ads={false} />
+        </section>
+      )
+    }
 
     {
       relatedSummaries.length > 0 && (
