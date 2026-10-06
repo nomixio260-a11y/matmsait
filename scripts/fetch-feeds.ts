@@ -31,7 +31,13 @@ const HATEBU_WINDOW_HOURS = 36;
 
 const parser = new Parser();
 
-/** 一時的なエラー（通信失敗・429・5xx）のときだけ1回だけ再試行する */
+/**
+ * 再試行するステータス。429・5xx に加え、CDN の混雑やボット対策で一時的に返ることがある 403・406・408 も
+ * 1回だけやり直す（ブラウザで閲覧者が再読み込みするのと同じ程度）
+ */
+const RETRY_STATUSES = new Set([403, 406, 408, 429]);
+
+/** 一時的なエラー（通信失敗・上のステータス・5xx）のときだけ1回だけ再試行する */
 async function getWithRetry(url: string, headers: [string, string][]): Promise<HttpResponse> {
   for (let attempt = 1; ; attempt++) {
     let res: HttpResponse | undefined;
@@ -42,7 +48,7 @@ async function getWithRetry(url: string, headers: [string, string][]): Promise<H
       await sleep(jitter(3000, 6000));
       continue;
     }
-    if (attempt < 2 && (res.status === 429 || res.status >= 500)) {
+    if (attempt < 2 && (RETRY_STATUSES.has(res.status) || res.status >= 500)) {
       await sleep(retryDelay(res.headers['retry-after']));
       continue;
     }

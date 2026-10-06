@@ -121,6 +121,8 @@ npx astro preview # ビルド結果の確認（Astro 7 の preview は常駐す�
   - 管理画面: 「サイトの更新」に「自動更新: 動作中（次の更新は〇時ごろ）／停止中」を表示、タイマーが実行した更新を「自動更新」と表示。「収集元の状況」に取得の状態（正常／取得失敗 N回連続とエラー）を追加し、失敗が3回以上続いている収集元を「要確認」にする。
 - 主な変更ファイル: `.github/workflows/timer.yml`（新規）, `.github/workflows/update.yml`, `scripts/timer.ts`, `scripts/lib/timer.ts`, `scripts/lib/feed-state.ts`（新規）, `scripts/fetch-feeds.ts`, `scripts/lib/http.ts`, `scripts/lib/hatena.ts`, `scripts/lib/timing.ts`, `src/lib/github-commit.ts`, `src/pages/admin/*`, `src/scripts/admin.ts`, `README.md`
 - 確認したこと: ユニットテスト（タイマーを偽の時計と偽の GitHub で: 60分後に更新、記録がなければすぐ、待機中の手動更新で数え直し、長い間隔でも実行を次々に作らない、非公開では何もしない／取得状態の記録／はてブの部分失敗）、型チェック、actionlint、ローカルでフィード取得を2回続けて実行し2回目に8収集元が 304（変更なし）になること、ビルド、Playwright で管理画面（タイマーの表示・停止中の案内・「自動更新」の表示・取得失敗が続く収集元の表示、既存の保存・編集・非表示）、axe 0件。
+- 公開後の確認: push による実行（run #13）が成功し、`keep-timer` が自動更新タイマー（timer.yml の run #1）を起動、タイマーが次の更新まで待機に入ったことを確認。`data/feeds.json` も記録された。
+- 公開後に見つかったこと: GitHub Actions からの取得でハフポスト日本版のフィードが1回だけ HTTP 406 を返した（直前の実行とローカルからは 200。CDN のボット対策が GitHub のサーバーからのアクセスにだけ時々反応しているとみられる）。403・406・408 も1回だけ再試行するようにした。失敗が続くかは「収集元の状況」で確認できる。
 - 残った課題・注意点: 本番で最初のタイマーによる自動実行が起きることを確認する（「未解決の課題」1）。
 
 ### 2026-10-06 Claude API による自動要約を削除
