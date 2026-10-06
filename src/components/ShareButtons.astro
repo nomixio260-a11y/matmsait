@@ -1,0 +1,79 @@
+---
+interface Props {
+  /** シェアするページの絶対URL */
+  url: string;
+  /** 投稿文 */
+  text: string;
+}
+const { url, text } = Astro.props;
+const encodedUrl = encodeURIComponent(url);
+const hatena = `https://b.hatena.ne.jp/entry/${url.startsWith('https://') ? 's/' : ''}${url.replace(/^https?:\/\//, '')}`;
+const services = [
+  { name: 'X', color: 'var(--text)', href: `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodedUrl}` },
+  { name: 'LINE', color: '#06c755', href: `https://social-plugins.line.me/lineit/share?url=${encodedUrl}` },
+  { name: 'はてブ', color: '#00a4de', href: hatena },
+  { name: 'Bluesky', color: '#1185fe', href: `https://bsky.app/intent/compose?text=${encodeURIComponent(`${text} ${url}`)}` },
+  { name: 'Facebook', color: '#1877f2', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+];
+---
+
+<div class="share">
+  <span class="share-label">シェア</span>
+  {
+    services.map((service) => (
+      <a class="share-btn" href={service.href} target="_blank" rel="noopener nofollow">
+        <span class="dot" style={`--c:${service.color}`} />
+        {service.name}
+      </a>
+    ))
+  }
+  <button type="button" class="share-btn" data-copy-url={url}>リンクをコピー</button>
+</div>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy-url]')) {
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copyUrl ?? location.href);
+        button.textContent = 'コピーしました';
+      } catch {
+        button.textContent = 'コピーできませんでした';
+      }
+      setTimeout(() => (button.textContent = 'リンクをコピー'), 2000);
+    });
+  }
+</script>
+
+<style>
+  .share {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .share-label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-right: 2px;
+  }
+  .share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-2);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .share-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+</style>

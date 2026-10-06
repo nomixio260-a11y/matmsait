@@ -5,6 +5,7 @@ import ItemList from '../../../components/ItemList.astro';
 import Pagination from '../../../components/Pagination.astro';
 import { site } from '../../../config/site.ts';
 import { getCategory, getItemsBySource, getSources, href } from '../../../lib/items.ts';
+import { clampDescription, collectionJsonLd, headlineTeaser } from '../../../lib/seo.ts';
 import type { Item, Source } from '../../../lib/types.ts';
 
 export const getStaticPaths = (({ paginate }) =>
@@ -23,17 +24,24 @@ interface Props {
 const { page, source } = Astro.props;
 const category = getCategory(source.category);
 const suffix = page.currentPage > 1 ? `（${page.currentPage}ページ目）` : '';
+const title = `${source.name}の最新記事一覧${suffix}`;
+const description = clampDescription(
+  `${source.name}の最新記事をまとめて表示しています。最新：${headlineTeaser(page.data, 2, 24)}など。`,
+);
+const url = new URL(Astro.url.pathname, Astro.site).toString();
+const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.data.slice(0, 10) })];
 ---
 
 <BaseLayout
-  title={`${source.name}の新着記事${suffix}`}
-  description={`${source.name}の新着記事の一覧です。`}
+  title={title}
+  description={description}
+  jsonLd={jsonLd}
   current={source.category}
   noindex={page.currentPage > 1}
   breadcrumbs={[{ name: '掲載元一覧', path: '/sources/' }, { name: source.name }]}
 >
   <div class="page-head">
-    <h1>{source.name}{suffix}</h1>
+    <h1>{source.name}の最新記事{suffix}</h1>
     <p>
       {category && <a href={href(`/category/${category.slug}/`)}>{category.name}</a>}
       ・{page.total}件 ・

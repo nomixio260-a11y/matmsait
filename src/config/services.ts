@@ -8,3 +8,5 @@ export const adsenseSlot: string = import.meta.env.PUBLIC_ADSENSE_SLOT ?? '';
 export const gaMeasurementId: string = import.meta.env.PUBLIC_GA_ID ?? '';
 /** Google Search Console の所有権確認用コード */
 export const googleSiteVerification: string = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION ?? '';
+/** Bing Web マスターツールの所有権確認用コード */
+export const bingSiteVerification: string = import.meta.env.PUBLIC_BING_SITE_VERIFICATION ?? '';

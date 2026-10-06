@@ -1,7 +1,8 @@
 ---
 import AdSlot from './AdSlot.astro';
 import RankingList from './RankingList.astro';
-import { categories } from '../config/site.ts';
+import { categories, site } from '../config/site.ts';
+import { dailyPath, formatDay, getDailySnapshots } from '../lib/daily.ts';
 import { countByCategory, getCategory, getRanking, href } from '../lib/items.ts';
 
 interface Props {
@@ -17,6 +18,7 @@ const hours = category ? 48 : 24;
 const ranking = hideRanking ? [] : getRanking({ hours, category, limit: 10 });
 const categoryName = category ? getCategory(category)?.name : undefined;
 const counts = countByCategory();
+const recentDays = getDailySnapshots().slice(0, 7);
 ---
 
 <aside class="sidebar stack" aria-label="サイドバー">
@@ -61,6 +63,49 @@ const counts = countByCategory();
       }
     </ul>
   </section>
+
+  {
+    recentDays.length > 0 && (
+      <section class="panel">
+        <div class="panel-head">
+          <h2>日別まとめ</h2>
+          <a class="more" href={href('/daily/')}>
+            一覧 →
+          </a>
+        </div>
+        <ul class="cat-list">
+          {recentDays.map((day) => (
+            <li>
+              <a href={href(dailyPath(day.date))}>
+                <span class="name">{formatDay(day.date)}の話題</span>
+                <span class="count">{day.total}件</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  {
+    site.socialAccounts.length > 0 && (
+      <section class="panel">
+        <div class="panel-head">
+          <h2>最新情報をフォロー</h2>
+        </div>
+        <ul class="cat-list">
+          {site.socialAccounts.map((account) => (
+            <li>
+              <a href={account.url} target="_blank" rel="noopener me">
+                <span class="name">{account.name}</span>
+                <span class="count">フォロー ↗</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
 
   <div class="sidebar-sticky">
     <AdSlot variant="sidebar" />

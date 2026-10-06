@@ -3,7 +3,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import ItemList from '../components/ItemList.astro';
 import RankingList from '../components/RankingList.astro';
 import { categories, site } from '../config/site.ts';
-import { getItems, getItemsByCategory, getRanking, href } from '../lib/items.ts';
+import { builtAt, formatDateTime, getItems, getItemsByCategory, getRanking, href } from '../lib/items.ts';
+import { clampDescription, headlineTeaser } from '../lib/seo.ts';
 
 const latest = getItems().slice(0, 30);
 const hot = getRanking({ hours: 24, limit: 5 });
@@ -11,8 +12,20 @@ const sections = categories
   .map((category) => ({ category, items: getItemsByCategory(category.slug).slice(0, 6) }))
   .filter((section) => section.items.length > 0);
 
+const description = clampDescription(
+  hot.length > 0
+    ? `人気サイトの新着ニュースと、はてブで話題の記事を1時間ごとにまとめてお届け。いま話題：${headlineTeaser(hot, 2, 22)}`
+    : site.description,
+);
 const home = new URL(href('/'), Astro.site).toString();
 const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: site.name,
+    url: home,
+    logo: new URL(href('/icon-512.png'), Astro.site).toString(),
+  },
   {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -32,9 +45,16 @@ const jsonLd = [
 ];
 ---
 
-<BaseLayout current="" jsonLd={jsonLd} sidebar={{ rankingWideOnly: true }}>
-  <h1 class="visually-hidden">{site.name} - {site.tagline}</h1>
+<BaseLayout current="" description={description} jsonLd={jsonLd} sidebar={{ rankingWideOnly: true }}>
   <div class="stack">
+    <section class="intro">
+      <h1>{site.seoTitle}</h1>
+      <p>
+        {site.name}は、人気ニュースサイトの新着記事と、はてなブックマークで話題の記事を1時間ごとに自動でまとめています。
+        <span class="updated">最終更新 {formatDateTime(builtAt)}</span>
+      </p>
+    </section>
+
     {
       hot.length > 0 && (
         <section class="panel narrow-only">
@@ -90,6 +110,20 @@ const jsonLd = [
 </BaseLayout>
 
 <style>
+  .intro h1 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+  .intro p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.7;
+  }
+  .updated {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
   .flame {
     color: var(--hot);
   }

@@ -4,7 +4,8 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import ItemList from '../../../components/ItemList.astro';
 import Pagination from '../../../components/Pagination.astro';
 import { categories, site, type Category } from '../../../config/site.ts';
-import { getItemsByCategory } from '../../../lib/items.ts';
+import { getItemsByCategory, href } from '../../../lib/items.ts';
+import { clampDescription, collectionJsonLd, headlineTeaser } from '../../../lib/seo.ts';
 import type { Item } from '../../../lib/types.ts';
 
 export const getStaticPaths = (({ paginate }) =>
@@ -22,11 +23,19 @@ interface Props {
 }
 const { page, category } = Astro.props;
 const suffix = page.currentPage > 1 ? `（${page.currentPage}ページ目）` : '';
+const title = `${category.name}の最新ニュースまとめ${suffix}`;
+const description = clampDescription(
+  `${category.description}。最新：${headlineTeaser(page.data, 2, 24)}など${page.total}件を掲載中（1時間ごとに更新）。`,
+);
+const url = new URL(Astro.url.pathname, Astro.site).toString();
+const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.data.slice(0, 10) })];
 ---
 
 <BaseLayout
-  title={`${category.name}の新着記事${suffix}`}
-  description={`${category.description}をまとめてチェック。人気サイトの最新記事を1時間ごとに更新しています。`}
+  title={title}
+  description={description}
+  jsonLd={jsonLd}
+  feeds={[{ title: category.name, path: `/category/${category.slug}/rss.xml` }]}
   current={category.slug}
   noindex={page.currentPage > 1}
   breadcrumbs={[{ name: category.name }]}
@@ -35,9 +44,11 @@ const suffix = page.currentPage > 1 ? `（${page.currentPage}ページ目）` : 
   <div class="page-head">
     <h1>
       <span class="dot" style={`--c:${category.color}`}></span>
-      {category.name}{suffix}
+      {category.name}の最新ニュース{suffix}
     </h1>
-    <p>{category.description}（{page.total}件）</p>
+    <p>
+      {category.description}（{page.total}件）・<a href={href(`/category/${category.slug}/rss.xml`)}>RSS</a>
+    </p>
   </div>
   <div class="panel">
     <ItemList items={page.data} showCategory={false} />
@@ -54,5 +65,8 @@ const suffix = page.currentPage > 1 ? `（${page.currentPage}ページ目）` : 
   h1 .dot {
     width: 12px;
     height: 12px;
+  }
+  .page-head a {
+    color: var(--accent);
   }
 </style>

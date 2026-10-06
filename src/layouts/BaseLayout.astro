@@ -6,7 +6,12 @@ import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import Sidebar from '../components/Sidebar.astro';
 import { site } from '../config/site.ts';
-import { adsenseClient, gaMeasurementId, googleSiteVerification } from '../config/services.ts';
+import {
+  adsenseClient,
+  bingSiteVerification,
+  gaMeasurementId,
+  googleSiteVerification,
+} from '../config/services.ts';
 import { href } from '../lib/items.ts';
 
 interface Props {
@@ -20,6 +25,8 @@ interface Props {
   sidebar?: boolean | { category?: string; hideRanking?: boolean; rankingWideOnly?: boolean };
   /** ページ固有の構造化データ */
   jsonLd?: Record<string, unknown>[];
+  /** サイト全体のRSSに加えて案内するフィード */
+  feeds?: { title: string; path: string }[];
 }
 
 const {
@@ -30,8 +37,9 @@ const {
   breadcrumbs,
   sidebar = true,
   jsonLd = [],
+  feeds = [],
 } = Astro.props;
-const pageTitle = title ? `${title} | ${site.name}` : `${site.name} - ${site.tagline}`;
+const pageTitle = title ? `${title}｜${site.name}` : `${site.name}｜${site.seoTitle}`;
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 const ogImage = new URL(href('/og.png'), Astro.site).toString();
 const sidebarProps = typeof sidebar === 'object' ? sidebar : {};
@@ -46,7 +54,7 @@ const toJson = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    {noindex && <meta name="robots" content="noindex, follow" />}
+    <meta name="robots" content={noindex ? 'noindex, follow' : 'max-image-preview:large'} />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#16191e" media="(prefers-color-scheme: dark)" />
     <meta property="og:type" content="website" />
@@ -58,13 +66,24 @@ const toJson = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${site.name}｜${site.seoTitle}`} />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
     <link rel="apple-touch-icon" href={href('/apple-touch-icon.png')} />
-    <link rel="alternate" type="application/rss+xml" title={site.name} href={href('/rss.xml')} />
+    <link rel="manifest" href={href('/manifest.webmanifest')} />
+    <meta name="application-name" content={site.name} />
+    <meta name="apple-mobile-web-app-title" content={site.name} />
+    <link rel="alternate" type="application/rss+xml" title={`${site.name}（新着記事）`} href={href('/rss.xml')} />
+    <link rel="alternate" type="application/rss+xml" title={`${site.name}（日別まとめ）`} href={href('/daily/rss.xml')} />
+    {
+      feeds.map((feed) => (
+        <link rel="alternate" type="application/rss+xml" title={`${site.name}（${feed.title}）`} href={href(feed.path)} />
+      ))
+    }
     <link rel="sitemap" href={href('/sitemap-index.xml')} />
     <link rel="preconnect" href="https://www.google.com" />
     {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
+    {bingSiteVerification && <meta name="msvalidate.01" content={bingSiteVerification} />}
     {jsonLd.map((data) => <script type="application/ld+json" set:html={toJson(data)} />)}
     <script is:inline>
       try {

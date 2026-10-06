@@ -27,6 +27,45 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 - 同じサイトへは 1 件ずつ、1.5〜4 秒のランダムな間隔を空けてアクセスし、サイトの巡回順も毎回入れ替えます。定期実行の開始時刻も最大 2 分ずらします。
 - gzip / deflate / brotli / zstd の圧縮、リダイレクト、Shift_JIS・EUC-JP のフィードに対応しています。一時的なエラー（通信失敗・429・5xx）は 1 回だけ再試行します。
 
+## 検索・集客のしくみ
+
+### 自動で行っていること
+
+| しくみ | 内容 |
+| --- | --- |
+| 日別アーカイブ | `/daily/YYYY-MM-DD/` に「その日の話題のニュース」を毎日自動生成（`data/daily/` に永続保存）。日付ごとの恒久ページが増え続け、長い検索語でも拾われやすくなる |
+| タイトル・説明文 | 「〇〇の最新ニュースまとめ」など検索されやすい形にし、説明文には最新の見出しを入れて毎時更新 |
+| 構造化データ | WebSite（サイト内検索）・Organization・CollectionPage／ItemList・パンくずリスト |
+| サイトマップ | 更新されるページに最終更新日時（lastmod）を付与。2ページ目以降と検索ページは除外 |
+| IndexNow | デプロイのたびに Bing・Yandex・Naver などへ更新したURLを自動送信（鍵は `src/config/site.ts` の `indexNowKey`） |
+| RSS / WebSub | 全体・カテゴリ別・日別まとめの RSS を配信し、更新のたびに WebSub ハブへ通知（Feedly などへすぐ届く） |
+| SNS 自動投稿 | 認証情報を設定すると、X・Bluesky・Mastodon・Misskey に「今日の話題ニュース」（毎日21時以降）と「いま話題の記事」（はてブ150以上、1日4件まで）を投稿 |
+| シェアボタン | 日別まとめ・ランキングに X・LINE・はてブ・Bluesky・Facebook のシェアボタン |
+| ホーム画面に追加 | Web アプリマニフェスト（PWA）とアイコン |
+
+デプロイ後の通知と投稿は `scripts/notify.ts`（ワークフローの `notify` ジョブ）が行います。
+`SITE_BASE_URL=<公開URL> NOTIFY_DRY_RUN=1 npm run notify` で、送信せずに内容だけ確認できます。
+
+### 運営者が行う必要があること
+
+1. **Google Search Console に登録する（Google 検索に早く載せるために最重要）**
+   1. https://search.google.com/search-console で「URL プレフィックス」に公開URLを入力
+   2. 確認方法「HTML タグ」を選び、表示された `content="..."` の値をコピー
+   3. GitHub の Settings → Secrets and variables → Actions → **Variables** に `PUBLIC_GOOGLE_SITE_VERIFICATION` として登録し、Actions から再実行
+   4. Search Console で「確認」→「サイトマップ」に `sitemap-index.xml` を送信
+2. **Bing Web マスターツール**（任意）: Search Console から設定をインポートするか、`PUBLIC_BING_SITE_VERIFICATION` を登録
+3. **SNS アカウント**（任意）: 下表の **Secrets** を登録すると自動投稿が始まります。自動投稿であることをプロフィールに明記してください（X は「自動化されたアカウント」ラベルの設定を推奨）。
+   アカウントを作ったら `src/config/site.ts` の `socialAccounts` に追加すると、サイトに「フォロー」リンクが出ます。
+
+| Secret | 内容 |
+| --- | --- |
+| `X_API_KEY` / `X_API_SECRET` / `X_ACCESS_TOKEN` / `X_ACCESS_TOKEN_SECRET` | X Developer Portal のアプリの API Key・Secret と、投稿用アカウントの Access Token・Secret（Read and Write 権限） |
+| `BLUESKY_IDENTIFIER` / `BLUESKY_APP_PASSWORD` | Bluesky のハンドル（例: `example.bsky.social`）と、設定画面で発行したアプリパスワード |
+| `MASTODON_URL` / `MASTODON_TOKEN` | インスタンスのURL（例: `https://mastodon.social`）と、`write:statuses` 権限のアクセストークン |
+| `MISSKEY_URL` / `MISSKEY_TOKEN` | インスタンスのURL（例: `https://misskey.io`）と、「ノートを作成・削除する」権限のアクセストークン |
+
+※ 検索結果に表示されるまでには通常数日〜数週間かかり、順位は保証されません。見出しを集めただけのページは評価されにくいため、独自ドメインの取得や独自コンテンツの追加が効果的です。
+
 ## ローカルで動かす
 
 Node.js 22.12 以上が必要です。
@@ -43,7 +82,8 @@ npm run check     # 型チェック（.astro ファイルを含む）
 
 ## 公開・自動更新
 
-`.github/workflows/update.yml` が以下のタイミングで「テスト → 収集 → データをコミット → ビルド → GitHub Pages へ公開」を行います。
+`.github/workflows/update.yml` が以下のタイミングで「テスト → 収集 → データをコミット → ビルド → GitHub Pages へ公開 → 検索エンジン・SNS へ通知」を行います。
+データのコミットは、再実行や同時実行で古いコミットから始まった場合でも、ブランチの最新状態に取り込み直してから push します。
 
 - 毎時 7 分（UTC）の定期実行
 - 既定ブランチへの push
@@ -68,6 +108,7 @@ AdSense の審査や `ads.txt`・`robots.txt`（ドメイン直下に置く必�
 | 見た目（色・余白など） | `src/styles/global.css`（色は `:root` の変数）、`src/styles/items.css`、`src/components/*` |
 | 保存期間・件数 | `scripts/lib/store.ts` の `maxAgeDays` / `maxItems` |
 | SNS 共有用の画像 | `public/og.png`（1200×630）。サイト名を変えたら差し替えてください |
+| SNS 自動投稿の条件 | `scripts/lib/social.ts` の `DIGEST_HOUR` / `HOT_THRESHOLD` / `MAX_HOT_PER_DAY` |
 
 ### 収集元を追加する
 
@@ -96,6 +137,7 @@ GitHub の **Settings → Secrets and variables → Actions → Variables** に�
 | `PUBLIC_ADSENSE_SLOT` | （任意）広告ユニットのスロット ID。記事一覧の 10 件ごととサイドバーに広告枠を表示 |
 | `PUBLIC_GA_ID` | （任意）Google アナリティクス 4 の測定 ID（例: `G-XXXXXXXXXX`） |
 | `PUBLIC_GOOGLE_SITE_VERIFICATION` | （任意）Google Search Console の所有権確認コード |
+| `PUBLIC_BING_SITE_VERIFICATION` | （任意）Bing Web マスターツールの所有権確認コード |
 
 プライバシーポリシー（Cookie・広告配信・アクセス解析の記載）、運営者情報、お問い合わせ、サイトマップ、構造化データ、OGP 画像は最初から用意しています。
 2 ページ目以降の一覧と検索ページは `noindex` にし、サイトマップからも除外しています（内容の薄いページが大量に検索結果に出ないようにするため）。

@@ -1,3 +1,5 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import type { Item } from '../../src/lib/types.ts';
 
 export interface PruneOptions {
@@ -48,4 +50,21 @@ export function pruneItems(
 /** 1記事1行のJSONにする（ファイルを小さく保ちつつ、git の差分も記事単位で見やすくする） */
 export function serializeItems(items: Item[]): string {
   return items.length === 0 ? '[]\n' : `[\n${items.map((item) => JSON.stringify(item)).join(',\n')}\n]\n`;
+}
+
+/** items.json を読む。無い・壊れている場合は空配列 */
+export function readItemsFile(path: string): Item[] {
+  if (!existsSync(path)) return [];
+  try {
+    const data = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    return Array.isArray(data) ? (data as Item[]) : [];
+  } catch (error) {
+    console.warn(`${path} を読み込めないため空として扱います: ${error}`);
+    return [];
+  }
+}
+
+export function writeItemsFile(path: string, items: Item[]): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, serializeItems(items));
 }

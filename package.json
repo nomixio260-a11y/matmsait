@@ -12,7 +12,9 @@
     "preview": "astro preview",
     "fetch": "tsx scripts/fetch-feeds.ts",
     "test": "vitest run",
-    "check": "astro check"
+    "check": "astro check",
+    "merge": "tsx scripts/merge-items.ts",
+    "notify": "tsx scripts/notify.ts"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.19",

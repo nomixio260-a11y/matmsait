@@ -19,8 +19,9 @@ const year = builtAt.getFullYear();
     <nav aria-label="カテゴリ一覧">
       <h2>カテゴリ</h2>
       <ul>
-        <li><a href={href('/latest/')}>すべての新着</a></li>
+        <li><a href={href('/latest/')}>新着ニュース一覧</a></li>
         <li><a href={href('/ranking/')}>人気ランキング</a></li>
+        <li><a href={href('/daily/')}>日別アーカイブ</a></li>
         {
           categories.map((c) => (
             <li>
@@ -38,6 +39,15 @@ const year = builtAt.getFullYear();
         <li><a href={href('/privacy/')}>プライバシーポリシー</a></li>
         <li><a href={href('/contact/')}>お問い合わせ</a></li>
         <li><a href={href('/rss.xml')}>RSSフィード</a></li>
+        {
+          site.socialAccounts.map((account) => (
+            <li>
+              <a href={account.url} target="_blank" rel="noopener me">
+                {account.name}でフォロー
+              </a>
+            </li>
+          ))
+        }
       </ul>
     </nav>
   </div>

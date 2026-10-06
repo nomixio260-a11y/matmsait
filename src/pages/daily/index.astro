@@ -1,0 +1,100 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { site } from '../../config/site.ts';
+import { dailyPath, formatDay, formatMonth, getDailySnapshots } from '../../lib/daily.ts';
+import { href } from '../../lib/items.ts';
+
+const days = getDailySnapshots();
+const months: { label: string; days: typeof days }[] = [];
+for (const day of days) {
+  const label = formatMonth(day.date);
+  const last = months.at(-1);
+  if (last?.label === label) last.days.push(day);
+  else months.push({ label, days: [day] });
+}
+const topTitle = (day: (typeof days)[number]) => day.items.find((item) => (item.hatebu ?? 0) > 0)?.title;
+---
+
+<BaseLayout
+  title="日別アーカイブ"
+  description={`${site.name}が毎日まとめている「その日の話題のニュース」の一覧です。過去の人気記事を日付から振り返れます。`}
+  breadcrumbs={[{ name: '日別アーカイブ' }]}
+>
+  <div class="page-head">
+    <h1>日別アーカイブ</h1>
+    <p>その日に話題になったニュースを1日ごとにまとめています。</p>
+  </div>
+  <div class="stack">
+    {
+      months.map((month) => (
+        <section class="panel">
+          <div class="panel-head">
+            <h2>{month.label}</h2>
+          </div>
+          <ul class="days">
+            {month.days.map((day) => (
+              <li>
+                <a href={href(dailyPath(day.date))}>
+                  <span class="date">{formatDay(day.date)}</span>
+                  <span class="count">{day.total}件</span>
+                  {topTitle(day) && <span class="top">{topTitle(day)}</span>}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+    {months.length === 0 && <p class="empty">まだアーカイブがありません。</p>}
+  </div>
+</BaseLayout>
+
+<style>
+  .days {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .days li + li {
+    border-top: 1px solid var(--border);
+  }
+  .days a {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 10px 16px;
+    text-decoration: none;
+  }
+  .days a:hover {
+    background: var(--surface-2);
+  }
+  .days a:hover .date {
+    color: var(--accent);
+  }
+  .date {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .count {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .top {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.82rem;
+    color: var(--text-2);
+  }
+  @media (max-width: 599px) {
+    .days a {
+      grid-template-columns: auto 1fr;
+    }
+    .top {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

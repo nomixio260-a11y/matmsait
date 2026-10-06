@@ -1,15 +1,16 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import Parser from 'rss-parser';
 import { loadSources } from '../src/lib/sources.ts';
 import type { Item, Source } from '../src/lib/types.ts';
+import { updateDailySnapshots } from './lib/daily.ts';
 import { fetchHatenaCounts } from './lib/hatena.ts';
 import { closeConnections, decodeBody, httpGet, type HttpResponse } from './lib/http.ts';
 import { buildExcerpt, cleanTitle, itemId, normalizePublishedAt, normalizeUrl } from './lib/normalize.ts';
-import { mergeItems, pruneItems, serializeItems } from './lib/store.ts';
+import { mergeItems, pruneItems, readItemsFile, writeItemsFile } from './lib/store.ts';
 import { jitter, shuffle, sleep } from './lib/timing.ts';
 
 const ITEMS_PATH = resolve(process.cwd(), 'data/items.json');
+const DAILY_DIR = resolve(process.cwd(), 'data/daily');
 /** 同時にアクセスするホスト数（同じホストへは常に1件ずつ） */
 const HOST_CONCURRENCY = 4;
 const MAX_ITEMS_PER_FEED = 50;
@@ -108,16 +109,6 @@ async function updateHatebu(items: Item[], now: Date): Promise<void> {
   }
 }
 
-function readExisting(): Item[] {
-  if (!existsSync(ITEMS_PATH)) return [];
-  try {
-    return JSON.parse(readFileSync(ITEMS_PATH, 'utf8')) as Item[];
-  } catch (error) {
-    console.warn(`${ITEMS_PATH} を読み込めないため空から作り直します: ${error}`);
-    return [];
-  }
-}
-
 async function main() {
   const now = new Date();
   const sources = loadSources();
@@ -127,18 +118,19 @@ async function main() {
 
   const { items: fetched, failed } = await fetchAll(sources, now);
   // sources.yaml から削除されたソースの記事は落とす
-  const existing = readExisting().filter((item) => sourceById.has(item.sourceId));
+  const existing = readItemsFile(ITEMS_PATH).filter((item) => sourceById.has(item.sourceId));
   const merged = pruneItems(mergeItems(existing, fetched, isAggregator), { now });
   await updateHatebu(merged, now);
   closeConnections();
 
   const existingIds = new Set(existing.map((item) => item.id));
   const added = merged.filter((item) => !existingIds.has(item.id)).length;
-  mkdirSync(dirname(ITEMS_PATH), { recursive: true });
-  writeFileSync(ITEMS_PATH, serializeItems(merged));
+  writeItemsFile(ITEMS_PATH, merged);
+  const days = updateDailySnapshots(merged, DAILY_DIR, now);
   console.log(
     `新規 ${added} 件 / 合計 ${merged.length} 件を保存しました（成功 ${sources.length - failed.length} / 失敗 ${failed.length}）`,
   );
+  console.log(`日別まとめを更新: ${days.join(', ') || 'なし'}`);
 
   if (failed.length === sources.length) {
     console.error('すべてのフィードの取得に失敗しました');

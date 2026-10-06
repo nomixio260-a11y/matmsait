@@ -25,6 +25,9 @@ jobs:
     if: github.event_name == 'schedule' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+      base_url: ${{ steps.pages.outputs.base_url }}
     steps:
       - uses: actions/checkout@v7
 
@@ -51,17 +54,29 @@ jobs:
         run: npm run fetch
 
       - name: 取得したデータをコミット
+        id: commit
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/items.json
-          if git diff --cached --quiet; then
-            echo '更新なし'
-            exit 0
-          fi
-          git commit -m 'chore: フィードを更新'
+          # 取得結果を退避し、ブランチの最新状態に取り込み直してから push する。
+          # （再実行や同時更新で古いコミットから始まっても、データが衝突しない）
+          cp data/items.json "$RUNNER_TEMP/fetched-items.json"
           for attempt in 1 2 3; do
-            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            git fetch --quiet origin "$GITHUB_REF_NAME"
+            git reset --quiet --hard "origin/$GITHUB_REF_NAME"
+            git diff --quiet "$GITHUB_SHA" HEAD -- package-lock.json || npm ci
+            npm run --silent merge -- "$RUNNER_TEMP/fetched-items.json"
+            git add data
+            if git diff --cached --quiet; then
+              echo '更新なし'
+              echo 'changed=false' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            git commit --quiet -m 'chore: フィードを更新'
+            if git push --quiet origin "HEAD:$GITHUB_REF_NAME"; then
+              echo 'changed=true' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             sleep $((attempt * 5))
           done
           echo 'データのコミットに失敗しました' >&2
@@ -76,6 +91,7 @@ jobs:
           PUBLIC_ADSENSE_SLOT: ${{ vars.PUBLIC_ADSENSE_SLOT }}
           PUBLIC_GA_ID: ${{ vars.PUBLIC_GA_ID }}
           PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}
+          PUBLIC_BING_SITE_VERIFICATION: ${{ vars.PUBLIC_BING_SITE_VERIFICATION }}
 
       - uses: actions/upload-pages-artifact@v5
         with:
@@ -90,3 +106,55 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # 公開後に検索エンジン（IndexNow）・フィード購読者（WebSub）へ更新を知らせ、SNS に自動投稿する
+  notify:
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # build ジョブがコミットした最新のデータを使う
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: 更新を通知・SNS に投稿
+        run: npm run notify
+        env:
+          SITE_BASE_URL: ${{ needs.build.outputs.base_url }}
+          DATA_CHANGED: ${{ needs.build.outputs.changed }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          MASTODON_URL: ${{ secrets.MASTODON_URL }}
+          MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
+          MISSKEY_URL: ${{ secrets.MISSKEY_URL }}
+          MISSKEY_TOKEN: ${{ secrets.MISSKEY_TOKEN }}
+
+      - name: 投稿の記録をコミット
+        run: |
+          [ -f data/social.json ] || exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          cp data/social.json "$RUNNER_TEMP/social.json"
+          for attempt in 1 2 3; do
+            git fetch --quiet origin "$GITHUB_REF_NAME"
+            git reset --quiet --hard "origin/$GITHUB_REF_NAME"
+            cp "$RUNNER_TEMP/social.json" data/social.json
+            git add data/social.json
+            git diff --cached --quiet && exit 0
+            git commit --quiet -m 'chore: SNS 投稿の記録を更新'
+            git push --quiet origin "HEAD:$GITHUB_REF_NAME" && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1

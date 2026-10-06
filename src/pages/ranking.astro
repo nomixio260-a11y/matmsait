@@ -1,29 +1,42 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import RankingList from '../components/RankingList.astro';
-import { categories } from '../config/site.ts';
+import ShareButtons from '../components/ShareButtons.astro';
+import { categories, site } from '../config/site.ts';
 import { getRanking, href } from '../lib/items.ts';
+import { clampDescription, collectionJsonLd, headlineTeaser } from '../lib/seo.ts';
 
 const daily = getRanking({ hours: 24, limit: 30 });
 const weekly = getRanking({ hours: 24 * 7, limit: 30 });
 const byCategory = categories
   .map((category) => ({ category, items: getRanking({ hours: 48, category: category.slug, limit: 5 }) }))
   .filter((entry) => entry.items.length > 0);
+
+const title = '人気ニュースランキング（24時間・1週間）';
+const description = clampDescription(
+  daily.length > 0
+    ? `いま話題のニュースをはてなブックマーク数でランキング。1位${headlineTeaser(daily, 1, 30)}ほか、24時間・1週間の人気記事とカテゴリ別ランキングを毎時更新。`
+    : 'はてなブックマーク数をもとに、いま話題のニュースをランキング形式でまとめています。',
+);
+const url = new URL(Astro.url.pathname, Astro.site).toString();
+const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.slice(0, 10) })];
 ---
 
 <BaseLayout
-  title="人気記事ランキング"
-  description="はてなブックマーク数をもとに、いま話題の記事をランキング形式でまとめています。"
+  title={title}
+  description={description}
+  jsonLd={jsonLd}
   current="ranking"
   breadcrumbs={[{ name: 'ランキング' }]}
   sidebar={{ hideRanking: true }}
 >
   <div class="page-head">
-    <h1>人気記事ランキング</h1>
+    <h1>人気ニュースランキング</h1>
     <p>掲載記事のはてなブックマーク数をもとに集計しています（1時間ごとに更新）。</p>
   </div>
 
   <div class="stack">
+    <ShareButtons url={url} text={`いま話題のニュースランキング｜${site.name}`} />
     <section class="panel">
       <div class="panel-head">
         <h2>ランキング</h2>
