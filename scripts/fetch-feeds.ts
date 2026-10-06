@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import Parser from 'rss-parser';
 import { loadSources } from '../src/lib/sources.ts';
+import { getSummary } from '../src/lib/summaries.ts';
 import type { Item, Source } from '../src/lib/types.ts';
 import { updateDailySnapshots } from './lib/daily.ts';
 import { fetchHatenaCounts } from './lib/hatena.ts';
@@ -119,7 +120,9 @@ async function main() {
   const { items: fetched, failed } = await fetchAll(sources, now);
   // sources.yaml から削除されたソースの記事は落とす
   const existing = readItemsFile(ITEMS_PATH).filter((item) => sourceById.has(item.sourceId));
-  const merged = pruneItems(mergeItems(existing, fetched, isAggregator), { now });
+  // 見出しが同じ記事をまとめるときは、要約のある記事を残す
+  const hasSummary = (id: string) => Boolean(getSummary(id));
+  const merged = pruneItems(mergeItems(existing, fetched, isAggregator, hasSummary), { now });
   await updateHatebu(merged, now);
   closeConnections();
 

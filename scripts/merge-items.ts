@@ -2,6 +2,7 @@
 // ワークフローで push が競合したとき（再実行や同時実行）に、最新のデータを取り込み直すために使う。
 import { resolve } from 'node:path';
 import { loadSources } from '../src/lib/sources.ts';
+import { getSummary } from '../src/lib/summaries.ts';
 import { updateDailySnapshots } from './lib/daily.ts';
 import { mergeItems, pruneItems, readItemsFile, writeItemsFile } from './lib/store.ts';
 
@@ -21,7 +22,9 @@ const isAggregator = (sourceId: string) => sourceById.get(sourceId)?.aggregator 
 
 const current = readItemsFile(ITEMS_PATH).filter((item) => known(item.sourceId));
 const other = readItemsFile(otherPath).filter((item) => known(item.sourceId));
-const merged = pruneItems(mergeItems(current, other, isAggregator), { now });
+// 見出しが同じ記事をまとめるときは、要約のある記事を残す
+const hasSummary = (id: string) => Boolean(getSummary(id));
+const merged = pruneItems(mergeItems(current, other, isAggregator, hasSummary), { now });
 writeItemsFile(ITEMS_PATH, merged);
 const days = updateDailySnapshots(merged, DAILY_DIR, now);
 console.log(`マージ後 ${merged.length} 件（日別まとめを更新: ${days.join(', ') || 'なし'}）`);

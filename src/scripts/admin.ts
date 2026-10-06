@@ -45,6 +45,8 @@ const KEYS = {
 /** 保存・削除した記事を、サイトに反映されるまで一覧から隠しておく時間 */
 const HIDE_FOR = 6 * 60 * 60 * 1000;
 const LIST_LIMIT = 300;
+/** この時間以上サイトが更新されていなければ警告する */
+const STALE_HOURS = 3;
 
 // ===== ストレージ（使えない環境でも動くようにする） =====
 
@@ -682,6 +684,17 @@ async function main() {
     return;
   }
   ui.dataInfo.textContent = `記事データ: ${dateFormat.format(new Date(data.generatedAt))} 時点（要約待ち ${data.pending.length}件 ・ 要約済み ${data.summarized.length}件）`;
+  // 毎時の更新が止まっていたら知らせる（GitHub の定期実行は遅れたり止まったりすることがある）
+  const hours = Math.floor((Date.now() - Date.parse(data.generatedAt)) / (60 * 60 * 1000));
+  if (hours >= STALE_HOURS) {
+    ui.dataInfo.after(
+      el(
+        'p',
+        'stale-warning',
+        `サイトが${hours}時間以上更新されていません。定期実行が止まっている可能性があります。下の「今すぐ更新」で更新できます。`,
+      ),
+    );
+  }
   ui.repoName.textContent = `${data.repository.owner}/${data.repository.repo}`;
   ui.category.append(
     ...data.categories.map((category) => {
