@@ -221,6 +221,21 @@ import { href } from '../../lib/items.ts';
       </div>
     </details>
 
+    <details class="card" id="sources-card">
+      <summary>
+        <span class="summary-title">収集元の状況</span><span class="badge" id="sources-badge">-</span>
+      </summary>
+      <div class="card-body">
+        <p class="hint">
+          直近30日に集めた記事の数と、いちばん新しい記事の日時です。新しい記事が3日以上ない収集元は、フィードの URL
+          が変わったか配信が止まっている可能性があります（<code>sources.yaml</code> で修正・削除できます）。
+        </p>
+        <div class="table-wrap">
+          <table class="result-table" id="sources-table"></table>
+        </div>
+      </div>
+    </details>
+
     <details class="card" id="blocklist-card">
       <summary>
         <span class="summary-title">記事の非表示（NGワード・サイト）</span><span class="badge" id="hidden-count">0件</span>
@@ -445,6 +460,16 @@ import { href } from '../../lib/items.ts';
   }
   .run-controls {
     margin-top: 10px;
+  }
+  .table-wrap {
+    overflow-x: auto;
+  }
+  :global(#sources-table td.num) {
+    text-align: right;
+    white-space: nowrap;
+  }
+  :global(#sources-table a) {
+    color: var(--text);
   }
   .block-fields {
     display: grid;

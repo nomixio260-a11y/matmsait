@@ -40,7 +40,17 @@ interface HiddenArticle extends AdminArticle {
   reason: string;
 }
 
+interface SourceStat {
+  id: string;
+  name: string;
+  category: string;
+  siteUrl: string;
+  count: number;
+  latest: string | null;
+}
+
 interface AdminData {
+  sources?: SourceStat[];
   generatedAt: string;
   siteName: string;
   repository: Repository;
@@ -64,6 +74,8 @@ const HIDE_FOR = 6 * 60 * 60 * 1000;
 const LIST_LIMIT = 300;
 /** この時間以上サイトが更新されていなければ警告する */
 const STALE_HOURS = 3;
+/** 収集元の最新記事がこれより古ければ、フィードが止まっている可能性を示す */
+const SOURCE_STALE_DAYS = 3;
 
 // ===== ストレージ（使えない環境でも動くようにする） =====
 
@@ -553,6 +565,40 @@ function renderSavedList() {
   };
 }
 
+// ===== 収集元の状況 =====
+
+function renderSources() {
+  if (!data?.sources) return;
+  const now = Date.now();
+  const days = (iso: string | null) => (iso ? Math.floor((now - Date.parse(iso)) / (24 * 60 * 60 * 1000)) : Infinity);
+  const sources = [...data.sources].sort((a, b) => days(b.latest) - days(a.latest) || a.name.localeCompare(b.name, 'ja'));
+  const stale = sources.filter((source) => days(source.latest) >= SOURCE_STALE_DAYS);
+  const badge = $('sources-badge');
+  badge.textContent = stale.length > 0 ? `${stale.length}件 要確認` : `${sources.length}件 正常`;
+  badge.className = `badge${stale.length > 0 ? '' : ' ok'}`;
+  if (stale.length > 0) badge.style.color = 'var(--hot)';
+  const head = el('tr');
+  head.append(el('th', '', '収集元'), el('th', '', 'カテゴリ'), el('th', '', '記事数'), el('th', '', '最新の記事'));
+  const rows = sources.map((source) => {
+    const row = el('tr');
+    const name = el('td');
+    const link = el('a', '', source.name);
+    link.href = source.siteUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    name.append(link);
+    const age = days(source.latest);
+    const latest = el(
+      'td',
+      `num${age >= SOURCE_STALE_DAYS ? ' result-state error' : ''}`,
+      source.latest ? `${dateFormat.format(new Date(source.latest))}${age >= SOURCE_STALE_DAYS ? `（${age}日前）` : ''}` : 'なし',
+    );
+    row.append(name, el('td', '', categoryName(source.category)), el('td', 'num', `${source.count}件`), latest);
+    return row;
+  });
+  $('sources-table').replaceChildren(head, ...rows);
+}
+
 // ===== 記事の非表示（data/blocklist.json） =====
 
 /** 非表示の設定を最新の状態から読み直して変更し、1つのコミットで保存する */
@@ -925,6 +971,7 @@ async function main() {
   renderSaveArea();
   setupRuns();
   setupBlocklist();
+  renderSources();
   void renderRuns();
 }
 

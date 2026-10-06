@@ -1,7 +1,7 @@
 import { categories, site } from '../../config/site.ts';
 import { getBlocklist } from '../../lib/blocklist.ts';
 import { blockReason } from '../../lib/blocklist-core.ts';
-import { builtAt, getAllItems, getItems, siteOf } from '../../lib/items.ts';
+import { builtAt, getAllItems, getItems, getSources, siteOf } from '../../lib/items.ts';
 import { getAllSummaries, getSummaries, getSummary } from '../../lib/summaries.ts';
 import type { Item } from '../../lib/types.ts';
 
@@ -30,7 +30,25 @@ function hiddenArticles() {
     .slice(0, 300);
 }
 
-/** 管理画面用のデータ（要約待ちの記事、保存済みの要約、非表示の設定） */
+/** 収集元ごとの記事数と最新の記事の日時（フィードが止まっていないかの確認用） */
+function sourceStats() {
+  const latest = new Map<string, string>();
+  const counts = new Map<string, number>();
+  for (const item of getAllItems()) {
+    counts.set(item.sourceId, (counts.get(item.sourceId) ?? 0) + 1);
+    if ((latest.get(item.sourceId) ?? '') < item.publishedAt) latest.set(item.sourceId, item.publishedAt);
+  }
+  return getSources().map((source) => ({
+    id: source.id,
+    name: source.name,
+    category: source.category,
+    siteUrl: source.siteUrl,
+    count: counts.get(source.id) ?? 0,
+    latest: latest.get(source.id) ?? null,
+  }));
+}
+
+/** 管理画面用のデータ（要約待ちの記事、保存済みの要約、非表示の設定、収集元の状況） */
 export function GET() {
   const data = {
     generatedAt: builtAt.toISOString(),
@@ -50,6 +68,7 @@ export function GET() {
       })),
     blocklist: getBlocklist(),
     hidden: hiddenArticles(),
+    sources: sourceStats(),
   };
   return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }

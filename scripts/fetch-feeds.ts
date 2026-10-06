@@ -1,3 +1,4 @@
+import { appendFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Parser from 'rss-parser';
 import { loadSources } from '../src/lib/sources.ts';
@@ -62,7 +63,14 @@ async function fetchSource(source: Source, now: Date): Promise<Item[]> {
  * 全ソースを取得する。人が順番に見て回るのに近づけるため、
  * 同じホストへは間隔をランダムに空けて1件ずつ、ホストの順番も毎回入れ替える。
  */
-async function fetchAll(sources: Source[], now: Date): Promise<{ items: Item[]; failed: string[] }> {
+interface SourceResult {
+  source: Source;
+  /** 取得できた記事数（失敗したときは undefined） */
+  count?: number;
+  error?: string;
+}
+
+async function fetchAll(sources: Source[], now: Date): Promise<{ items: Item[]; failed: string[]; results: SourceResult[] }> {
   const byHost = new Map<string, Source[]>();
   for (const source of sources) {
     const host = new URL(source.feedUrl).hostname;
@@ -71,6 +79,7 @@ async function fetchAll(sources: Source[], now: Date): Promise<{ items: Item[]; 
   const queue = shuffle([...byHost.values()].map((list) => shuffle(list)));
   const items: Item[] = [];
   const failed: string[] = [];
+  const results: SourceResult[] = [];
 
   async function worker() {
     for (let list = queue.shift(); list; list = queue.shift()) {
@@ -79,17 +88,45 @@ async function fetchAll(sources: Source[], now: Date): Promise<{ items: Item[]; 
         try {
           const fetched = await fetchSource(source, now);
           items.push(...fetched);
+          results.push({ source, count: fetched.length });
           console.log(`  ok   ${source.id}: ${fetched.length} 件`);
         } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
           failed.push(source.id);
-          console.warn(`  FAIL ${source.id}: ${error instanceof Error ? error.message : error}`);
+          results.push({ source, error: message });
+          console.warn(`  FAIL ${source.id}: ${message}`);
         }
       }
     }
   }
 
   await Promise.all(Array.from({ length: Math.min(HOST_CONCURRENCY, byHost.size) }, worker));
-  return { items, failed };
+  return { items, failed, results };
+}
+
+/** GitHub Actions の実行結果ページに、収集元ごとの取得結果を表で出す */
+function writeJobSummary(results: SourceResult[], added: Map<string, number>, total: number) {
+  const file = process.env.GITHUB_STEP_SUMMARY;
+  if (!file) return;
+  const failed = results.filter((result) => result.error);
+  const rows = [...results].sort(
+    (a, b) => Number(Boolean(b.error)) - Number(Boolean(a.error)) || a.source.id.localeCompare(b.source.id),
+  );
+  const newTotal = [...added.values()].reduce((sum, count) => sum + count, 0);
+  const lines = [
+    '### フィードの取得',
+    '',
+    `成功 ${results.length - failed.length} / 失敗 ${failed.length} ・ 新規 ${newTotal}件 ・ 合計 ${total}件`,
+    '',
+    '| 状態 | 収集元 | 取得 | 新規 | エラー |',
+    '| --- | --- | ---: | ---: | --- |',
+    ...rows.map(
+      ({ source, count, error }) =>
+        `| ${error ? '❌ 失敗' : '✅'} | ${source.name}（${source.id}） | ${count ?? '-'} | ${added.get(source.id) ?? 0} | ${error ?? ''} |`,
+    ),
+    '',
+  ];
+  appendFileSync(file, `${lines.join('\n')}\n`);
 }
 
 /** 直近の記事のはてなブックマーク数を更新する。失敗しても前回の値を残して続行 */
@@ -117,7 +154,7 @@ async function main() {
   const isAggregator = (id: string) => sourceById.get(id)?.aggregator === true;
   console.log(`${sources.length} 件のフィードを取得します`);
 
-  const { items: fetched, failed } = await fetchAll(sources, now);
+  const { items: fetched, failed, results } = await fetchAll(sources, now);
   // sources.yaml から削除されたソースの記事は落とす
   const existing = readItemsFile(ITEMS_PATH).filter((item) => sourceById.has(item.sourceId));
   // 見出しが同じ記事をまとめるときは、要約のある記事を残す
@@ -127,7 +164,11 @@ async function main() {
   closeConnections();
 
   const existingIds = new Set(existing.map((item) => item.id));
-  const added = merged.filter((item) => !existingIds.has(item.id)).length;
+  const addedItems = merged.filter((item) => !existingIds.has(item.id));
+  const added = addedItems.length;
+  const addedBySource = new Map<string, number>();
+  for (const item of addedItems) addedBySource.set(item.sourceId, (addedBySource.get(item.sourceId) ?? 0) + 1);
+  writeJobSummary(results, addedBySource, merged.length);
   writeItemsFile(ITEMS_PATH, merged);
   const days = updateDailySnapshots(merged, DAILY_DIR, now);
   console.log(
