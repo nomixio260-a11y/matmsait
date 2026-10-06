@@ -4,6 +4,10 @@ name: フィード更新とデプロイ
 # （GitHub の定期実行 schedule は新しいリポジトリだと動かないことがあるため使わない）
 on:
   push:
+    # 開発記録や説明書きだけの変更では、収集・公開をやり直さない（自動更新タイマーの間隔も崩さない）
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   # 自動更新タイマー、管理画面の「今すぐ更新」ボタン、Actions 画面の Run workflow から実行
   workflow_dispatch:
 
