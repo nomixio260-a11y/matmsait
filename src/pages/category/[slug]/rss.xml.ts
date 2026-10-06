@@ -14,7 +14,9 @@ export function GET(context: APIContext) {
     title: `${category.name}｜${site.name}`,
     description: category.description,
     site: new URL(href(`/category/${category.slug}/`), context.site),
-    items: getItemsByCategory(category.slug).slice(0, 50).map(itemToFeedItem),
+    items: getItemsByCategory(category.slug)
+      .slice(0, 50)
+      .map((item) => itemToFeedItem(item, context.site)),
     ...feedExtras(new URL(href(`/category/${category.slug}/rss.xml`), context.site).toString()),
   });
 }

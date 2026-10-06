@@ -1,5 +1,6 @@
 ---
 import { faviconUrl, formatDateTime, formatTime, getCategory, href, siteOf } from '../lib/items.ts';
+import { getSummary, summaryPath } from '../lib/summaries.ts';
 import type { Item } from '../lib/types.ts';
 
 interface Props {
@@ -13,11 +14,33 @@ const { item, showCategory = true, timeOnly = false, showExcerpt = true } = Astr
 const site = siteOf(item);
 const category = showCategory ? getCategory(item.category) : undefined;
 const hatebu = item.hatebu ?? 0;
+// AI 要約がある記事は当サイトの要約ページへ、ない記事は配信元へリンクする
+const summary = getSummary(item.id);
 ---
 
 <li class="item">
-  <a class="item-title" href={item.url} target="_blank" rel="noopener">{item.title}</a>
-  {showExcerpt && item.excerpt && <p class="item-excerpt">{item.excerpt}</p>}
+  {
+    summary ? (
+      <a class="item-title" href={href(summaryPath(item.id))}>
+        {item.title}
+      </a>
+    ) : (
+      <a class="item-title" href={item.url} target="_blank" rel="noopener">
+        {item.title}
+      </a>
+    )
+  }
+  {
+    showExcerpt &&
+      (summary ? (
+        <p class="item-excerpt item-summary">
+          <span class="ai-badge">AI要約</span>
+          {summary.summary}
+        </p>
+      ) : (
+        item.excerpt && <p class="item-excerpt">{item.excerpt}</p>
+      ))
+  }
   <div class="item-meta">
     <span class="item-site">
       <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
@@ -39,6 +62,14 @@ const hatebu = item.hatebu ?? 0;
         <span class:list={['users', { hot: hatebu >= 100 }]} title="はてなブックマーク数">
           <b>{hatebu}</b> users
         </span>
+      )
+    }
+    {summary && !showExcerpt && <span class="ai-badge">AI要約</span>}
+    {
+      summary && (
+        <a class="item-orig" href={item.url} target="_blank" rel="noopener">
+          元記事 ↗
+        </a>
       )
     }
   </div>

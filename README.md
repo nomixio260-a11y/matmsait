@@ -66,6 +66,43 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 
 ※ 検索結果に表示されるまでには通常数日〜数週間かかり、順位は保証されません。見出しを集めただけのページは評価されにくいため、独自ドメインの取得や独自コンテンツの追加が効果的です。
 
+## AI要約（管理画面）
+
+記事ごとに AI の要約を載せられます。要約のある記事は一覧に要約が表示され、タイトルから当サイトの要約ページ（`/summary/<記事ID>/`）に移動します。
+要約ページは元記事が古くなって一覧から消えても残り、検索エンジンにも送信されます。
+
+### 使い方（`/admin/`）
+
+公開サイトの `/admin/`（例: https://nomixio260-a11y.github.io/matmsait/admin/ ）を開きます。
+
+1. **記事を選ぶ** — 件数（10 / 20 / 30 / 50件）・カテゴリ・並び順（はてブの多い順 / 新しい順）を選ぶと、要約のない記事が上から選ばれます。チェックで個別に外せます
+2. **プロンプトをコピー** — AI への指示と、選んだ記事の id・タイトル・URL を JSON にまとめたプロンプトができます。要約の長さ・要点（箇条書き）の有無も選べます。ChatGPT・Claude・Gemini など Web ページを読める AI に貼り付けてください
+3. **AI の回答を貼り付けて確認** — 回答の JSON（前後の説明文やコードブロックがあっても可）を貼り付けて「内容を確認する」。一覧にない id、短すぎ・長すぎる要約、「アクセスできませんでした」のような断り文ははじかれます。保存したくない要約はチェックを外せます
+4. **保存して公開** — GitHub に1つのコミットとして保存し、1〜3分ほどでサイトに反映されます
+
+保存済みの要約は画面下の「保存済みの要約」から削除できます（削除した記事は要約待ちに戻ります）。
+
+### 最初に1回だけ: GitHub のトークン
+
+管理画面は静的なページなので、保存には GitHub のアクセストークンを使います。
+
+1. https://github.com/settings/personal-access-tokens/new で **Fine-grained** トークンを作成
+2. Repository access で **このリポジトリだけ** を選択
+3. Repository permissions の **Contents** を **Read and write** にする（有効期限も設定推奨）
+4. 管理画面の「GitHub との連携」に貼り付けて「接続を確認」
+
+トークンはブラウザから GitHub API に直接送るだけで、サイトには保存・公開されません（「このブラウザに記憶する」を選んだ場合のみ、その端末のブラウザに保存）。
+管理画面自体は誰でも開けますが、トークンがなければ何も変更できません。検索エンジンには登録されないよう `noindex` と robots.txt で除外しています。
+
+### コマンドラインでも使えます
+
+```sh
+npm run summaries -- prompt --count 20 --sort popular --out prompt.txt   # プロンプトを作る（--category tech など）
+npm run summaries -- import 回答.json                                     # 回答を検証して data/summaries/ に保存
+```
+
+要約は `data/summaries/YYYY-MM.json`（記事の公開月ごと、1記事1行）に保存されます。
+
 ## ローカルで動かす
 
 Node.js 22.12 以上が必要です。
@@ -109,6 +146,8 @@ AdSense の審査や `ads.txt`・`robots.txt`（ドメイン直下に置く必�
 | 保存期間・件数 | `scripts/lib/store.ts` の `maxAgeDays` / `maxItems` |
 | SNS 共有用の画像 | `public/og.png`（1200×630）。サイト名を変えたら差し替えてください |
 | SNS 自動投稿の条件 | `scripts/lib/social.ts` の `DIGEST_HOUR` / `HOT_THRESHOLD` / `MAX_HOT_PER_DAY` |
+| AI要約のプロンプト・検証ルール | `src/lib/summary-core.ts`（`buildSummaryPrompt` / `validateEntries`） |
+| 管理画面の保存先リポジトリ | `src/config/site.ts` の `repository` |
 
 ### 収集元を追加する
 

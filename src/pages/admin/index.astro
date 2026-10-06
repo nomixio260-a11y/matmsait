@@ -1,0 +1,460 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { SUMMARY_LENGTHS } from '../../lib/summary-core.ts';
+import { href } from '../../lib/items.ts';
+---
+
+<AdminLayout title="AI要約の管理">
+  <div class="admin" data-admin data-base={href('')}>
+    <div class="intro">
+      <h1>AI要約の管理</h1>
+      <p>
+        要約のない記事を選んでAI用のプロンプトを作り、AIの回答（JSON）を貼り付けて保存すると、サイトの各記事に要約が載ります。
+      </p>
+      <p class="data-info" id="data-info" aria-live="polite">記事データを読み込んでいます…</p>
+    </div>
+
+    <details class="card" id="settings">
+      <summary>
+        <span class="summary-title">GitHub との連携（保存に必要）</span>
+        <span class="badge" id="token-badge">未設定</span>
+      </summary>
+      <div class="card-body">
+        <label class="field">
+          <span>GitHub のアクセストークン</span>
+          <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_..." />
+        </label>
+        <label class="check">
+          <input id="remember" type="checkbox" />
+          このブラウザに記憶する（自分専用の端末でだけ使ってください）
+        </label>
+        <div class="actions">
+          <button type="button" id="test-token">接続を確認</button>
+          <button type="button" id="forget-token" class="ghost">トークンを消す</button>
+        </div>
+        <p class="status" id="token-status" aria-live="polite"></p>
+        <div class="help">
+          <p>トークンの作り方（最初の1回だけ）:</p>
+          <ol>
+            <li>
+              <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">
+                Fine-grained トークンの作成ページ
+              </a>
+              を開く
+            </li>
+            <li>「Repository access」で <code id="repo-name">このサイトのリポジトリ</code> だけを選ぶ</li>
+            <li>「Repository permissions」の <b>Contents</b> を <b>Read and write</b> にして作成</li>
+            <li>表示されたトークンを上の欄に貼り付けて「接続を確認」</li>
+          </ol>
+          <p>トークンはこのブラウザから GitHub に送るだけで、サイトや他の場所には送信・公開されません。</p>
+        </div>
+      </div>
+    </details>
+
+    <section class="card">
+      <h2><span class="step">1</span>要約する記事を選ぶ</h2>
+      <div class="card-body">
+        <div class="controls">
+          <label class="field inline">
+            <span>件数</span>
+            <select id="count">
+              <option value="10">10件</option>
+              <option value="20" selected>20件</option>
+              <option value="30">30件</option>
+              <option value="50">50件</option>
+            </select>
+          </label>
+          <label class="field inline">
+            <span>カテゴリ</span>
+            <select id="category"><option value="">すべて</option></select>
+          </label>
+          <label class="field inline">
+            <span>並び順</span>
+            <select id="sort">
+              <option value="popular">はてブの多い順</option>
+              <option value="latest">新しい順</option>
+            </select>
+          </label>
+          <button type="button" id="reselect" class="ghost">上から選び直す</button>
+        </div>
+        <p class="counter" id="pick-counter"></p>
+        <ul class="pick-list" id="pick-list"></ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">2</span>プロンプトをコピーしてAIに渡す</h2>
+      <div class="card-body">
+        <div class="controls">
+          <label class="field inline">
+            <span>要約の長さ</span>
+            <select id="length">
+              {
+                Object.entries(SUMMARY_LENGTHS).map(([key, value]) => (
+                  <option value={key} selected={key === 'normal'}>
+                    {value.label}（{value.min}〜{value.max}字）
+                  </option>
+                ))
+              }
+            </select>
+          </label>
+          <label class="check">
+            <input id="points" type="checkbox" checked />
+            要点（箇条書き）も作る
+          </label>
+        </div>
+        <textarea id="prompt" rows="12" readonly aria-label="AIに渡すプロンプト"></textarea>
+        <div class="actions">
+          <button type="button" id="copy-prompt" class="primary">プロンプトをコピー</button>
+          <button type="button" id="download-prompt">テキストで保存</button>
+          <span class="note" id="prompt-info"></span>
+        </div>
+        <p class="hint">
+          ChatGPT・Claude・Gemini など、Webページを読めるAIに貼り付けてください。
+          AIが開けなかった記事は「unavailable」として返り、要約待ちに残ります。
+        </p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">3</span>AIの回答（JSON）を貼り付けて確認する</h2>
+      <div class="card-body">
+        <textarea
+          id="response"
+          rows="10"
+          spellcheck="false"
+          aria-label="AIの回答"
+          placeholder='[{"id": "...", "status": "ok", "summary": "...", "points": ["..."]}]'></textarea>
+        <div class="actions">
+          <button type="button" id="check" class="primary">内容を確認する</button>
+          <button type="button" id="clear-response" class="ghost">クリア</button>
+        </div>
+        <div id="check-result" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">4</span>保存して公開する</h2>
+      <div class="card-body">
+        <p class="note" id="save-info">確認できた要約はまだありません。</p>
+        <div class="actions">
+          <button type="button" id="save" class="primary" disabled>保存して公開</button>
+          <button type="button" id="download-json" disabled>保存用JSONをダウンロード</button>
+        </div>
+        <p class="status" id="save-status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <details class="card">
+      <summary><span class="summary-title">保存済みの要約</span><span class="badge" id="saved-count">0件</span></summary>
+      <div class="card-body">
+        <p class="hint">内容に問題がある要約は、選んで削除できます（削除した記事は要約待ちに戻ります）。</p>
+        <ul class="pick-list" id="saved-list"></ul>
+        <div class="actions">
+          <button type="button" id="delete-selected" class="danger" disabled>選んだ要約を削除</button>
+        </div>
+        <p class="status" id="delete-status" aria-live="polite"></p>
+      </div>
+    </details>
+  </div>
+</AdminLayout>
+
+<script>
+  import '../../scripts/admin.ts';
+</script>
+
+<style>
+  .intro h1 {
+    margin: 0;
+    font-size: 1.4rem;
+  }
+  .intro p {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  .admin {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .card > h2,
+  .card > summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 14px 16px;
+    font-size: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .card > summary {
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .card:not([open]) > summary {
+    border-bottom: 0;
+  }
+  .summary-title {
+    flex: 1;
+  }
+  .card-body {
+    padding: 14px 16px 16px;
+  }
+  .step {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.8rem;
+  }
+  .badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  :global(.badge.ok) {
+    background: #e7f6ec;
+    border-color: #b7e2c4;
+    color: #1d6b3a;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 16px;
+    margin-bottom: 10px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: var(--text-2);
+    font-weight: 600;
+  }
+  .field input {
+    width: 100%;
+  }
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+  }
+  input[type='password'],
+  select,
+  textarea {
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  textarea {
+    width: 100%;
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+  }
+  button {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+  button.primary:hover:not(:disabled) {
+    background: var(--accent-strong);
+    color: var(--on-accent);
+  }
+  button.ghost {
+    background: transparent;
+  }
+  button.danger {
+    color: var(--hot);
+    border-color: var(--hot);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .note,
+  .counter,
+  .hint {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .counter {
+    margin: 0 0 8px;
+  }
+  .hint {
+    margin: 10px 0 0;
+  }
+  .status {
+    margin: 10px 0 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  :global(.status.error) {
+    color: var(--hot);
+  }
+  :global(.status.ok) {
+    color: #1d6b3a;
+  }
+  .help {
+    margin-top: 14px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    font-size: 0.8rem;
+    color: var(--text-2);
+  }
+  .help p {
+    margin: 4px 0;
+  }
+  .help ol {
+    margin: 4px 0;
+    padding-left: 1.4em;
+  }
+  .help a {
+    color: var(--accent);
+  }
+  .pick-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 460px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  :global(.pick-list li + li) {
+    border-top: 1px solid var(--border);
+  }
+  :global(.pick-list label) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  :global(.pick-list label:hover) {
+    background: var(--surface-2);
+  }
+  :global(.pick-list input) {
+    grid-row: span 2;
+    margin-top: 4px;
+  }
+  :global(.pick-title) {
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  :global(.pick-meta) {
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  :global(.pick-summary) {
+    grid-column: 2;
+    font-size: 0.78rem;
+    color: var(--text-2);
+  }
+  :global(.result-summary) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0 8px;
+  }
+  :global(.result-table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  :global(.result-table th),
+  :global(.result-table td) {
+    padding: 8px;
+    border-top: 1px solid var(--border);
+    vertical-align: top;
+    text-align: left;
+  }
+  :global(.result-table th) {
+    font-size: 0.72rem;
+    color: var(--muted);
+    border-top: 0;
+  }
+  :global(.result-table .points) {
+    margin: 4px 0 0;
+    padding-left: 1.2em;
+    color: var(--text-2);
+  }
+  :global(.result-state) {
+    white-space: nowrap;
+    font-weight: 700;
+  }
+  :global(.result-state.ok) {
+    color: #1d6b3a;
+  }
+  :global(.result-state.skip) {
+    color: var(--muted);
+  }
+  :global(.result-state.error) {
+    color: var(--hot);
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light']) .badge.ok) {
+      background: #12301d;
+      border-color: #1f5a35;
+      color: #7ee2a1;
+    }
+    :global(:root:not([data-theme='light']) .status.ok),
+    :global(:root:not([data-theme='light']) .result-state.ok) {
+      color: #7ee2a1;
+    }
+  }
+  :global(:root[data-theme='dark'] .badge.ok) {
+    background: #12301d;
+    border-color: #1f5a35;
+    color: #7ee2a1;
+  }
+  :global(:root[data-theme='dark'] .status.ok),
+  :global(:root[data-theme='dark'] .result-state.ok) {
+    color: #7ee2a1;
+  }
+</style>

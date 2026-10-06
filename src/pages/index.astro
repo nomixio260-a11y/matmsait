@@ -5,8 +5,10 @@ import RankingList from '../components/RankingList.astro';
 import { categories, site } from '../config/site.ts';
 import { builtAt, formatDateTime, getItems, getItemsByCategory, getRanking, href } from '../lib/items.ts';
 import { clampDescription, headlineTeaser } from '../lib/seo.ts';
+import { getSummaries } from '../lib/summaries.ts';
 
 const latest = getItems().slice(0, 30);
+const summaries = getSummaries().slice(0, 5);
 const hot = getRanking({ hours: 24, limit: 5 });
 const sections = categories
   .map((category) => ({ category, items: getItemsByCategory(category.slug).slice(0, 6) }))
@@ -73,6 +75,23 @@ const jsonLd = [
             </a>
           </div>
           <RankingList items={hot} />
+        </section>
+      )
+    }
+
+    {
+      summaries.length > 0 && (
+        <section class="panel">
+          <div class="panel-head">
+            <h2>
+              <span class="ai-badge">AI要約</span>
+              要点がわかる記事
+            </h2>
+            <a class="more" href={href('/summaries/')}>
+              もっと見る →
+            </a>
+          </div>
+          <ItemList items={summaries} group={false} ads={false} />
         </section>
       )
     }

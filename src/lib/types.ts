@@ -36,3 +36,13 @@ export interface DailySnapshot {
   /** はてブ数の多い記事とカテゴリごとの上位記事（人気順） */
   items: Item[];
 }
+
+/** AI 要約つきの記事（data/summaries/YYYY-MM.json）。記事が items.json から消えても要約ページを出せるよう記事情報ごと保存する */
+export interface SummaryRecord extends Item {
+  /** AI が作成した要約 */
+  summary: string;
+  /** 要点（箇条書き） */
+  points: string[];
+  /** 要約を保存した日時（ISO 8601） */
+  summarizedAt: string;
+}

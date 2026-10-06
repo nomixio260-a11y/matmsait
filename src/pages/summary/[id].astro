@@ -1,0 +1,227 @@
+---
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ItemList from '../../components/ItemList.astro';
+import ShareButtons from '../../components/ShareButtons.astro';
+import { site } from '../../config/site.ts';
+import { faviconUrl, formatDateTime, getCategory, getItemsByCategory, href, siteOf } from '../../lib/items.ts';
+import { clampDescription } from '../../lib/seo.ts';
+import { getSummaries, summaryPath } from '../../lib/summaries.ts';
+import type { SummaryRecord } from '../../lib/types.ts';
+
+export const getStaticPaths = (() =>
+  getSummaries().map((record) => ({ params: { id: record.id }, props: { record } }))) satisfies GetStaticPaths;
+
+interface Props {
+  record: SummaryRecord;
+}
+const { record } = Astro.props;
+const category = getCategory(record.category);
+const source = siteOf(record);
+const url = new URL(href(summaryPath(record.id)), Astro.site).toString();
+const hatebu = record.hatebu ?? 0;
+
+// 同じカテゴリの他の要約と、同じカテゴリの新着記事
+const relatedSummaries = getSummaries()
+  .filter((other) => other.category === record.category && other.id !== record.id)
+  .slice(0, 5);
+const relatedIds = new Set([record.id, ...relatedSummaries.map((other) => other.id)]);
+const latestInCategory = getItemsByCategory(record.category)
+  .filter((item) => !relatedIds.has(item.id))
+  .slice(0, 6);
+
+const description = clampDescription(record.summary);
+const home = new URL(href('/'), Astro.site).toString();
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: Array.from(record.title).slice(0, 110).join(''),
+    description,
+    url,
+    mainEntityOfPage: url,
+    inLanguage: 'ja',
+    datePublished: record.summarizedAt,
+    dateModified: record.summarizedAt,
+    isBasedOn: record.url,
+    image: new URL(href('/og.png'), Astro.site).toString(),
+    author: { '@type': 'Organization', name: site.name, url: home },
+    publisher: {
+      '@type': 'Organization',
+      name: site.name,
+      logo: { '@type': 'ImageObject', url: new URL(href('/icon-512.png'), Astro.site).toString() },
+    },
+  },
+];
+const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.title).slice(0, 29).join('')}…` : record.title;
+---
+
+<BaseLayout
+  title={`${record.title}【要約】`}
+  description={description}
+  current={record.category}
+  jsonLd={jsonLd}
+  breadcrumbs={[
+    ...(category ? [{ name: category.name, path: `/category/${category.slug}/` }] : []),
+    { name: shortTitle },
+  ]}
+>
+  <article class="stack">
+    <header class="article-head">
+      <p class="kicker">
+        {
+          category && (
+            <a href={href(`/category/${category.slug}/`)}>
+              <span class="dot" style={`--c:${category.color}`} />
+              {category.name}
+            </a>
+          )
+        }
+        <span class="source">
+          <img src={faviconUrl(source.host)} alt="" width="16" height="16" referrerpolicy="no-referrer" />
+          {source.label}
+        </span>
+        <time datetime={record.publishedAt}>{formatDateTime(record.publishedAt)}</time>
+        {
+          hatebu >= 3 && (
+            <span class:list={['users', { hot: hatebu >= 100 }]} title="はてなブックマーク数">
+              <b>{hatebu}</b> users
+            </span>
+          )
+        }
+      </p>
+      <h1>{record.title}</h1>
+    </header>
+
+    <section class="panel ai-box" aria-labelledby="ai-summary-title">
+      <h2 id="ai-summary-title"><span class="ai-badge">AI要約</span>この記事の要約</h2>
+      <p class="summary-text">{record.summary}</p>
+      {
+        record.points.length > 0 && (
+          <ul class="points">
+            {record.points.map((point) => (
+              <li>{point}</li>
+            ))}
+          </ul>
+        )
+      }
+      <p class="ai-note">
+        この要約はAIが元記事をもとに作成したものです。正確な内容や詳細は元記事でご確認ください。
+      </p>
+      <a class="read-original" href={record.url} target="_blank" rel="noopener">
+        元記事を読む（{source.label}）↗
+      </a>
+    </section>
+
+    <ShareButtons url={url} text={`${record.title}【要約】｜${site.name}`} />
+
+    {
+      relatedSummaries.length > 0 && (
+        <section class="panel">
+          <div class="panel-head">
+            <h2>{category?.name ?? 'このカテゴリ'}のAI要約</h2>
+            <a class="more" href={href('/summaries/')}>
+              一覧 →
+            </a>
+          </div>
+          <ItemList items={relatedSummaries} group={false} showCategory={false} ads={false} />
+        </section>
+      )
+    }
+
+    {
+      latestInCategory.length > 0 && category && (
+        <section class="panel">
+          <div class="panel-head">
+            <h2>{category.name}の新着</h2>
+            <a class="more" href={href(`/category/${category.slug}/`)}>
+              もっと見る →
+            </a>
+          </div>
+          <ItemList items={latestInCategory} group={false} showCategory={false} showExcerpt={false} ads={false} />
+        </section>
+      )
+    }
+  </article>
+</BaseLayout>
+
+<style>
+  .article-head h1 {
+    margin: 6px 0 0;
+    font-size: 1.4rem;
+    line-height: 1.5;
+  }
+  .kicker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .kicker a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-2);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .kicker a:hover {
+    text-decoration: underline;
+  }
+  .source {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .source img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  .ai-box {
+    padding: 18px 20px 20px;
+  }
+  .ai-box h2 {
+    margin: 0 0 10px;
+    font-size: 1rem;
+  }
+  .summary-text {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.9;
+  }
+  .points {
+    margin: 14px 0 0;
+    padding: 12px 14px 12px 32px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    line-height: 1.8;
+  }
+  .ai-note {
+    margin: 14px 0 0;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .read-original {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 16px;
+    min-height: 48px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 800;
+    text-align: center;
+    text-decoration: none;
+  }
+  .read-original:hover {
+    background: var(--accent-strong);
+  }
+</style>

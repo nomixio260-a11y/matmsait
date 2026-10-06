@@ -3,13 +3,14 @@
 //
 // 環境変数:
 //   SITE_BASE_URL   公開サイトのベースURL（例: https://example.github.io/matmsait）
-//   DATA_CHANGED    "false" なら記事が増えていないので IndexNow / WebSub を送らない
+//   DATA_CHANGED    "false" なら記事が増えていないので、新しい要約ページだけを IndexNow に送る
 //   NOTIFY_DRY_RUN  "1" なら送信せずに内容だけ表示する
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { categories, site } from '../src/config/site.ts';
 import { dailyPath, getDailySnapshots } from '../src/lib/daily.ts';
 import { jstDateKey } from '../src/lib/dates.ts';
+import { getSummaries, summaryPath } from '../src/lib/summaries.ts';
 import { indexNowPayload, publishWebSub, submitIndexNow } from './lib/ping.ts';
 import { configuredPlatforms, planPosts, previewPlatforms, recordPost, type SocialState } from './lib/social.ts';
 import { readItemsFile } from './lib/store.ts';
@@ -31,22 +32,39 @@ function readState(): SocialState {
   }
 }
 
-async function notifySearchEngines(baseUrl: string, now: Date) {
+async function notifySearchEngines(baseUrl: string, now: Date, dataChanged: boolean) {
   const days = [jstDateKey(now), jstDateKey(new Date(now.getTime() - DAY))].filter((date) =>
     existsSync(resolve(process.cwd(), `data/daily/${date}.json`)),
   );
+  // 直近（3時間以内）に要約を保存した記事のページ
+  const recentSummaries = getSummaries()
+    .filter((record) => now.getTime() - Date.parse(record.summarizedAt) < 3 * 60 * 60 * 1000)
+    .slice(0, 100)
+    .map((record) => summaryPath(record.id));
+  // 記事が増えていなくても、新しい要約ページは知らせる
   const paths = [
-    '/',
-    '/latest/',
-    '/ranking/',
-    '/daily/',
-    ...categories.map((category) => `/category/${category.slug}/`),
-    ...days.map(dailyPath),
+    ...(dataChanged
+      ? [
+          '/',
+          '/latest/',
+          '/ranking/',
+          '/daily/',
+          ...categories.map((category) => `/category/${category.slug}/`),
+          ...days.map(dailyPath),
+        ]
+      : []),
+    ...(recentSummaries.length > 0 ? ['/summaries/', ...recentSummaries] : []),
   ];
+  if (paths.length === 0) {
+    console.log('記事・要約の更新がないため検索エンジンへの通知は省略します');
+    return;
+  }
   const payload = indexNowPayload(baseUrl, site.indexNowKey, paths);
-  const feeds = ['/rss.xml', '/daily/rss.xml', ...categories.map((category) => `/category/${category.slug}/rss.xml`)].map(
-    (path) => `${baseUrl}${path}`,
-  );
+  const feeds = dataChanged
+    ? ['/rss.xml', '/daily/rss.xml', ...categories.map((category) => `/category/${category.slug}/rss.xml`)].map(
+        (path) => `${baseUrl}${path}`,
+      )
+    : [];
 
   if (dryRun) {
     console.log('IndexNow に送る内容:', JSON.stringify(payload, null, 2));
@@ -59,6 +77,7 @@ async function notifySearchEngines(baseUrl: string, now: Date) {
   } catch (error) {
     warn(`IndexNow の送信に失敗: ${errorMessage(error)}`);
   }
+  if (feeds.length === 0) return;
   const results = await Promise.allSettled(feeds.map(publishWebSub));
   const failed = results.filter((result) => result.status === 'rejected');
   for (const result of failed) warn(`WebSub の通知に失敗: ${errorMessage((result as PromiseRejectedResult).reason)}`);
@@ -111,8 +130,7 @@ async function main() {
     return;
   }
   const now = new Date();
-  if (process.env.DATA_CHANGED === 'false') console.log('記事の更新がないため検索エンジンへの通知は省略します');
-  else await notifySearchEngines(baseUrl, now);
+  await notifySearchEngines(baseUrl, now, process.env.DATA_CHANGED !== 'false');
   await postToSocial(baseUrl, now);
 }
 

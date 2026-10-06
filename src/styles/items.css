@@ -182,6 +182,42 @@
   list-style: none;
 }
 
+/* ===== AI 要約 ===== */
+.ai-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.7;
+  vertical-align: 0.1em;
+  white-space: nowrap;
+}
+
+.item-meta .ai-badge {
+  margin-right: 0;
+}
+
+.item-summary {
+  color: var(--text-2);
+}
+
+/* 要約がある記事は2行まで見せる */
+@media (min-width: 720px) {
+  .item-summary {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+
+.item-orig {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* ===== ランキング ===== */
 .ranking {
   list-style: none;

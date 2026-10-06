@@ -25,6 +25,8 @@ export const site = {
   // 問い合わせ先。メールアドレスを設定するとお問い合わせページに表示される
   contactEmail: '',
   contactUrl: 'https://github.com/nomixio260-a11y/matmsait/issues/new',
+  /** サイトのデータを置いている GitHub リポジトリ（管理画面から要約を保存する先） */
+  repository: { owner: 'nomixio260-a11y', repo: 'matmsait' },
   // 一覧ページの1ページあたり件数
   pageSize: 40,
   // 一覧の何件ごとに広告枠を入れるか

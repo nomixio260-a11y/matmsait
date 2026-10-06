@@ -9,7 +9,9 @@ export function GET(context: APIContext) {
     title: site.name,
     description: site.description,
     site: new URL(href('/'), context.site),
-    items: getItems().slice(0, 50).map(itemToFeedItem),
+    items: getItems()
+      .slice(0, 50)
+      .map((item) => itemToFeedItem(item, context.site)),
     ...feedExtras(new URL(href('/rss.xml'), context.site).toString()),
   });
 }

@@ -2,6 +2,7 @@
 import Logo from './Logo.astro';
 import { categories, site } from '../config/site.ts';
 import { href } from '../lib/items.ts';
+import { getSummaries } from '../lib/summaries.ts';
 
 interface Props {
   /** 現在のタブ（'' は総合、'ranking'、またはカテゴリの slug） */
@@ -11,6 +12,7 @@ const { current } = Astro.props;
 const tabs = [
   { key: '', name: '総合', path: '/' },
   { key: 'ranking', name: 'ランキング', path: '/ranking/' },
+  ...(getSummaries().length > 0 ? [{ key: 'summaries', name: 'AI要約', path: '/summaries/' }] : []),
   ...categories.map((c) => ({ key: c.slug, name: c.name, path: `/category/${c.slug}/` })),
 ];
 ---

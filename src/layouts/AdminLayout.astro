@@ -1,0 +1,78 @@
+---
+import '../styles/global.css';
+import '../styles/items.css';
+import { site } from '../config/site.ts';
+import { href } from '../lib/items.ts';
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}｜{site.name} 管理画面</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
+    <script is:inline>
+      try {
+        var theme = localStorage.getItem('theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <header class="admin-bar">
+      <div class="container admin-bar-inner">
+        <a class="admin-brand" href={href('/')}>{site.name}</a>
+        <span class="admin-label">管理画面</span>
+        <a class="admin-back" href={href('/')}>サイトを見る →</a>
+      </div>
+    </header>
+    <main class="container admin-main">
+      <slot />
+    </main>
+  </body>
+</html>
+
+<style>
+  .admin-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .admin-bar-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 52px;
+  }
+  .admin-brand {
+    font-weight: 800;
+    text-decoration: none;
+    color: var(--accent);
+  }
+  .admin-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .admin-back {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .admin-main {
+    max-width: 1000px;
+    padding-top: 20px;
+    padding-bottom: 64px;
+  }
+</style>

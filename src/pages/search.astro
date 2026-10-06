@@ -26,6 +26,10 @@ const base = href('');
 
 <script>
   interface Entry {
+    /** 記事ID */
+    i: string;
+    /** AI 要約あり */
+    m?: number;
     t: string;
     u: string;
     s: string;
@@ -106,9 +110,14 @@ const base = href('');
   function renderRow(entry: Indexed, terms: string[]): HTMLLIElement {
     const li = el('li', 'item');
     const title = el('a', 'item-title');
-    title.href = entry.u;
-    title.target = '_blank';
-    title.rel = 'noopener';
+    if (entry.m) {
+      // AI 要約がある記事は当サイトの要約ページへ
+      title.href = `${base}/summary/${entry.i}/`;
+    } else {
+      title.href = entry.u;
+      title.target = '_blank';
+      title.rel = 'noopener';
+    }
     appendHighlighted(title, entry.t, terms);
 
     const meta = el('div', 'item-meta');
@@ -145,6 +154,7 @@ const base = href('');
       meta.append(users);
     }
 
+    if (entry.m) meta.append(el('span', 'ai-badge', 'AI要約'));
     li.append(title, meta);
     return li;
   }

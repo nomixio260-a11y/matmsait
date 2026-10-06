@@ -2,6 +2,7 @@
 import Logo from './Logo.astro';
 import { categories, site } from '../config/site.ts';
 import { builtAt, formatDateTime, href } from '../lib/items.ts';
+import { getSummaries } from '../lib/summaries.ts';
 
 const year = builtAt.getFullYear();
 ---
@@ -22,6 +23,13 @@ const year = builtAt.getFullYear();
         <li><a href={href('/latest/')}>新着ニュース一覧</a></li>
         <li><a href={href('/ranking/')}>人気ランキング</a></li>
         <li><a href={href('/daily/')}>日別アーカイブ</a></li>
+        {
+          getSummaries().length > 0 && (
+            <li>
+              <a href={href('/summaries/')}>AI要約つき記事</a>
+            </li>
+          )
+        }
         {
           categories.map((c) => (
             <li>
