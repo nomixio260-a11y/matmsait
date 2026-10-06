@@ -1,155 +1,159 @@
 {
   "4gamer": {
     "failures": 0,
-    "etag": "\"14035-65d276654854d-gzip\"",
-    "lastModified": "Tue, 06 Oct 2026 08:01:02 GMT",
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
-    "count": 50
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
+    "count": 50,
+    "etag": "\"14035-65d27b88776df-gzip\"",
+    "lastModified": "Tue, 06 Oct 2026 08:24:01 GMT"
   },
   "automaton": {
     "failures": 0,
     "etag": "W/\"5ac215fdd0ef145e35d1c9395e791771\"",
     "lastModified": "Tue, 06 Oct 2026 07:47:09 GMT",
-    "okAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
     "fetchedAt": "2026-10-06T08:21:36.039Z",
     "count": 50
   },
   "bbc-japanese": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 38
   },
   "game-watch": {
     "failures": 0,
-    "etag": "\"6ac4ad3a-5c40\"",
-    "lastModified": "Tue, 06 Oct 2026 08:11:38 GMT",
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
-    "count": 29
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
+    "count": 29,
+    "etag": "\"6ac4af89-5c40\"",
+    "lastModified": "Tue, 06 Oct 2026 08:21:29 GMT"
   },
   "gekisaka": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 50
   },
   "gigazine": {
     "failures": 0,
     "lastModified": "Tue, 06 Oct 2026 05:53:00 GMT",
-    "okAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
     "fetchedAt": "2026-10-06T08:21:36.039Z",
     "count": 30
   },
   "hatena-economics": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 30
   },
   "hatena-entertainment": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 30
   },
   "hatena-fun": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 30
   },
   "hatena-game": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 30
   },
   "hatena-it": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 30
   },
   "hatena-knowledge": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 30
   },
   "hatena-life": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 30
   },
   "hatena-social": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 30
   },
   "huffpost": {
-    "failures": 1,
+    "failures": 0,
     "failedAt": "2026-10-06T08:21:36.039Z",
-    "error": "HTTP 406"
+    "error": "HTTP 406",
+    "etag": "W/\"40385-0EZ+BKYizwTq7/r0HYAnvbITcmo\"",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
+    "count": 30
   },
   "impress-watch": {
     "failures": 0,
     "etag": "\"6ac4af5b-41ba\"",
     "lastModified": "Tue, 06 Oct 2026 08:20:43 GMT",
-    "okAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
     "fetchedAt": "2026-10-06T08:21:36.039Z",
     "count": 20
   },
   "itmedia": {
     "failures": 0,
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
+    "count": 50,
     "etag": "\"7491-65d275a77aad6-gzip\"",
-    "lastModified": "Tue, 06 Oct 2026 07:57:43 GMT",
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
-    "count": 50
+    "lastModified": "Tue, 06 Oct 2026 07:57:43 GMT"
   },
   "jcast": {
     "failures": 0,
     "lastModified": "Tue, 06 Oct 2026 08:13:02 GMT",
-    "okAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
     "fetchedAt": "2026-10-06T08:21:36.039Z",
     "count": 42
   },
   "lifehacker": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 20
   },
   "publickey": {
     "failures": 0,
     "etag": "W/\"6d49-65d17e8bc135b\"",
     "lastModified": "Mon, 05 Oct 2026 13:32:10 GMT",
-    "okAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
     "fetchedAt": "2026-10-06T08:21:36.039Z",
     "count": 15
   },
   "qiita": {
     "failures": 0,
-    "etag": "W/\"e4f9bae205d86ddb902e301fcc5518b9\"",
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
-    "count": 30
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
+    "count": 30,
+    "etag": "W/\"242fa25e6d423f9dda2e2cabfeb2f1cd\""
   },
   "toyokeizai": {
     "failures": 0,
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
     "count": 20
   },
   "zenn": {
     "failures": 0,
-    "lastModified": "Tue, 06 Oct 2026 07:43:59 GMT",
-    "okAt": "2026-10-06T08:21:36.039Z",
-    "fetchedAt": "2026-10-06T08:21:36.039Z",
-    "count": 20
+    "okAt": "2026-10-06T08:25:24.185Z",
+    "fetchedAt": "2026-10-06T08:25:24.185Z",
+    "count": 20,
+    "lastModified": "Tue, 06 Oct 2026 08:02:39 GMT"
   }
 }
