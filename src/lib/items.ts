@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { categories } from '../config/site.ts';
+import { categories, site } from '../config/site.ts';
 import { isHidden } from './blocklist.ts';
 import { loadSources } from './sources.ts';
 import type { Item, Source } from './types.ts';
@@ -37,6 +37,32 @@ export function getItemsByCategory(slug: string): Item[] {
 
 export function getItemsBySource(id: string): Item[] {
   return getItems().filter((item) => item.sourceId === id);
+}
+
+/** 一覧ページ（新着・カテゴリ別・掲載元別）に載せる記事。ページを作りすぎないよう新しい順に上限まで */
+export function listItems(items: Item[]): Item[] {
+  return items.slice(0, site.pageSize * site.maxListPages);
+}
+
+/**
+ * 新着順のまま、同じ掲載元が続きすぎないように選ぶ（トップページの「新着」など、件数の少ない一覧用）。
+ * 1つの掲載元からは perSource 件までにし、それでも足りなければ外した記事で埋める
+ */
+export function pickVaried(items: Item[], limit: number, perSource = 3): Item[] {
+  const picked = new Set<Item>();
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    if (picked.size >= limit) break;
+    const count = counts.get(item.sourceId) ?? 0;
+    if (count >= perSource) continue;
+    picked.add(item);
+    counts.set(item.sourceId, count + 1);
+  }
+  for (const item of items) {
+    if (picked.size >= limit) break;
+    picked.add(item);
+  }
+  return items.filter((item) => picked.has(item));
 }
 
 export function countByCategory(): Map<string, number> {
@@ -111,6 +137,15 @@ export function siteOf(item: Item): SiteInfo {
   if (source && !source.aggregator) return { label: source.name, host, source };
   const direct = getSourceByHost(host);
   return direct ? { label: direct.name, host, source: direct } : { label: host, host };
+}
+
+/**
+ * AI 要約の候補にしてよい記事か。利用規約で要約の掲載を禁じている掲載元（summary: false）の記事は、
+ * はてブ経由で見つけたものも含めて候補にしない
+ */
+export function allowsSummary(item: Item): boolean {
+  if (getSource(item.sourceId)?.summary === false) return false;
+  return siteOf(item).source?.summary !== false;
 }
 
 export function getCategory(slug: string) {

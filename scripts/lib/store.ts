@@ -1,13 +1,21 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { mainTitle } from '../../src/lib/related.ts';
-import type { Item } from '../../src/lib/types.ts';
+import type { Item, Source } from '../../src/lib/types.ts';
 
 export interface PruneOptions {
   now: Date;
   maxAgeDays?: number;
   maxItems?: number;
+  /**
+   * 掲載元ごとに、期間内ならこの件数までは上限を超えても残す。
+   * 更新の多いサイトの記事で上限が埋まっても、更新の少ないサイトの一覧が空にならないようにする
+   */
+  minPerSource?: number;
 }
+
+/** 記事数の上限。収集元を増やしたので、1日あたりの記事数の数日分を保存する（古い話題は日別まとめに残る） */
+export const MAX_ITEMS = 12000;
 
 /** 見出しが同じでも別の記事とみなす間隔（定期連載などで同じ見出しが続くことがあるため） */
 const SAME_TITLE_WINDOW = 3 * 24 * 60 * 60 * 1000;
@@ -124,16 +132,48 @@ export function mergeItems(
   return collapseSameTitle([...byId.values()], isAggregator, isPreferred);
 }
 
-/** 新着順に並べ、古すぎる記事と上限超過分を削除する */
+/** 新着順に並べ、古すぎる記事と上限超過分を削除する（掲載元ごとに minPerSource 件までは上限を超えても残す） */
 export function pruneItems(
   items: Item[],
-  { now, maxAgeDays = 30, maxItems = 3000 }: PruneOptions,
+  { now, maxAgeDays = 30, maxItems = MAX_ITEMS, minPerSource = 20 }: PruneOptions,
 ): Item[] {
   const cutoff = now.getTime() - maxAgeDays * 24 * 60 * 60 * 1000;
-  return items
+  const sorted = items
     .filter((item) => new Date(item.publishedAt).getTime() >= cutoff)
-    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id))
-    .slice(0, maxItems);
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
+  const perSource = new Map<string, number>();
+  return sorted.filter((item, index) => {
+    const count = (perSource.get(item.sourceId) ?? 0) + 1;
+    perSource.set(item.sourceId, count);
+    return index < maxItems || count <= minPerSource;
+  });
+}
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+};
+
+type SourceSettings = Pick<Source, 'id' | 'category' | 'siteUrl' | 'excerpt'>;
+
+/**
+ * 記事を今の sources.yaml の設定に合わせる。
+ * - カテゴリは掲載元の設定にする（掲載元のカテゴリを変えたとき、取得済みの記事も移す）
+ * - 抜粋を載せない掲載元（excerpt: false）の記事は抜粋を消す。はてブ経由で見つけた同じサイトの記事も同じ
+ */
+export function withSourceSettings(items: Item[], sources: SourceSettings[]): Item[] {
+  const byId = new Map(sources.map((source) => [source.id, source]));
+  const noExcerptHosts = new Set(sources.filter((source) => source.excerpt === false).map((s) => hostOf(s.siteUrl)));
+  return items.map((item) => {
+    const source = byId.get(item.sourceId);
+    const category = source && source.category !== item.category ? source.category : undefined;
+    const dropExcerpt = item.excerpt !== '' && (source?.excerpt === false || noExcerptHosts.has(hostOf(item.url)));
+    if (!category && !dropExcerpt) return item;
+    return { ...item, ...(category ? { category } : {}), ...(dropExcerpt ? { excerpt: '' } : {}) };
+  });
 }
 
 /** 1記事1行のJSONにする（ファイルを小さく保ちつつ、git の差分も記事単位で見やすくする） */

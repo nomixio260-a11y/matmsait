@@ -228,10 +228,15 @@ const tabs = [
     border-radius: 3px 3px 0 0;
     background: var(--accent);
   }
+  /* カテゴリが増えて1行に収まらないときは横にスクロールする（右端のぼかしで続きがあることを示す）。
+     広い画面では余白を少し詰めて、なるべく1行に収める */
   @media (min-width: 1000px) {
-    .tabs ul {
-      -webkit-mask-image: none;
-      mask-image: none;
+    .tabs a {
+      padding: 11px 10px;
+    }
+    .tabs a[aria-current='page']::after {
+      left: 8px;
+      right: 8px;
     }
   }
 </style>

@@ -6,8 +6,14 @@ export interface Source {
   category: string;
   /** はてなブックマークなど、他サイトの記事を紹介する集約元か */
   aggregator?: boolean;
-  /** タイトルから取り除く文字列の正規表現（例: "^\\[ITmedia [^\\]]+\\]\\s*"） */
+  /** タイトルから取り除く文字列の正規表現（例: JAXA の「[プレスリリース・記者会見等] 」を消す "^\\[[^\\]]+\\]\\s*"） */
   stripTitle?: string;
+  /** 1回の取得で取り込む記事数の上限（1日に数百件を配信するサイトで一覧が埋まらないようにする） */
+  limit?: number;
+  /** false のとき抜粋を載せない（見出しとリンクだけにする。利用条件で抜粋の掲載がはっきりしないサイト向け） */
+  excerpt?: boolean;
+  /** false のとき AI 要約の候補にしない（利用規約で記事の要約の掲載を禁じているサイト向け） */
+  summary?: boolean;
 }
 
 export interface Item {

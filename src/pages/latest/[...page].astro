@@ -4,11 +4,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import ItemList from '../../components/ItemList.astro';
 import Pagination from '../../components/Pagination.astro';
 import { site } from '../../config/site.ts';
-import { getItems } from '../../lib/items.ts';
+import { getItems, listItems } from '../../lib/items.ts';
 import { collectionJsonLd } from '../../lib/seo.ts';
 import type { Item } from '../../lib/types.ts';
 
-export const getStaticPaths = (({ paginate }) => paginate(getItems(), { pageSize: site.pageSize })) satisfies GetStaticPaths;
+export const getStaticPaths = (({ paginate }) =>
+  paginate(listItems(getItems()), { pageSize: site.pageSize })) satisfies GetStaticPaths;
 
 interface Props {
   page: Page<Item>;
@@ -16,7 +17,8 @@ interface Props {
 const { page } = Astro.props;
 const suffix = page.currentPage > 1 ? `（${page.currentPage}ページ目）` : '';
 const title = `新着ニュース一覧${suffix}`;
-const description = '国内・海外のニュース、経済、IT、エンタメ、ゲーム、スポーツの新着記事を新しい順にまとめて表示しています。';
+const description =
+  '国内・海外のニュース、経済、IT、サイエンス、エンタメ、ゲーム、スポーツ、乗り物、暮らしの新着記事を新しい順にまとめて表示しています。';
 const url = new URL(Astro.url.pathname, Astro.site).toString();
 const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.data.slice(0, 10) })];
 ---

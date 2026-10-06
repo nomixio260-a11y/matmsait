@@ -8,25 +8,55 @@
 # - aggregator: true のとき、他サイトの記事を紹介する集約元（はてブ等）として扱う。
 #               同じ記事を配信元自身のフィードでも取得できたら、配信元の情報を優先する
 # - stripTitle: タイトルから取り除く部分の正規表現
+# - limit:      1回の取得で取り込む記事数の上限（1〜50、既定50）。1日に数百件を配信するサイト向け
+# - excerpt:    false のとき抜粋を載せず、見出しとリンクだけにする
+# - summary:    false のとき管理画面の AI 要約の候補にしない（規約で記事の要約の掲載を禁じているサイト）
 #
 # 追加前に必ず各サイトの利用規約を確認してください（商用利用・見出し利用の可否）。
+# 確認の結果（登録したサイト・見送ったサイトとその理由）は docs/SOURCES.md に記録しています。
 # 例: NHK や Yahoo!ニュースの RSS は非営利目的に限られているため登録していません。
 
-- id: huffpost
-  name: ハフポスト日本版
-  feedUrl: https://www.huffingtonpost.jp/feeds/index.xml
-  siteUrl: https://www.huffingtonpost.jp/
+- id: fnn
+  name: FNNプライムオンライン
+  feedUrl: https://www.fnn.jp/list/feed/rss
+  siteUrl: https://www.fnn.jp/
   category: news
-- id: jcast
-  name: J-CASTニュース
-  feedUrl: https://www.j-cast.com/index.xml
-  siteUrl: https://www.j-cast.com/
+  limit: 10
+- id: bunshun
+  name: 文春オンライン
+  feedUrl: https://bunshun.jp/list/feed/rss
+  siteUrl: https://bunshun.jp/
   category: news
-- id: bbc-japanese
-  name: BBCニュース 日本語版
-  feedUrl: https://feeds.bbci.co.uk/japanese/rss.xml
-  siteUrl: https://www.bbc.com/japanese
+- id: dailyshincho
+  name: デイリー新潮
+  feedUrl: https://www.dailyshincho.jp/feed
+  siteUrl: https://www.dailyshincho.jp/
   category: news
+- id: aera-digital
+  name: AERA DIGITAL
+  feedUrl: https://dot.asahi.com/list/feed/rss
+  siteUrl: https://dot.asahi.com/
+  category: news
+  stripTitle: '(?:\s*\|\s*[^|]*)?\s*\|\s*AERA ?DIGITAL\s*$'
+  summary: false
+- id: nikkan-spa
+  name: 日刊SPA!
+  feedUrl: https://nikkan-spa.jp/feed
+  siteUrl: https://nikkan-spa.jp/
+  category: news
+  summary: false
+- id: kantei
+  name: 首相官邸
+  feedUrl: https://www.kantei.go.jp/index-jnews.rdf
+  siteUrl: https://www.kantei.go.jp/
+  category: news
+  excerpt: false
+- id: anzen-mofa
+  name: 外務省 海外安全ホームページ
+  feedUrl: https://www.anzen.mofa.go.jp/rss/news.xml
+  siteUrl: https://www.anzen.mofa.go.jp/
+  category: news
+  excerpt: false
 - id: hatena-social
   name: はてなブックマーク（世の中）
   feedUrl: https://b.hatena.ne.jp/hotentry/social.rss
@@ -34,11 +64,27 @@
   category: news
   aggregator: true
 
-- id: toyokeizai
-  name: 東洋経済オンライン
-  feedUrl: https://toyokeizai.net/list/feed/rss
-  siteUrl: https://toyokeizai.net/
+- id: president
+  name: PRESIDENT Online
+  feedUrl: https://president.jp/list/rss
+  siteUrl: https://president.jp/
   category: economy
+- id: biz-journal
+  name: Business Journal
+  feedUrl: https://biz-journal.jp/index.xml
+  siteUrl: https://biz-journal.jp/
+  category: economy
+- id: zaikei
+  name: 財経新聞
+  feedUrl: https://www.zaikei.co.jp/rss/main.xml
+  siteUrl: https://www.zaikei.co.jp/
+  category: economy
+- id: markezine
+  name: MarkeZine
+  feedUrl: https://markezine.jp/rss/new/20/index.xml
+  siteUrl: https://markezine.jp/
+  category: economy
+  summary: false
 - id: hatena-economics
   name: はてなブックマーク（政治と経済）
   feedUrl: https://b.hatena.ne.jp/hotentry/economics.rss
@@ -46,12 +92,6 @@
   category: economy
   aggregator: true
 
-- id: itmedia
-  name: ITmedia
-  feedUrl: https://rss.itmedia.co.jp/rss/2.0/itmedia_all.xml
-  siteUrl: https://www.itmedia.co.jp/
-  category: tech
-  stripTitle: '^\[ITmedia [^\]]+\]\s*'
 - id: gigazine
   name: GIGAZINE
   feedUrl: https://gigazine.net/news/rss_2.0/
@@ -67,6 +107,71 @@
   feedUrl: https://www.watch.impress.co.jp/data/rss/1.0/ipw/feed.rdf
   siteUrl: https://www.watch.impress.co.jp/
   category: tech
+- id: pc-watch
+  name: PC Watch
+  feedUrl: https://pc.watch.impress.co.jp/data/rss/1.0/pcw/feed.rdf
+  siteUrl: https://pc.watch.impress.co.jp/
+  category: tech
+- id: ktai-watch
+  name: ケータイ Watch
+  feedUrl: https://k-tai.watch.impress.co.jp/data/rss/1.0/ktw/feed.rdf
+  siteUrl: https://k-tai.watch.impress.co.jp/
+  category: tech
+- id: av-watch
+  name: AV Watch
+  feedUrl: https://av.watch.impress.co.jp/data/rss/1.0/avw/feed.rdf
+  siteUrl: https://av.watch.impress.co.jp/
+  category: tech
+- id: internet-watch
+  name: INTERNET Watch
+  feedUrl: https://internet.watch.impress.co.jp/data/rss/1.0/iw/feed.rdf
+  siteUrl: https://internet.watch.impress.co.jp/
+  category: tech
+- id: madonomori
+  name: 窓の杜
+  feedUrl: https://forest.watch.impress.co.jp/data/rss/1.0/wf/feed.rdf
+  siteUrl: https://forest.watch.impress.co.jp/
+  category: tech
+- id: ascii
+  name: ASCII.jp
+  feedUrl: https://ascii.jp/rss.xml
+  siteUrl: https://ascii.jp/
+  category: tech
+  limit: 8
+- id: gihyo
+  name: gihyo.jp
+  feedUrl: https://gihyo.jp/feed/rss2
+  siteUrl: https://gihyo.jp/
+  category: tech
+- id: codezine
+  name: CodeZine
+  feedUrl: https://codezine.jp/rss/new/20/index.xml
+  siteUrl: https://codezine.jp/
+  category: tech
+  summary: false
+- id: thinkit
+  name: Think IT
+  feedUrl: https://thinkit.co.jp/rss.xml
+  siteUrl: https://thinkit.co.jp/
+  category: tech
+- id: devio
+  name: DevelopersIO
+  feedUrl: https://dev.classmethod.jp/feed/
+  siteUrl: https://dev.classmethod.jp/
+  category: tech
+- id: security-next
+  name: Security NEXT
+  feedUrl: https://www.security-next.com/feed
+  siteUrl: https://www.security-next.com/
+  category: tech
+  excerpt: false
+  summary: false
+- id: digital-agency
+  name: デジタル庁
+  feedUrl: https://www.digital.go.jp/rss/news.xml
+  siteUrl: https://www.digital.go.jp/
+  category: tech
+  excerpt: false
 - id: zenn
   name: Zenn
   feedUrl: https://zenn.dev/feed
@@ -84,6 +189,72 @@
   category: tech
   aggregator: true
 
+- id: nazology
+  name: ナゾロジー
+  feedUrl: https://nazology.kusuguru.co.jp/feed
+  siteUrl: https://nazology.kusuguru.co.jp/
+  category: science
+- id: karapaia
+  name: カラパイア
+  feedUrl: https://karapaia.com/index.rdf
+  siteUrl: https://karapaia.com/
+  category: science
+- id: jaxa
+  name: JAXA（宇宙航空研究開発機構）
+  feedUrl: https://www.jaxa.jp/rss/press_j.rdf
+  siteUrl: https://www.jaxa.jp/
+  category: science
+  stripTitle: '^\[[^\]]+\]\s*'
+- id: naoj
+  name: 国立天文台
+  feedUrl: https://www.nao.ac.jp/atom.xml
+  siteUrl: https://www.nao.ac.jp/
+  category: science
+  stripTitle: '\s+-\s+ニュース$'
+- id: riken
+  name: 理化学研究所
+  feedUrl: https://www.riken.jp/feed/press_feed/
+  siteUrl: https://www.riken.jp/
+  category: science
+- id: scienceportal
+  name: Science Portal（科学技術振興機構）
+  feedUrl: https://scienceportal.jst.go.jp/feed/
+  siteUrl: https://scienceportal.jst.go.jp/
+  category: science
+  excerpt: false
+  summary: false
+
+- id: cinematoday
+  name: シネマトゥデイ
+  feedUrl: https://www.cinematoday.jp/index.xml
+  siteUrl: https://www.cinematoday.jp/
+  category: entertainment
+- id: realsound
+  name: Real Sound
+  feedUrl: https://realsound.jp/atom.xml
+  siteUrl: https://realsound.jp/
+  category: entertainment
+- id: encount
+  name: ENCOUNT
+  feedUrl: https://encount.press/feed/
+  siteUrl: https://encount.press/
+  category: entertainment
+  summary: false
+- id: getnews
+  name: ガジェット通信
+  feedUrl: https://getnews.jp/feed/ext/orig
+  siteUrl: https://getnews.jp/
+  category: entertainment
+- id: rocketnews24
+  name: ロケットニュース24
+  feedUrl: https://rocketnews24.com/feed/
+  siteUrl: https://rocketnews24.com/
+  category: entertainment
+- id: dailyportalz
+  name: デイリーポータルZ
+  feedUrl: https://dailyportalz.jp/feed/headline
+  siteUrl: https://dailyportalz.jp/
+  category: entertainment
 - id: hatena-entertainment
   name: はてなブックマーク（エンタメ）
   feedUrl: https://b.hatena.ne.jp/hotentry/entertainment.rss
@@ -107,10 +278,31 @@
   feedUrl: https://automaton-media.com/feed/
   siteUrl: https://automaton-media.com/
   category: game
+  summary: false
 - id: game-watch
   name: GAME Watch
   feedUrl: https://game.watch.impress.co.jp/data/rss/1.0/gmw/feed.rdf
   siteUrl: https://game.watch.impress.co.jp/
+  category: game
+- id: denfaminicogamer
+  name: 電ファミニコゲーマー
+  feedUrl: https://news.denfaminicogamer.jp/feed
+  siteUrl: https://news.denfaminicogamer.jp/
+  category: game
+- id: kai-you
+  name: KAI-YOU
+  feedUrl: https://kai-you.net/contents/feed.rss
+  siteUrl: https://kai-you.net/
+  category: game
+- id: magmix
+  name: マグミクス
+  feedUrl: https://magmix.jp/feed
+  siteUrl: https://magmix.jp/
+  category: game
+- id: otakuma
+  name: おたくま経済新聞
+  feedUrl: https://otakuma.net/feed
+  siteUrl: https://otakuma.net/
   category: game
 - id: hatena-game
   name: はてなブックマーク（アニメとゲーム）
@@ -119,17 +311,105 @@
   category: game
   aggregator: true
 
-- id: gekisaka
-  name: ゲキサカ
-  feedUrl: https://web.gekisaka.jp/feed
-  siteUrl: https://web.gekisaka.jp/
+- id: football-zone
+  name: FOOTBALL ZONE
+  feedUrl: https://www.football-zone.net/feed
+  siteUrl: https://www.football-zone.net/
+  category: sports
+- id: qoly
+  name: Qoly
+  feedUrl: https://qoly.jp/_rss/rss20.xml
+  siteUrl: https://qoly.jp/
+  category: sports
+- id: full-count
+  name: Full-Count
+  feedUrl: https://full-count.jp/feed/
+  siteUrl: https://full-count.jp/
+  category: sports
+- id: baseball-channel
+  name: ベースボールチャンネル
+  feedUrl: https://www.baseballchannel.jp/feed/
+  siteUrl: https://www.baseballchannel.jp/
+  category: sports
+- id: the-answer
+  name: THE ANSWER
+  feedUrl: https://the-ans.jp/feed/
+  siteUrl: https://the-ans.jp/
+  category: sports
+- id: the-digest
+  name: THE DIGEST
+  feedUrl: https://thedigestweb.com/RSS.rdf
+  siteUrl: https://thedigestweb.com/
+  category: sports
+- id: autosport-web
+  name: AUTOSPORT web
+  feedUrl: https://www.as-web.jp/feed
+  siteUrl: https://www.as-web.jp/
   category: sports
 
-- id: lifehacker
-  name: ライフハッカー・ジャパン
-  feedUrl: https://www.lifehacker.jp/feed/index.xml
-  siteUrl: https://www.lifehacker.jp/
+- id: car-watch
+  name: Car Watch
+  feedUrl: https://car.watch.impress.co.jp/data/rss/1.0/car/feed.rdf
+  siteUrl: https://car.watch.impress.co.jp/
+  category: mobility
+- id: kuruma-news
+  name: くるまのニュース
+  feedUrl: https://kuruma-news.jp/feed
+  siteUrl: https://kuruma-news.jp/
+  category: mobility
+- id: webcartop
+  name: WEB CARTOP
+  feedUrl: https://www.webcartop.jp/feed/
+  siteUrl: https://www.webcartop.jp/
+  category: mobility
+- id: vague
+  name: VAGUE
+  feedUrl: https://vague.style/feed
+  siteUrl: https://vague.style/
+  category: mobility
+- id: bike-news
+  name: バイクのニュース
+  feedUrl: https://bike-news.jp/feed
+  siteUrl: https://bike-news.jp/
+  category: mobility
+- id: merkmal
+  name: Merkmal
+  feedUrl: https://merkmal-biz.jp/feed
+  siteUrl: https://merkmal-biz.jp/
+  category: mobility
+- id: railf
+  name: 鉄道ファン railf.jp
+  feedUrl: https://railf.jp/rss/rss.xml
+  siteUrl: https://railf.jp/
+  category: mobility
+
+- id: travel-watch
+  name: トラベル Watch
+  feedUrl: https://travel.watch.impress.co.jp/data/rss/1.0/trw/feed.rdf
+  siteUrl: https://travel.watch.impress.co.jp/
   category: life
+- id: kaden-watch
+  name: 家電 Watch
+  feedUrl: https://kaden.watch.impress.co.jp/data/rss/1.0/kdw/feed.rdf
+  siteUrl: https://kaden.watch.impress.co.jp/
+  category: life
+- id: pouch
+  name: Pouch［ポーチ］
+  feedUrl: https://youpouch.com/feed/
+  siteUrl: https://youpouch.com/
+  category: life
+- id: gov-online
+  name: 政府広報オンライン
+  feedUrl: https://www.gov-online.go.jp/rss/index.rdf
+  siteUrl: https://www.gov-online.go.jp/
+  category: life
+  excerpt: false
+- id: caa
+  name: 消費者庁
+  feedUrl: https://www.caa.go.jp/news.rss
+  siteUrl: https://www.caa.go.jp/
+  category: life
+  excerpt: false
 - id: hatena-life
   name: はてなブックマーク（暮らし）
   feedUrl: https://b.hatena.ne.jp/hotentry/life.rss

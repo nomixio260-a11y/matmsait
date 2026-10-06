@@ -4,13 +4,13 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import ItemList from '../../../components/ItemList.astro';
 import Pagination from '../../../components/Pagination.astro';
 import { site } from '../../../config/site.ts';
-import { getCategory, getItemsBySource, getSources, href } from '../../../lib/items.ts';
+import { getCategory, getItemsBySource, getSources, href, listItems } from '../../../lib/items.ts';
 import { clampDescription, collectionJsonLd, headlineTeaser } from '../../../lib/seo.ts';
 import type { Item, Source } from '../../../lib/types.ts';
 
 export const getStaticPaths = (({ paginate }) =>
   getSources().flatMap((source) =>
-    paginate(getItemsBySource(source.id), {
+    paginate(listItems(getItemsBySource(source.id)), {
       pageSize: site.pageSize,
       params: { id: source.id },
       props: { source },

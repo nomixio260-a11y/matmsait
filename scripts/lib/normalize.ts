@@ -94,7 +94,7 @@ export function buildExcerpt(title: string, html: string, max = 120): string {
   return truncate(text, max);
 }
 
-/** タイトルを整形する。stripPattern（例: ITmedia の「[ITmedia News]」）に一致する部分は消す */
+/** タイトルを整形する。stripPattern（例: JAXA の「[プレスリリース・記者会見等]」）に一致する部分は消す */
 export function cleanTitle(raw: string, stripPattern?: RegExp): string {
   const title = stripHtml(raw);
   if (!stripPattern) return title;

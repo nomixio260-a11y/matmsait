@@ -4,13 +4,13 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import ItemList from '../../../components/ItemList.astro';
 import Pagination from '../../../components/Pagination.astro';
 import { categories, site, type Category } from '../../../config/site.ts';
-import { getItemsByCategory, href } from '../../../lib/items.ts';
+import { getItemsByCategory, href, listItems } from '../../../lib/items.ts';
 import { clampDescription, collectionJsonLd, headlineTeaser } from '../../../lib/seo.ts';
 import type { Item } from '../../../lib/types.ts';
 
 export const getStaticPaths = (({ paginate }) =>
   categories.flatMap((category) =>
-    paginate(getItemsByCategory(category.slug), {
+    paginate(listItems(getItemsByCategory(category.slug)), {
       pageSize: site.pageSize,
       params: { slug: category.slug },
       props: { category },

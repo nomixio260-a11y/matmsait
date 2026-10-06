@@ -3,15 +3,16 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import ItemList from '../components/ItemList.astro';
 import RankingList from '../components/RankingList.astro';
 import { categories, site } from '../config/site.ts';
-import { builtAt, formatDateTime, getItems, getItemsByCategory, getRanking, href } from '../lib/items.ts';
+import { builtAt, formatDateTime, getItems, getItemsByCategory, getRanking, href, pickVaried } from '../lib/items.ts';
 import { clampDescription, headlineTeaser } from '../lib/seo.ts';
 import { getSummaries } from '../lib/summaries.ts';
 
-const latest = getItems().slice(0, 30);
+// 収集元が多く、更新の多いサイトが続くと他が埋もれるため、同じ掲載元は数件までにして新着順に並べる
+const latest = pickVaried(getItems(), 30, 3);
 const summaries = getSummaries().slice(0, 5);
 const hot = getRanking({ hours: 24, limit: 5 });
 const sections = categories
-  .map((category) => ({ category, items: getItemsByCategory(category.slug).slice(0, 6) }))
+  .map((category) => ({ category, items: pickVaried(getItemsByCategory(category.slug), 6, 2) }))
   .filter((section) => section.items.length > 0);
 
 const description = clampDescription(

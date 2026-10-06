@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { collapseSameTitle, mergeItems, pruneItems, serializeItems, titleKey } from '../scripts/lib/store.ts';
+import {
+  collapseSameTitle,
+  mergeItems,
+  pruneItems,
+  serializeItems,
+  titleKey,
+  withSourceSettings,
+} from '../scripts/lib/store.ts';
 import type { Item } from '../src/lib/types.ts';
 
 function item(id: string, publishedAt: string, extra: Partial<Item> = {}): Item {
@@ -124,7 +131,60 @@ describe('pruneItems', () => {
 
   it('上限件数で切り詰める', () => {
     const items = Array.from({ length: 5 }, (_, n) => item(`i${n}`, `2026-01-2${n}T00:00:00.000Z`));
-    expect(pruneItems(items, { now, maxItems: 2 }).map((i) => i.id)).toEqual(['i4', 'i3']);
+    expect(pruneItems(items, { now, maxItems: 2, minPerSource: 0 }).map((i) => i.id)).toEqual(['i4', 'i3']);
+  });
+
+  it('更新の多い掲載元で上限が埋まっても、他の掲載元の記事は minPerSource 件まで残す', () => {
+    const busy = Array.from({ length: 5 }, (_, n) => item(`b${n}`, `2026-01-2${n}T00:00:00.000Z`, { sourceId: 'busy' }));
+    const quiet = [
+      item('q1', '2026-01-10T00:00:00.000Z', { sourceId: 'quiet' }),
+      item('q2', '2026-01-09T00:00:00.000Z', { sourceId: 'quiet' }),
+      item('q3', '2026-01-08T00:00:00.000Z', { sourceId: 'quiet' }),
+    ];
+    const result = pruneItems([...quiet, ...busy], { now, maxItems: 3, minPerSource: 2 });
+    expect(result.map((i) => i.id)).toEqual(['b4', 'b3', 'b2', 'q1', 'q2']);
+  });
+
+  it('minPerSource でも期限切れの記事は残さない', () => {
+    const items = [item('old', '2025-12-01T00:00:00.000Z', { sourceId: 'quiet' })];
+    expect(pruneItems(items, { now, maxAgeDays: 30, maxItems: 0, minPerSource: 5 })).toEqual([]);
+  });
+});
+
+describe('withSourceSettings', () => {
+  const source = (id: string, category: string, extra: { excerpt?: boolean } = {}) => ({
+    id,
+    category,
+    siteUrl: `https://www.${id}.example/`,
+    ...extra,
+  });
+
+  it('掲載元のカテゴリを変えたら、取得済みの記事も新しいカテゴリにする', () => {
+    const items = [item('a', '2026-01-01T00:00:00.000Z', { sourceId: 'jaxa' }), item('b', '2026-01-01T00:00:00.000Z')];
+    const result = withSourceSettings(items, [source('jaxa', 'science'), source('s', 'news')]);
+    expect(result.map((i) => i.category)).toEqual(['science', 'news']);
+    // 変わらない記事は同じオブジェクトのまま
+    expect(result[1]).toBe(items[1]);
+  });
+
+  it('抜粋を載せない掲載元（excerpt: false）は、はてブ経由の同じサイトの記事も含めて抜粋を消す', () => {
+    const items = [
+      item('direct', '2026-01-01T00:00:00.000Z', { sourceId: 'quiet', excerpt: '本文の冒頭' }),
+      item('via-hatena', '2026-01-01T00:00:00.000Z', {
+        sourceId: 'hatena',
+        url: 'https://quiet.example/articles/1',
+        excerpt: 'はてブの説明文',
+      }),
+      item('other', '2026-01-01T00:00:00.000Z', { sourceId: 'hatena', excerpt: '別のサイト' }),
+    ];
+    const result = withSourceSettings(items, [source('quiet', 'science', { excerpt: false }), source('hatena', 'news')]);
+    expect(result.map((i) => i.excerpt)).toEqual(['', '', '別のサイト']);
+    expect(result[0].category).toBe('science');
+  });
+
+  it('sources.yaml にない掲載元の記事はそのまま', () => {
+    const items = [item('a', '2026-01-01T00:00:00.000Z', { sourceId: 'gone' })];
+    expect(withSourceSettings(items, [])).toEqual(items);
   });
 });
 

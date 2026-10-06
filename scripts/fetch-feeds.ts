@@ -1,7 +1,7 @@
 import { appendFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Parser from 'rss-parser';
-import { loadSources } from '../src/lib/sources.ts';
+import { loadSources, MAX_LIMIT } from '../src/lib/sources.ts';
 import { getSummary } from '../src/lib/summaries.ts';
 import type { Item, Source } from '../src/lib/types.ts';
 import { updateDailySnapshots } from './lib/daily.ts';
@@ -15,17 +15,17 @@ import {
   type FetchOutcome,
 } from './lib/feed-state.ts';
 import { fetchHatenaCounts } from './lib/hatena.ts';
+import { siteKey } from './lib/hosts.ts';
 import { closeConnections, decodeBody, httpGet, type HttpResponse } from './lib/http.ts';
 import { buildExcerpt, cleanTitle, itemId, normalizePublishedAt, normalizeUrl } from './lib/normalize.ts';
-import { mergeItems, pruneItems, readItemsFile, writeItemsFile } from './lib/store.ts';
+import { mergeItems, pruneItems, readItemsFile, withSourceSettings, writeItemsFile } from './lib/store.ts';
 import { jitter, retryDelay, shuffle, sleep } from './lib/timing.ts';
 
 const ITEMS_PATH = resolve(process.cwd(), 'data/items.json');
 const FEEDS_PATH = resolve(process.cwd(), 'data/feeds.json');
 const DAILY_DIR = resolve(process.cwd(), 'data/daily');
-/** 同時にアクセスするホスト数（同じホストへは常に1件ずつ） */
-const HOST_CONCURRENCY = 4;
-const MAX_ITEMS_PER_FEED = 50;
+/** 同時にアクセスするサイト数（同じ運営元のサイトへは常に1件ずつ） */
+const SITE_CONCURRENCY = 6;
 /** はてブ数を更新する対象（公開からこの時間以内の記事） */
 const HATEBU_WINDOW_HOURS = 36;
 
@@ -69,7 +69,8 @@ async function fetchSource(
   const stripPattern = source.stripTitle ? new RegExp(source.stripTitle) : undefined;
 
   const items: Item[] = [];
-  for (const entry of feed.items.slice(0, MAX_ITEMS_PER_FEED)) {
+  // フィードの先頭（新しい記事）から、収集元ごとの上限（limit）まで取り込む
+  for (const entry of feed.items.slice(0, source.limit ?? MAX_LIMIT)) {
     const url = normalizeUrl(entry.link, res.url);
     const title = cleanTitle(entry.title ?? '', stripPattern);
     if (!url || !title) continue;
@@ -77,7 +78,9 @@ async function fetchSource(
       id: itemId(url),
       title,
       url,
-      excerpt: buildExcerpt(title, entry.contentSnippet || entry.summary || entry.content || ''),
+      // 抜粋を載せないサイト（excerpt: false）は見出しとリンクだけにする
+      excerpt:
+        source.excerpt === false ? '' : buildExcerpt(title, entry.contentSnippet || entry.summary || entry.content || ''),
       sourceId: source.id,
       category: source.category,
       publishedAt: normalizePublishedAt(entry.isoDate ?? entry.pubDate, now),
@@ -93,10 +96,6 @@ async function fetchSource(
   };
 }
 
-/**
- * 全ソースを取得する。人が順番に見て回るのに近づけるため、
- * 同じホストへは間隔をランダムに空けて1件ずつ、ホストの順番も毎回入れ替える。
- */
 interface SourceResult {
   source: Source;
   /** 取得できた記事数（失敗したときは undefined） */
@@ -106,17 +105,21 @@ interface SourceResult {
   error?: string;
 }
 
+/**
+ * 全ソースを取得する。人が順番に見て回るのに近づけるため、
+ * 同じ運営元のサイト（サブドメイン違いを含む）へは間隔をランダムに空けて1件ずつ、サイトの順番も毎回入れ替える。
+ */
 async function fetchAll(
   sources: Source[],
   now: Date,
   states: FeedStates,
 ): Promise<{ items: Item[]; failed: string[]; results: SourceResult[] }> {
-  const byHost = new Map<string, Source[]>();
+  const bySite = new Map<string, Source[]>();
   for (const source of sources) {
-    const host = new URL(source.feedUrl).hostname;
-    byHost.set(host, [...(byHost.get(host) ?? []), source]);
+    const key = siteKey(new URL(source.feedUrl).hostname);
+    bySite.set(key, [...(bySite.get(key) ?? []), source]);
   }
-  const queue = shuffle([...byHost.values()].map((list) => shuffle(list)));
+  const queue = shuffle([...bySite.values()].map((list) => shuffle(list)));
   const items: Item[] = [];
   const failed: string[] = [];
   const results: SourceResult[] = [];
@@ -142,7 +145,7 @@ async function fetchAll(
     }
   }
 
-  await Promise.all(Array.from({ length: Math.min(HOST_CONCURRENCY, byHost.size) }, worker));
+  await Promise.all(Array.from({ length: Math.min(SITE_CONCURRENCY, bySite.size) }, worker));
   return { items, failed, results };
 }
 
@@ -203,9 +206,12 @@ async function main() {
   const { items: fetched, failed, results } = await fetchAll(sources, now, states);
   // sources.yaml から削除されたソースの記事は落とす
   const existing = readItemsFile(ITEMS_PATH).filter((item) => sourceById.has(item.sourceId));
-  // 見出しが同じ記事をまとめるときは、要約のある記事を残す
+  // 見出しが同じ記事をまとめるときは、要約のある記事を残す。
+  // カテゴリ・抜粋は sources.yaml の今の設定に合わせる（収集元のカテゴリを変えたら取得済みの記事も移す）
   const hasSummary = (id: string) => Boolean(getSummary(id));
-  const merged = pruneItems(mergeItems(existing, fetched, isAggregator, hasSummary), { now });
+  const merged = pruneItems(withSourceSettings(mergeItems(existing, fetched, isAggregator, hasSummary), sources), {
+    now,
+  });
   await updateHatebu(merged, now);
   closeConnections();
 
