@@ -11,12 +11,14 @@ import {
 import { createGitHubClient, type Repository, type WorkflowRun } from '../lib/github-commit.ts';
 import {
   buildSummaryPrompt,
+  editSummaryRecord,
   extractJson,
   groupByFile,
   mergeSummaryRecords,
   normalizeEntries,
   parseSummaryFile,
   serializeSummaryFile,
+  summaryFilePath,
   toSummaryRecord,
   validateEntries,
   type AcceptedSummary,
@@ -67,6 +69,7 @@ const KEYS = {
   deleted: 'admin.deletedIds',
   hidden: 'admin.hiddenIds',
   unhidden: 'admin.unhiddenIds',
+  edited: 'admin.editedSummaries',
   options: 'admin.options',
 };
 /** 保存・削除した記事を、サイトに反映されるまで一覧から隠しておく時間 */
@@ -162,6 +165,8 @@ const ui = {
   autoCount: $<HTMLSelectElement>('auto-count'),
   runStatus: $('run-status'),
   runList: $<HTMLUListElement>('run-list'),
+  includeSummarized: $<HTMLInputElement>('include-summarized'),
+  savedFilter: $<HTMLInputElement>('saved-filter'),
   hideSelected: $<HTMLButtonElement>('hide-selected'),
   hideStatus: $('hide-status'),
   hiddenCount: $('hidden-count'),
@@ -223,15 +228,23 @@ function pendingArticles(): AdminArticle[] {
   const saved = readMarks(KEYS.saved);
   const deleted = readMarks(KEYS.deleted);
   const hidden = readMarks(KEYS.hidden);
-  // 削除した要約はサイトに反映されるまで pending に入っていないので、ここで戻す
-  const restored = data.summarized.filter((article) => deleted.has(article.id));
+  // 削除した要約はサイトに反映されるまで pending に入っていないので、ここで戻す。
+  // 「要約済みの記事も選べるようにする」なら、要約済みの記事も候補に入れる（AI で作り直す）
+  const restored = ui.includeSummarized.checked
+    ? data.summarized
+    : data.summarized.filter((article) => deleted.has(article.id));
   const category = ui.category.value;
   const list = [...data.pending, ...restored].filter(
     (article) => !saved.has(article.id) && !hidden.has(article.id) && (!category || article.category === category),
   );
-  return ui.sort.value === 'latest'
-    ? list.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    : list.sort((a, b) => (b.hatebu ?? 0) - (a.hatebu ?? 0) || b.publishedAt.localeCompare(a.publishedAt));
+  const sorted =
+    ui.sort.value === 'latest'
+      ? list.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+      : list.sort((a, b) => (b.hatebu ?? 0) - (a.hatebu ?? 0) || b.publishedAt.localeCompare(a.publishedAt));
+  if (!ui.includeSummarized.checked) return sorted;
+  // 作り直しのときは、要約済みの記事を先に並べる（多数の記事に埋もれないように）
+  const summarizedIds = new Set(data.summarized.map((article) => article.id));
+  return [...sorted.filter((article) => summarizedIds.has(article.id)), ...sorted.filter((article) => !summarizedIds.has(article.id))];
 }
 
 function findArticle(id: string): { article: AdminArticle; summarized: boolean } | undefined {
@@ -246,7 +259,9 @@ function findArticle(id: string): { article: AdminArticle; summarized: boolean }
 
 function autoSelect() {
   selected.clear();
-  for (const article of pendingArticles().slice(0, Number(ui.count.value))) selected.add(article.id);
+  // 要約済みの記事（作り直し）は自動では選ばず、チェックしたものだけを作り直す
+  const pending = pendingArticles().filter((article) => !findArticle(article.id)?.summarized);
+  for (const article of pending.slice(0, Number(ui.count.value))) selected.add(article.id);
 }
 
 function renderPickList() {
@@ -264,7 +279,9 @@ function renderPickList() {
         renderCounter(list.length);
         renderPrompt();
       });
-      label.append(box, el('span', 'pick-title', article.title), el('span', 'pick-meta', articleMeta(article)));
+      const meta = el('span', 'pick-meta', articleMeta(article));
+      if (findArticle(article.id)?.summarized) meta.append(el('span', 'badge-inline', '要約済み・作り直し'));
+      label.append(box, el('span', 'pick-title', article.title), meta);
       item.append(label);
       return item;
     }),
@@ -484,6 +501,8 @@ async function saveSummaries() {
   try {
     const { changed } = await commitSummaries(records, [], `要約を追加（${records.length}件）`);
     addMarks(KEYS.saved, records.map((record) => record.id));
+    // 作り直した要約は、サイトに反映されるまで「保存済みの要約」に新しい内容を出す
+    for (const record of records) if (findArticle(record.id)?.summarized) saveEdit(record.id, record.summary, record.points);
     setStatus(
       ui.saveStatus,
       changed
@@ -498,6 +517,7 @@ async function saveSummaries() {
     autoSelect();
     renderPickList();
     renderPrompt();
+    renderSavedList();
   } catch (error) {
     setStatus(ui.saveStatus, `保存できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
   } finally {
@@ -513,38 +533,158 @@ function downloadRecords() {
 
 // ===== 保存済みの要約（削除） =====
 
+/** 手直しした要約（サイトに反映されるまでの間、画面に手直し後の内容を出すため） */
+function readEdits(): Map<string, { summary: string; points: string[]; at: number }> {
+  try {
+    const entries = JSON.parse(storage.get(KEYS.edited) ?? '[]') as [string, { summary: string; points: string[]; at: number }][];
+    return new Map(entries.filter(([, edit]) => Date.now() - edit.at < HIDE_FOR));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveEdit(id: string, summary: string, points: string[]) {
+  const edits = readEdits();
+  edits.set(id, { summary, points, at: Date.now() });
+  storage.set(KEYS.edited, JSON.stringify([...edits]));
+}
+
+/** 保存済みの要約（手直しした内容を反映したもの） */
+function savedSummaries(): AdminSummary[] {
+  if (!data) return [];
+  const deleted = readMarks(KEYS.deleted);
+  const edits = readEdits();
+  return data.summarized
+    .filter((record) => !deleted.has(record.id))
+    .map((record) => {
+      const edit = edits.get(record.id);
+      return edit ? { ...record, summary: edit.summary, points: edit.points } : record;
+    });
+}
+
+/** 1件の要約を手直しして保存する（最新のファイルを読み直し、その要約だけを書き換える） */
+async function commitSummaryEdit(record: AdminSummary, summary: string, points: string[]) {
+  const client = githubClient();
+  const { defaultBranch, canPush } = await client.repository();
+  if (!canPush) throw new Error('このトークンには書き込み権限がありません（Contents の Read and write が必要です）');
+  const path = summaryFilePath(record.publishedAt);
+  return client.commitFiles(defaultBranch, `要約を修正: ${Array.from(record.title).slice(0, 40).join('')}`, async (read) => {
+    const current = parseSummaryFile(await read(path));
+    const target = current.find((other) => other.id === record.id);
+    if (!target) throw new Error('この要約が見つかりません（削除されたか、まだサイトに反映されていない可能性があります）');
+    const updated = editSummaryRecord(target, { summary, points }, new Date());
+    return [{ path, content: serializeSummaryFile(mergeSummaryRecords(current, [updated])) }];
+  });
+}
+
+/** 要約の編集フォーム */
+function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
+  const editor = el('div', 'editor');
+  const summaryField = el('label', 'field');
+  const summaryCount = el('span', 'note');
+  const summaryInput = el('textarea');
+  summaryInput.rows = 5;
+  summaryInput.value = record.summary;
+  const summaryHead = el('span');
+  summaryHead.append('要約', summaryCount);
+  summaryField.append(summaryHead, summaryInput);
+  const pointsField = el('label', 'field');
+  const pointsInput = el('textarea');
+  pointsInput.rows = 3;
+  pointsInput.value = record.points.join('\n');
+  const pointsHead = el('span');
+  pointsHead.append('要点（1行に1つ。空欄なら要点なし）');
+  pointsField.append(pointsHead, pointsInput);
+  const status = el('p', 'status');
+  const save = el('button', 'primary small', '保存して反映');
+  save.type = 'button';
+  const cancel = el('button', 'ghost small', 'キャンセル');
+  cancel.type = 'button';
+  const actions = el('div', 'actions');
+  actions.append(save, cancel);
+  editor.append(summaryField, pointsField, actions, status);
+
+  const updateCount = () => (summaryCount.textContent = `${Array.from(summaryInput.value.trim()).length}字`);
+  summaryInput.addEventListener('input', updateCount);
+  updateCount();
+  cancel.addEventListener('click', () => editor.remove());
+  save.addEventListener('click', async () => {
+    const points = pointsInput.value.split('\n').map((line) => line.trim()).filter(Boolean);
+    // AI の回答と同じ基準で確かめる（断り文の判定はしない）
+    const checked = validateEntries(
+      [{ id: record.id, status: 'ok', summary: summaryInput.value, points }],
+      () => ({ summarized: true }),
+      { checkRefusal: false },
+    );
+    const accepted = checked.accepted[0];
+    if (!accepted) {
+      setStatus(status, [...checked.errors, ...checked.skipped][0]?.reason ?? '保存できない内容です', 'error');
+      return;
+    }
+    save.disabled = true;
+    setStatus(status, '保存しています…');
+    try {
+      const { changed } = await commitSummaryEdit(record, accepted.summary, accepted.points);
+      saveEdit(record.id, accepted.summary, accepted.points);
+      setStatus(status, changed ? '保存しました。1〜3分ほどでサイトに反映されます。' : '変更はありませんでした。', 'ok');
+      setTimeout(onSaved, 1200);
+    } catch (error) {
+      setStatus(status, `保存できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+      save.disabled = false;
+    }
+  });
+  return editor;
+}
+
 function renderSavedList() {
   if (!data) return;
-  const deleted = readMarks(KEYS.deleted);
-  const list = data.summarized.filter((record) => !deleted.has(record.id));
-  ui.savedCount.textContent = `${list.length}件`;
+  const all = savedSummaries();
+  const query = ui.savedFilter.value.trim().toLowerCase();
+  const list = query
+    ? all.filter((record) => `${record.title} ${record.summary} ${record.points.join(' ')}`.toLowerCase().includes(query))
+    : all;
+  ui.savedCount.textContent = `${all.length}件`;
   const checked = new Set<string>();
   const sync = () => {
     ui.deleteSelected.disabled = checked.size === 0;
     ui.deleteSelected.textContent = checked.size > 0 ? `選んだ${checked.size}件の要約を削除` : '選んだ要約を削除';
   };
+  const edits = readEdits();
   ui.savedList.replaceChildren(
     ...list.map((record) => {
-      const item = el('li');
+      const item = el('li', 'saved-row');
       const label = el('label');
       const box = el('input');
       box.type = 'checkbox';
+      box.setAttribute('aria-label', `${record.title} の要約を削除する`);
       box.addEventListener('change', () => {
         if (box.checked) checked.add(record.id);
         else checked.delete(record.id);
         sync();
       });
-      label.append(
-        box,
-        el('span', 'pick-title', record.title),
-        el('span', 'pick-meta', `${articleMeta(record)} ・ 要約 ${dateFormat.format(new Date(record.summarizedAt))}`),
-        el('span', 'pick-summary', record.summary),
-      );
-      item.append(label);
+      const meta = el('span', 'pick-meta', `${articleMeta(record)} ・ 要約 ${dateFormat.format(new Date(record.summarizedAt))}`);
+      if (edits.has(record.id)) meta.append(el('span', 'badge-inline', '手直し済み（反映待ち）'));
+      label.append(box, el('span', 'pick-title', record.title), meta, el('span', 'pick-summary', record.summary));
+      if (record.points.length > 0) label.append(el('span', 'pick-summary', record.points.map((point) => `・${point}`).join(' ')));
+      const editButton = el('button', 'ghost small edit-button', '編集');
+      editButton.type = 'button';
+      editButton.setAttribute('aria-label', `${record.title} の要約を編集`);
+      editButton.addEventListener('click', () => {
+        const open = item.querySelector('.editor');
+        if (open) {
+          open.remove();
+          return;
+        }
+        item.append(summaryEditor(record, renderSavedList));
+        item.querySelector('textarea')?.focus();
+      });
+      item.append(label, editButton);
       return item;
     }),
   );
-  if (list.length === 0) ui.savedList.append(el('li', 'pick-meta', '保存済みの要約はまだありません。'));
+  if (list.length === 0) {
+    ui.savedList.append(el('li', 'pick-meta', all.length === 0 ? '保存済みの要約はまだありません。' : '条件に合う要約はありません。'));
+  }
   sync();
 
   ui.deleteSelected.onclick = async () => {
@@ -935,6 +1075,8 @@ async function main() {
     renderPrompt();
   };
   ui.count.addEventListener('change', refresh);
+  ui.includeSummarized.addEventListener('change', refresh);
+  ui.savedFilter.addEventListener('input', renderSavedList);
   ui.category.addEventListener('change', refresh);
   ui.sort.addEventListener('change', refresh);
   $('reselect').addEventListener('click', refresh);

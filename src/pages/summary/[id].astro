@@ -44,7 +44,7 @@ const jsonLd = [
     mainEntityOfPage: url,
     inLanguage: 'ja',
     datePublished: record.summarizedAt,
-    dateModified: record.summarizedAt,
+    dateModified: record.updatedAt ?? record.summarizedAt,
     isBasedOn: record.url,
     image: new URL(href('/og.png'), Astro.site).toString(),
     author: { '@type': 'Organization', name: site.name, url: home },

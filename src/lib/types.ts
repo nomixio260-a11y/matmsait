@@ -45,4 +45,6 @@ export interface SummaryRecord extends Item {
   points: string[];
   /** 要約を保存した日時（ISO 8601） */
   summarizedAt: string;
+  /** 管理画面で要約を手直しした日時（ISO 8601。手直ししていなければなし） */
+  updatedAt?: string;
 }

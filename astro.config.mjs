@@ -18,14 +18,14 @@ function dailyUpdatedAt(/** @type {string} */ date) {
   }
 }
 
-/** AI 要約を保存した日時（記事ID → 日時） */
+/** AI 要約を保存・手直しした日時（記事ID → 日時） */
 function summaryDates() {
   const dates = new Map();
   if (!existsSync('data/summaries')) return dates;
   for (const file of readdirSync('data/summaries')) {
     if (!/^\d{4}-\d{2}\.json$/.test(file)) continue;
     for (const record of JSON.parse(readFileSync(`data/summaries/${file}`, 'utf8'))) {
-      dates.set(record.id, record.summarizedAt);
+      dates.set(record.id, record.updatedAt ?? record.summarizedAt);
     }
   }
   return dates;

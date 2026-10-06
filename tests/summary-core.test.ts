@@ -42,14 +42,30 @@ describe('buildSummaryPrompt', () => {
     expect(prompt).toContain('"url": "https://example.com/a"');
   });
 
-  it('要点なしの指定ではpointsを求めない', () => {
+  it('要点なしの指定では points を常に空の配列にさせる', () => {
     const prompt = buildSummaryPrompt([{ id: 'a', title: 't', url: 'https://e.com', site: 's' }], {
       siteName: 'テスト',
       length: 'short',
       points: false,
     });
-    expect(prompt).not.toContain('"points"');
+    expect(prompt).toContain('"points"（文字列の配列）: 常に空の配列 []');
+    expect(prompt).not.toContain('要点を0〜3個');
     expect(prompt).toContain('60〜100字');
+  });
+
+  it('JSON の形式を詳しく指示し、記事一覧と出力例をコードブロックで示す', () => {
+    const articles = ['a', 'b', 'c'].map((id) => ({ id: `${id.repeat(16)}`, title: id, url: `https://e.com/${id}`, site: 's' }));
+    const prompt = buildSummaryPrompt(articles, { siteName: 'テスト', length: 'long', points: true });
+    expect(prompt).toContain('ちょうど3件');
+    expect(prompt).toContain('```json で始まり ``` で終わるコードブロック1つだけ');
+    expect(prompt).toContain('"status"（文字列）: 要約できた記事は "ok"、本文を読めなかった記事は "unavailable"');
+    expect(prompt).toContain('\\" と書く');
+    // 出力例と記事一覧はそれぞれ JSON として読める
+    const blocks = [...prompt.matchAll(/```json\n([\s\S]*?)\n```/g)].map((match) => JSON.parse(match[1]));
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toHaveLength(2);
+    expect(Array.from(blocks[0][0].summary as string).length).toBeGreaterThanOrEqual(200);
+    expect(blocks[1].map((article: { id: string }) => article.id)).toEqual(articles.map((article) => article.id));
   });
 });
 
@@ -61,6 +77,15 @@ describe('extractJson', () => {
 
   it('末尾の余分なカンマは許す', () => {
     expect(extractJson('[{"id":"a",},]')).toEqual([{ id: 'a' }]);
+  });
+
+  it('コードブロックが複数あれば配列をつなげる（回答が2回に分かれた場合）', () => {
+    expect(extractJson('```json\n[{"id":"a"}]\n```\n続きです\n```json\n[{"id":"b"}]\n```')).toEqual([{ id: 'a' }, { id: 'b' }]);
+  });
+
+  it('配列の括弧がなくオブジェクトが並んでいるだけでも読む', () => {
+    expect(extractJson('{"id":"a"}\n{"id":"b"}')).toEqual([{ id: 'a' }, { id: 'b' }]);
+    expect(extractJson('{"id":"a"},\n{"id":"b"},')).toEqual([{ id: 'a' }, { id: 'b' }]);
   });
 
   it('JSON がなければ分かりやすいエラー', () => {
@@ -76,6 +101,23 @@ describe('normalizeEntries', () => {
     expect(normalizeEntries({ summaries: [{ id: 'a', summary: 'x' }] })).toEqual(expected);
     expect(normalizeEntries({ a: 'x' })).toEqual(expected);
     expect(normalizeEntries({ a: { summary: 'x' } })).toEqual(expected);
+  });
+
+  it('項目名のゆれ・1件だけの回答・知らない包み方を吸収する', () => {
+    const expected = [{ id: 'a', status: 'ok', summary: 'x', points: ['p'] }];
+    expect(normalizeEntries([{ 記事ID: 'a', 状態: 'OK', 要約: 'x', 要点: ['p'] }])).toEqual(expected);
+    expect(normalizeEntries({ id: 'a', summary: 'x', points: ['p'] })).toEqual(expected);
+    expect(normalizeEntries({ output: [{ id: 'a', summary: 'x', points: ['p'] }] })).toEqual(expected);
+  });
+
+  it('要点の記号・番号を外し、文字列で返ってきた要点は行ごとに分ける', () => {
+    expect(normalizeEntries([{ id: 'a', summary: 'x', points: ['・一つ目', '2. 二つ目', '③三つ目', '- Switch2/PS5向け'] }])[0].points).toEqual([
+      '一つ目',
+      '二つ目',
+      '三つ目',
+      'Switch2/PS5向け',
+    ]);
+    expect(normalizeEntries([{ id: 'a', summary: 'x', points: '・一つ目\n・二つ目' }])[0].points).toEqual(['一つ目', '二つ目']);
   });
 });
 
@@ -108,6 +150,36 @@ describe('validateEntries', () => {
     ]);
     expect(result.skipped.map((issue) => issue.id)).toEqual(['b', 'd', 'a']);
     expect(result.errors.map((issue) => issue.id)).toEqual(['e', 'zzz']);
+  });
+});
+
+describe('断り文の判定', () => {
+  const lookup = () => ({ summarized: false });
+  const check = (summary: string, options = {}) => validateEntries([{ id: 'a', status: 'ok', summary, points: [] }], lookup, options);
+  const news = [
+    '大規模な通信障害で、同社のサイトにアクセスできない状態が数時間続いた。復旧の見通しは立っていない。',
+    '障害でサイトにアクセスできず、利用者からは問い合わせが相次いだ。同社は原因を調べている。',
+    '新しいアプリでは、買い物をするとポイントを取得できる。対象店舗は全国に広がる予定だという。',
+    '同社の担当者は「詳細はお答えできません」と述べ、事故の原因については明らかにしなかった。',
+  ];
+  const refusals = [
+    '申し訳ありませんが、このページの内容は確認できませんでした。別の記事をお試しください。',
+    '記事にアクセスできませんでしたので、内容を確認できませんでした。再度お試しください。',
+    '指定された URL を開けませんでした。ページが削除されている可能性があります。',
+    'この記事は有料会員限定のため、要約できません。ログイン後の本文が必要です。',
+    'I cannot access the article at this URL, so I am unable to summarize it here.',
+  ];
+
+  it('ニュースとして普通の文ははじかない', () => {
+    for (const summary of news) expect(check(summary).accepted, summary).toHaveLength(1);
+  });
+
+  it('AI が読めなかったことの報告ははじく', () => {
+    for (const summary of refusals) expect(check(summary).skipped, summary).toHaveLength(1);
+  });
+
+  it('運営者が直した要約では確認しない', () => {
+    expect(check(refusals[0], { checkRefusal: false }).accepted).toHaveLength(1);
   });
 });
 

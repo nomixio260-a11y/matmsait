@@ -37,9 +37,9 @@ async function notifySearchEngines(baseUrl: string, now: Date, dataChanged: bool
   const days = [jstDateKey(now), jstDateKey(new Date(now.getTime() - DAY))].filter((date) =>
     existsSync(resolve(process.cwd(), `data/daily/${date}.json`)),
   );
-  // 直近（3時間以内）に要約を保存した記事のページ
+  // 直近（3時間以内）に要約を保存・手直しした記事のページ
   const recentSummaries = getSummaries()
-    .filter((record) => now.getTime() - Date.parse(record.summarizedAt) < 3 * 60 * 60 * 1000)
+    .filter((record) => now.getTime() - Date.parse(record.updatedAt ?? record.summarizedAt) < 3 * 60 * 60 * 1000)
     .slice(0, 100)
     .map((record) => summaryPath(record.id));
   // 記事が増えていなくても、新しい要約ページは知らせる

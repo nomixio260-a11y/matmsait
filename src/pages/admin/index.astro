@@ -136,6 +136,10 @@ import { href } from '../../lib/items.ts';
           </label>
           <button type="button" id="reselect" class="ghost">上から選び直す</button>
         </div>
+        <label class="check">
+          <input id="include-summarized" type="checkbox" />
+          要約済みの記事も選べるようにする（AI で要約を作り直す）
+        </label>
         <p class="counter" id="pick-counter"></p>
         <ul class="pick-list" id="pick-list"></ul>
         <div class="actions">
@@ -174,8 +178,9 @@ import { href } from '../../lib/items.ts';
           <span class="note" id="prompt-info"></span>
         </div>
         <p class="hint">
-          ChatGPT・Claude・Gemini など、Webページを読めるAIに貼り付けてください。
-          AIが開けなかった記事は「unavailable」として返り、要約待ちに残ります。
+          プロンプトを丸ごとコピーして、ChatGPT・Claude・Gemini など Web ページを読める AI に貼り付けてください。
+          AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。
+          一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残ります。
         </p>
       </div>
     </section>
@@ -212,7 +217,11 @@ import { href } from '../../lib/items.ts';
     <details class="card">
       <summary><span class="summary-title">保存済みの要約</span><span class="badge" id="saved-count">0件</span></summary>
       <div class="card-body">
-        <p class="hint">内容に問題がある要約は、選んで削除できます（削除した記事は要約待ちに戻ります）。</p>
+        <p class="hint">
+          「編集」で要約・要点を直接直せます。内容に問題がある要約は、選んで削除できます（削除した記事は要約待ちに戻ります）。
+          AI で作り直したいときは、手順1の「要約済みの記事も選べるようにする」を使ってください。
+        </p>
+        <input id="saved-filter" class="filter" type="search" placeholder="タイトル・要約で絞り込み" aria-label="保存済みの要約を絞り込む" />
         <ul class="pick-list" id="saved-list"></ul>
         <div class="actions">
           <button type="button" id="delete-selected" class="danger" disabled>選んだ要約を削除</button>
@@ -351,14 +360,14 @@ import { href } from '../../lib/items.ts';
     border-color: #b7e2c4;
     color: #1d6b3a;
   }
-  .controls {
+  :global(.admin .controls) {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 10px 16px;
     margin-bottom: 10px;
   }
-  .field {
+  :global(.admin .field) {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -366,18 +375,18 @@ import { href } from '../../lib/items.ts';
     color: var(--text-2);
     font-weight: 600;
   }
-  .field input {
+  :global(.admin .field input) {
     width: 100%;
   }
-  .check {
+  :global(.admin .check) {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-size: 0.85rem;
   }
-  input[type='password'],
-  select,
-  textarea {
+  :global(.admin input[type='password']),
+  :global(.admin select),
+  :global(.admin textarea) {
     font: inherit;
     font-size: 0.875rem;
     color: var(--text);
@@ -386,14 +395,14 @@ import { href } from '../../lib/items.ts';
     border-radius: 8px;
     padding: 8px 10px;
   }
-  textarea {
+  :global(.admin textarea) {
     width: 100%;
     resize: vertical;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.78rem;
     line-height: 1.6;
   }
-  button {
+  :global(.admin button) {
     font: inherit;
     font-size: 0.85rem;
     font-weight: 700;
@@ -404,50 +413,50 @@ import { href } from '../../lib/items.ts';
     color: var(--text);
     cursor: pointer;
   }
-  button:hover:not(:disabled) {
+  :global(.admin button:hover:not(:disabled)) {
     border-color: var(--accent);
     color: var(--accent);
   }
-  button:disabled {
+  :global(.admin button:disabled) {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  button.primary {
+  :global(.admin button.primary) {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--on-accent);
   }
-  button.primary:hover:not(:disabled) {
+  :global(.admin button.primary:hover:not(:disabled)) {
     background: var(--accent-strong);
     color: var(--on-accent);
   }
-  button.ghost {
+  :global(.admin button.ghost) {
     background: transparent;
   }
-  button.danger {
+  :global(.admin button.danger) {
     color: var(--hot);
     border-color: var(--hot);
   }
-  .actions {
+  :global(.admin .actions) {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     margin-top: 10px;
   }
-  .note,
-  .counter,
-  .hint {
+  :global(.admin .note),
+  :global(.admin .counter),
+  :global(.admin .hint) {
     font-size: 0.8rem;
     color: var(--muted);
   }
-  .counter {
+  :global(.admin .counter) {
     margin: 0 0 8px;
   }
-  .hint {
+  :global(.admin .hint) {
     margin: 10px 0 0;
   }
-  .status {
+  :global(.admin .status) {
     margin: 10px 0 0;
     font-size: 0.85rem;
     font-weight: 600;
@@ -460,6 +469,54 @@ import { href } from '../../lib/items.ts';
   }
   .run-controls {
     margin-top: 10px;
+  }
+  :global(.admin input.filter) {
+    width: 100%;
+    margin-bottom: 8px;
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  :global(.saved-row) {
+    position: relative;
+  }
+  :global(.saved-row .edit-button) {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+  }
+  :global(.saved-row label) {
+    padding-right: 64px !important;
+  }
+  :global(.editor) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 12px 12px 36px;
+  }
+  :global(.editor textarea) {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 400;
+    line-height: 1.7;
+  }
+  :global(.editor .field span) {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  :global(.badge-inline) {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-size: 0.68rem;
+    color: var(--muted);
   }
   .table-wrap {
     overflow-x: auto;
@@ -501,7 +558,7 @@ import { href } from '../../lib/items.ts';
     margin: 0;
     font-size: 0.85rem;
   }
-  button.small {
+  :global(.admin button.small) {
     padding: 4px 10px;
     font-size: 0.78rem;
   }
