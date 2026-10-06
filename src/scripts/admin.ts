@@ -1,5 +1,6 @@
-// 管理画面（/admin/）: 要約待ちの記事を選んでプロンプトを作り、AI の回答を検証して GitHub に保存する
-import { createGitHubClient, type Repository } from '../lib/github-commit.ts';
+// 管理画面（/admin/）: 要約待ちの記事を選んでプロンプトを作り、AI の回答を検証して GitHub に保存する。
+// GitHub Actions の更新・AI 自動要約の実行もここから行う
+import { createGitHubClient, type Repository, type WorkflowRun } from '../lib/github-commit.ts';
 import {
   buildSummaryPrompt,
   extractJson,
@@ -119,6 +120,11 @@ const ui = {
   savedList: $<HTMLUListElement>('saved-list'),
   deleteSelected: $<HTMLButtonElement>('delete-selected'),
   deleteStatus: $('delete-status'),
+  runUpdate: $<HTMLButtonElement>('run-update'),
+  runSummarize: $<HTMLButtonElement>('run-summarize'),
+  autoCount: $<HTMLSelectElement>('auto-count'),
+  runStatus: $('run-status'),
+  runList: $<HTMLUListElement>('run-list'),
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) {
@@ -511,6 +517,105 @@ function renderSavedList() {
   };
 }
 
+// ===== サイトの更新・AI で自動要約（GitHub Actions のワークフローを実行） =====
+
+const WORKFLOW = 'update.yml';
+const RUN_EVENTS: Record<string, string> = {
+  schedule: '定期更新',
+  workflow_dispatch: '手動実行',
+  push: '変更の反映',
+};
+let runsTimer: ReturnType<typeof setTimeout> | undefined;
+
+function runState(run: WorkflowRun): { text: string; kind: 'ok' | 'error' | 'active' | '' } {
+  if (run.status !== 'completed') {
+    return { text: ['queued', 'pending', 'waiting', 'requested'].includes(run.status) ? '待機中' : '実行中', kind: 'active' };
+  }
+  switch (run.conclusion) {
+    case 'success':
+      return { text: '成功', kind: 'ok' };
+    case 'cancelled':
+      return { text: 'キャンセル', kind: '' };
+    case 'skipped':
+      return { text: 'スキップ', kind: '' };
+    default:
+      return { text: '失敗', kind: 'error' };
+  }
+}
+
+async function renderRuns() {
+  clearTimeout(runsTimer);
+  if (!data || !token) {
+    ui.runList.replaceChildren(el('li', 'pick-meta', 'トークンを設定すると表示されます。'));
+    return;
+  }
+  try {
+    const runs = await githubClient().listWorkflowRuns(WORKFLOW, 6);
+    ui.runList.replaceChildren(
+      ...runs.map((run) => {
+        const state = runState(run);
+        const link = el('a', '', '詳細');
+        link.href = run.html_url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        const item = el('li');
+        item.append(
+          el('span', `run-state ${state.kind}`.trim(), state.text),
+          el('span', '', RUN_EVENTS[run.event] ?? run.event),
+          el('span', 'pick-meta', dateFormat.format(new Date(run.created_at))),
+          link,
+        );
+        return item;
+      }),
+    );
+    if (runs.length === 0) ui.runList.append(el('li', 'pick-meta', 'まだ実行されていません。'));
+    // 実行中のものがあれば、終わるまで自動で状況を更新する
+    if (runs.some((run) => run.status !== 'completed')) runsTimer = setTimeout(renderRuns, 15_000);
+  } catch (error) {
+    ui.runList.replaceChildren(
+      el('li', 'pick-meta', `実行状況を読み込めませんでした: ${error instanceof Error ? error.message : error}`),
+    );
+  }
+}
+
+/** summarize: AI で要約する件数（'0' なら更新だけ） */
+async function runWorkflow(summarize: string, button: HTMLButtonElement) {
+  if (summarize !== '0') {
+    const ok = confirm(
+      `AI（Claude API）で最大${summarize}件の記事を要約してサイトを更新します。\n` +
+        `費用の目安は $${(Number(summarize) * 0.02).toFixed(2)}〜$${(Number(summarize) * 0.06).toFixed(2)} です（既定のモデルの場合）。実行しますか？`,
+    );
+    if (!ok) return;
+  }
+  button.disabled = true;
+  setStatus(ui.runStatus, '実行を依頼しています…');
+  try {
+    const client = githubClient();
+    const { defaultBranch } = await client.repository();
+    await client.dispatchWorkflow(WORKFLOW, defaultBranch, { summarize });
+    setStatus(
+      ui.runStatus,
+      summarize === '0'
+        ? '更新を開始しました。2〜3分ほどでサイトに反映されます。'
+        : `AIによる要約（最大${summarize}件）と更新を開始しました。5〜10分ほどでサイトに反映されます。`,
+      'ok',
+    );
+    // 実行が一覧に現れるまで少しかかる
+    setTimeout(renderRuns, 4000);
+  } catch (error) {
+    setStatus(ui.runStatus, `実行できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+  } finally {
+    // 連打で何度も実行しないよう、少し待ってから押せるようにする
+    setTimeout(() => (button.disabled = false), 5000);
+  }
+}
+
+function setupRuns() {
+  ui.runUpdate.addEventListener('click', () => runWorkflow('0', ui.runUpdate));
+  ui.runSummarize.addEventListener('click', () => runWorkflow(ui.autoCount.value, ui.runSummarize));
+  $('refresh-runs').addEventListener('click', renderRuns);
+}
+
 // ===== トークン =====
 
 function renderTokenBadge(text?: string, ok = false) {
@@ -553,6 +658,7 @@ function setupToken() {
       if (canPush) {
         setStatus(ui.tokenStatus, `接続できました。保存先: ${defaultBranch} ブランチ`, 'ok');
         renderTokenBadge('接続OK', true);
+        void renderRuns();
       } else {
         setStatus(ui.tokenStatus, '読み取りはできますが、書き込み権限がありません（Contents の Read and write が必要です）', 'error');
       }
@@ -625,6 +731,8 @@ async function main() {
   refresh();
   renderSavedList();
   renderSaveArea();
+  setupRuns();
+  void renderRuns();
 }
 
 void main();

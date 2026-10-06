@@ -87,6 +87,60 @@ describe('createGitHubClient', () => {
     expect(calls.some((call) => call.method === 'POST')).toBe(false);
   });
 
+  it('ワークフローを実行し、最近の実行を読む', async () => {
+    const calls: Call[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      calls.push({ method: init.method ?? 'GET', url: String(input), body: init.body ? JSON.parse(String(init.body)) : undefined });
+      if (init.method === 'POST') return new Response(null, { status: 204 });
+      return new Response(
+        JSON.stringify({
+          total_count: 1,
+          workflow_runs: [
+            {
+              id: 1,
+              event: 'workflow_dispatch',
+              status: 'in_progress',
+              conclusion: null,
+              created_at: '2026-10-06T07:00:00Z',
+              updated_at: '2026-10-06T07:01:00Z',
+              html_url: 'https://github.com/owner/repo/actions/runs/1',
+              head_commit: { message: '省略される' },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
+    await client.dispatchWorkflow('update.yml', 'main', { summarize: '10' });
+    expect(calls[0]).toMatchObject({
+      method: 'POST',
+      url: 'https://api.github.com/repos/owner/repo/actions/workflows/update.yml/dispatches',
+      body: { ref: 'main', inputs: { summarize: '10' } },
+    });
+    const runs = await client.listWorkflowRuns('update.yml', 3);
+    expect(calls[1].url).toBe('https://api.github.com/repos/owner/repo/actions/workflows/update.yml/runs?per_page=3');
+    expect(runs).toEqual([
+      {
+        id: 1,
+        event: 'workflow_dispatch',
+        status: 'in_progress',
+        conclusion: null,
+        created_at: '2026-10-06T07:00:00Z',
+        updated_at: '2026-10-06T07:01:00Z',
+        html_url: 'https://github.com/owner/repo/actions/runs/1',
+      },
+    ]);
+  });
+
+  it('権限が足りないときは必要な権限を示す', async () => {
+    const fetchImpl = (async () =>
+      new Response('{"message":"Resource not accessible by personal access token"}', { status: 403 })) as typeof fetch;
+    const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
+    await expect(client.dispatchWorkflow('update.yml', 'main')).rejects.toThrow('Actions の Read and write');
+    await expect(client.readFile('a.json', 'main')).rejects.toThrow('Contents の Read and write');
+  });
+
   it('認証エラーは分かりやすいメッセージにする', async () => {
     const fetchImpl = (async () => new Response('{"message":"Bad credentials"}', { status: 401 })) as typeof fetch;
     const client = createGitHubClient('bad', { owner: 'owner', repo: 'repo' }, fetchImpl);

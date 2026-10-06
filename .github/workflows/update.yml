@@ -2,10 +2,17 @@ name: フィード更新とデプロイ
 
 on:
   schedule:
-    # 毎時7分（UTC）に収集。混雑する毎時0分を避けている
-    - cron: '7 * * * *'
+    # 毎時23分（UTC）に収集。混雑する毎時0分を避けている
+    - cron: '23 * * * *'
   push:
+  # 管理画面の「今すぐ更新」「AI で要約」ボタン、または Actions 画面の Run workflow から実行
   workflow_dispatch:
+    inputs:
+      summarize:
+        description: 'AI で要約する記事の数（0 = 要約しない。シークレット ANTHROPIC_API_KEY が必要）'
+        type: choice
+        options: ['0', '5', '10', '20', '30', '50']
+        default: '0'
 
 permissions:
   contents: write
@@ -28,6 +35,9 @@ jobs:
     outputs:
       changed: ${{ steps.commit.outputs.changed }}
       base_url: ${{ steps.pages.outputs.base_url }}
+    env:
+      # AI で要約する件数（手動実行では入力値、定期実行では変数 AUTO_SUMMARY_COUNT）
+      SUMMARY_COUNT: ${{ github.event_name == 'workflow_dispatch' && inputs.summarize || github.event_name == 'schedule' && vars.AUTO_SUMMARY_COUNT || '0' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -53,6 +63,18 @@ jobs:
       - name: フィードを取得
         run: npm run fetch
 
+      # 要約に失敗してもサイトの更新は続ける
+      - name: AI で要約を作成
+        if: env.SUMMARY_COUNT != '' && env.SUMMARY_COUNT != '0'
+        continue-on-error: true
+        timeout-minutes: 15
+        run: npm run auto-summarize -- --count "$SUMMARY_COUNT" --out "$RUNNER_TEMP/auto-summaries.json"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUMMARY_MODEL: ${{ vars.SUMMARY_MODEL }}
+          SUMMARY_EFFORT: ${{ vars.SUMMARY_EFFORT }}
+          SUMMARY_LENGTH: ${{ vars.SUMMARY_LENGTH }}
+
       - name: 取得したデータをコミット
         id: commit
         run: |
@@ -66,13 +88,19 @@ jobs:
             git reset --quiet --hard "origin/$GITHUB_REF_NAME"
             git diff --quiet "$GITHUB_SHA" HEAD -- package-lock.json || npm ci
             npm run --silent merge -- "$RUNNER_TEMP/fetched-items.json"
+            if [ -s "$RUNNER_TEMP/auto-summaries.json" ]; then
+              npm run --silent summaries -- import "$RUNNER_TEMP/auto-summaries.json" --skip-existing ||
+                echo '::warning::AI 要約の取り込みでエラーがありました'
+            fi
             git add data
             if git diff --cached --quiet; then
               echo '更新なし'
               echo 'changed=false' >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            git commit --quiet -m 'chore: フィードを更新'
+            message='chore: フィードを更新'
+            git diff --cached --quiet -- data/summaries || message='chore: フィードと AI 要約を更新'
+            git commit --quiet -m "$message"
             if git push --quiet origin "HEAD:$GITHUB_REF_NAME"; then
               echo 'changed=true' >> "$GITHUB_OUTPUT"
               exit 0

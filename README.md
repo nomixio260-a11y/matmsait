@@ -82,13 +82,42 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 
 保存済みの要約は画面下の「保存済みの要約」から削除できます（削除した記事は要約待ちに戻ります）。
 
+### Claude API で自動要約する（コピペ不要）
+
+API キーを設定すると、管理画面の「AIで自動要約して更新」ボタン（または毎時の定期更新）で、AI への受け渡しまで自動で行えます。
+
+1. [Claude Console](https://platform.claude.com/settings/keys) で API キーを作成
+2. リポジトリの Settings → Secrets and variables → Actions → **Secrets** に `ANTHROPIC_API_KEY` として登録
+3. 管理画面で使うトークンに **Actions: Read and write** 権限も付ける（下記）
+4. 管理画面で件数（5〜50件）を選んで「AIで自動要約して更新」
+
+GitHub Actions が要約のない記事をカテゴリが偏らないように選び、記事ページから本文を取得して（RSS 収集と同じブラウザ相当の通信）、Claude に1件ずつ要約させます。
+回答は管理画面と同じ検証（長さ・断り文など）を通してから保存し、本文を取得できない記事や AI が「読めない」と判断した記事は見送ります。
+本文はAIに渡すためだけに使い、サイトには掲載しません。結果（保存・見送りの一覧、トークン数、費用の目安）は Actions の実行ページの Summary に表示されます。
+
+Variables（Settings → Secrets and variables → Actions → **Variables**）で動作を変えられます。
+
+| 変数 | 内容 | 既定 |
+| --- | --- | --- |
+| `AUTO_SUMMARY_COUNT` | 毎時の定期更新のたびに要約する件数（未設定なら定期更新では要約しない） | なし |
+| `SUMMARY_MODEL` | 使うモデル | `claude-opus-5-5` |
+| `SUMMARY_EFFORT` | 考える深さ（`low` / `medium` / `high`） | `low` |
+| `SUMMARY_LENGTH` | 要約の長さ（`short` / `normal` / `long`） | `normal` |
+
+費用の目安は、既定のモデル（`claude-opus-5-5`、入力 $4 / 出力 $20 per 100万トークン）で **1件あたり約 $0.02〜0.06** です
+（本文は最大5,000字に切り詰めて渡します）。`AUTO_SUMMARY_COUNT` を 5 にすると1日120件・月 $70〜200 程度になるため、
+まずは手動実行で試し、予算に合わせて件数を決めてください。`SUMMARY_MODEL` を `claude-sonnet-5-5`（約半額）や `claude-haiku-4-5`（約4分の1）にすると安くなりますが、
+要約の質は下がることがあります。Claude Console で月の利用上限を設定しておくと安心です。
+
+コマンドラインでは `npm run auto-summarize -- --count 5`（`--dry-run` で本文の取得だけを確認、`--order popular|latest`、`--category tech`）。
+
 ### 最初に1回だけ: GitHub のトークン
 
 管理画面は静的なページなので、保存には GitHub のアクセストークンを使います。
 
 1. https://github.com/settings/personal-access-tokens/new で **Fine-grained** トークンを作成
 2. Repository access で **このリポジトリだけ** を選択
-3. Repository permissions の **Contents** を **Read and write** にする（有効期限も設定推奨）
+3. Repository permissions の **Contents** を **Read and write** にする（「今すぐ更新」「AIで自動要約」も使うなら **Actions** も **Read and write**。有効期限も設定推奨）
 4. 管理画面の「GitHub との連携」に貼り付けて「接続を確認」
 
 トークンはブラウザから GitHub API に直接送るだけで、サイトには保存・公開されません（「このブラウザに記憶する」を選んだ場合のみ、その端末のブラウザに保存）。
@@ -122,12 +151,22 @@ npm run check     # 型チェック（.astro ファイルを含む）
 `.github/workflows/update.yml` が以下のタイミングで「テスト → 収集 → データをコミット → ビルド → GitHub Pages へ公開 → 検索エンジン・SNS へ通知」を行います。
 データのコミットは、再実行や同時実行で古いコミットから始まった場合でも、ブランチの最新状態に取り込み直してから push します。
 
-- 毎時 7 分（UTC）の定期実行
-- 既定ブランチへの push
-- Actions タブからの手動実行（Run workflow）
+- 毎時 23 分（UTC）の定期実行
+- 既定ブランチへの push（管理画面から要約を保存したときも）
+- 管理画面の「今すぐ更新」「AIで自動要約して更新」ボタン、または Actions タブからの手動実行（Run workflow）
 
 GitHub Pages の設定（Settings → Pages → Source）は **GitHub Actions** にしてください。
 定期実行は、リポジトリに 60 日間動きがないと GitHub に停止されますが、収集データを毎時コミットしているので通常は止まりません。
+
+GitHub の定期実行は混雑時に遅れたり、作ったばかりのリポジトリではしばらく動かなかったりすることがあります。
+Actions タブで「定期更新」（schedule）の実行が続かない場合は、外部の cron サービス（[cron-job.org](https://cron-job.org/) など）から
+次の API を毎時呼ぶと確実です（トークンは Actions: Read and write だけを付けた Fine-grained トークン）。
+
+```sh
+curl -X POST -H "Authorization: Bearer <トークン>" -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/<owner>/<repo>/actions/workflows/update.yml/dispatches \
+  -d '{"ref":"<既定ブランチ>","inputs":{"summarize":"0"}}'
+```
 
 ### 独自ドメインを使う場合
 

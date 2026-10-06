@@ -35,8 +35,18 @@ export interface PromptOptions {
   points: boolean;
 }
 
-export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length, points }: PromptOptions): string {
+/** 要約の書き方のルール（手作業用のプロンプトと API での自動要約で共通） */
+export function summaryRules(length: SummaryLength, points: boolean): string[] {
   const { min, max } = SUMMARY_LENGTHS[length];
+  return [
+    `- summary は${min}〜${max}字程度で、何が・誰が・どうなったのかが一読でわかるように書いてください。`,
+    ...(points ? ['- points には記事の重要なポイントを3つまで、それぞれ40字以内の短い文で書いてください。'] : []),
+    '- 原文の文章をそのまま書き写さず、自分の言葉で言い換えてください（直接の引用はしない）。',
+    '- 記事に書かれていないこと、推測、意見や感想は加えないでください。',
+  ];
+}
+
+export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length, points }: PromptOptions): string {
   const input = articles.map(({ id, title, url, site, excerpt }) => ({
     id,
     title,
@@ -55,10 +65,7 @@ export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length
     '',
     '# ルール',
     '- 必ず各記事の url にアクセスし、本文の内容にもとづいて書いてください。',
-    `- summary は${min}〜${max}字程度で、何が・誰が・どうなったのかが一読でわかるように書いてください。`,
-    ...(points ? ['- points には記事の重要なポイントを3つまで、それぞれ40字以内の短い文で書いてください。'] : []),
-    '- 原文の文章をそのまま書き写さず、自分の言葉で言い換えてください（直接の引用はしない）。',
-    '- 記事に書かれていないこと、推測、意見や感想は加えないでください。',
+    ...summaryRules(length, points),
     '- 記事にアクセスできない、または内容を確認できない場合は、推測で書かずに status を "unavailable"、summary を空文字にしてください。',
     '- excerpt は RSS の抜粋です。記事を特定する参考にとどめ、要約は本文にもとづいて書いてください。',
     '- id は入力の値をそのまま使い、入力したすべての記事について1件ずつ出力してください。',

@@ -22,7 +22,10 @@ export class GitHubError extends Error {
   }
 }
 
-function describe(status: number, body: string): string {
+/** トークンに必要な権限の名前（エラーの説明に使う） */
+type Permission = 'Contents' | 'Actions';
+
+function describe(status: number, body: string, permission: Permission = 'Contents'): string {
   let message = '';
   try {
     message = (JSON.parse(body) as { message?: string }).message ?? '';
@@ -35,7 +38,7 @@ function describe(status: number, body: string): string {
     case 403:
       return /rate limit/i.test(message)
         ? 'GitHub API の利用回数の上限に達しました。しばらく待ってから再度お試しください'
-        : 'このトークンには書き込み権限がありません（Contents の Read and write が必要です）';
+        : `このトークンには権限がありません（${permission} の Read and write が必要です）`;
     case 404:
       return 'リポジトリが見つからないか、トークンにアクセス権がありません';
     default:
@@ -48,8 +51,11 @@ const encodePath = (path: string) => path.split('/').map(encodeURIComponent).joi
 export function createGitHubClient(token: string, { owner, repo }: Repository, fetchImpl: typeof fetch = fetch) {
   const base = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
-  async function api(path: string, init: RequestInit & { accept?: string } = {}): Promise<Response> {
-    const { accept, headers, ...rest } = init;
+  async function api(
+    path: string,
+    init: RequestInit & { accept?: string; permission?: Permission } = {},
+  ): Promise<Response> {
+    const { accept, headers, permission, ...rest } = init;
     const res = await fetchImpl(`${base}${path}`, {
       ...rest,
       headers: {
@@ -60,11 +66,11 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
         ...headers,
       },
     });
-    if (!res.ok) throw new GitHubError(describe(res.status, await res.text()), res.status);
+    if (!res.ok) throw new GitHubError(describe(res.status, await res.text(), permission), res.status);
     return res;
   }
 
-  async function json<T>(path: string, init?: RequestInit): Promise<T> {
+  async function json<T>(path: string, init?: RequestInit & { permission?: Permission }): Promise<T> {
     return (await (await api(path, init)).json()) as T;
   }
 
@@ -127,5 +133,44 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
     }
   }
 
-  return { repository, readFile, commitFiles };
+  /** ワークフローを手動で実行する（workflow_dispatch。トークンに Actions の Read and write が必要） */
+  async function dispatchWorkflow(workflow: string, ref: string, inputs: Record<string, string> = {}): Promise<void> {
+    await api(`/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, {
+      method: 'POST',
+      body: JSON.stringify({ ref, inputs }),
+      permission: 'Actions',
+    });
+  }
+
+  /** ワークフローの最近の実行（新しい順） */
+  async function listWorkflowRuns(workflow: string, perPage = 5): Promise<WorkflowRun[]> {
+    const data = await json<{ workflow_runs: WorkflowRun[] }>(
+      `/actions/workflows/${encodeURIComponent(workflow)}/runs?per_page=${perPage}`,
+      { permission: 'Actions' },
+    );
+    return data.workflow_runs.map(({ id, event, status, conclusion, created_at, updated_at, html_url }) => ({
+      id,
+      event,
+      status,
+      conclusion,
+      created_at,
+      updated_at,
+      html_url,
+    }));
+  }
+
+  return { repository, readFile, commitFiles, dispatchWorkflow, listWorkflowRuns };
+}
+
+export interface WorkflowRun {
+  id: number;
+  /** schedule / workflow_dispatch / push など */
+  event: string;
+  /** queued / in_progress / completed など */
+  status: string;
+  /** success / failure / cancelled など（完了前は null） */
+  conclusion: string | null;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
 }

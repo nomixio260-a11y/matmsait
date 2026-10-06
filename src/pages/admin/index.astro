@@ -10,6 +10,7 @@ import { href } from '../../lib/items.ts';
       <h1>AI要約の管理</h1>
       <p>
         要約のない記事を選んでAI用のプロンプトを作り、AIの回答（JSON）を貼り付けて保存すると、サイトの各記事に要約が載ります。
+        Claude API を設定すれば、ボタン1つで自動要約もできます。
       </p>
       <p class="data-info" id="data-info" aria-live="polite">記事データを読み込んでいます…</p>
     </div>
@@ -43,13 +44,71 @@ import { href } from '../../lib/items.ts';
               を開く
             </li>
             <li>「Repository access」で <code id="repo-name">このサイトのリポジトリ</code> だけを選ぶ</li>
-            <li>「Repository permissions」の <b>Contents</b> を <b>Read and write</b> にして作成</li>
+            <li>
+              「Repository permissions」の <b>Contents</b> を <b>Read and write</b> にして作成（「今すぐ更新」「AIで自動要約」も使う場合は
+              <b>Actions</b> も <b>Read and write</b> に）
+            </li>
             <li>表示されたトークンを上の欄に貼り付けて「接続を確認」</li>
           </ol>
           <p>トークンはこのブラウザから GitHub に送るだけで、サイトや他の場所には送信・公開されません。</p>
         </div>
       </div>
     </details>
+
+    <section class="card">
+      <h2><span class="step" aria-hidden="true">⚡</span>サイトの更新・AIで自動要約</h2>
+      <div class="card-body">
+        <p class="note">
+          記事の収集とサイトの更新は1時間ごとに自動で行われます。すぐに更新したいときや、AI（Claude
+          API）にまとめて要約させたいときに使います。
+        </p>
+        <div class="controls run-controls">
+          <button type="button" id="run-update">今すぐ更新</button>
+          <label class="field inline">
+            <span>AIで要約する件数</span>
+            <select id="auto-count">
+              <option value="5">5件</option>
+              <option value="10" selected>10件</option>
+              <option value="20">20件</option>
+              <option value="30">30件</option>
+              <option value="50">50件</option>
+            </select>
+          </label>
+          <button type="button" id="run-summarize" class="primary">AIで自動要約して更新</button>
+        </div>
+        <p class="status" id="run-status" aria-live="polite"></p>
+        <div class="runs">
+          <div class="runs-head">
+            <h3>最近の実行</h3>
+            <button type="button" id="refresh-runs" class="ghost small">状況を更新</button>
+          </div>
+          <ul class="run-list" id="run-list">
+            <li class="pick-meta">トークンを設定すると表示されます。</li>
+          </ul>
+        </div>
+        <details class="help">
+          <summary>AIで自動要約を使うには（最初の1回だけ）</summary>
+          <ol>
+            <li>
+              <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Claude Console</a>
+              で API キーを作成する
+            </li>
+            <li>
+              GitHub のリポジトリの <b>Settings → Secrets and variables → Actions</b> で、シークレット
+              <code>ANTHROPIC_API_KEY</code> を作成して API キーを貼り付ける
+            </li>
+            <li>上の「GitHub との連携」のトークンに <b>Actions</b> の <b>Read and write</b> 権限を付ける</li>
+          </ol>
+          <p>
+            GitHub Actions が記事ページから本文を取得して Claude に要約させ、検証してから保存します（読めない記事は見送り）。
+            費用の目安は1件あたり約 $0.02〜0.06（既定のモデル claude-opus-5-5 の場合）。結果は実行ページの「Summary」で確認できます。
+          </p>
+          <p>
+            毎時の自動更新のたびに要約させるには、同じ画面の Variables に <code>AUTO_SUMMARY_COUNT</code>（1回あたりの件数）を設定します。
+          </p>
+        </details>
+      </div>
+    </section>
 
     <section class="card">
       <h2><span class="step">1</span>要約する記事を選ぶ</h2>
@@ -338,6 +397,66 @@ import { href } from '../../lib/items.ts';
   :global(.status.ok) {
     color: #1d6b3a;
   }
+  .run-controls {
+    margin-top: 10px;
+  }
+  .runs {
+    margin-top: 12px;
+  }
+  .runs-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .runs-head h3 {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  button.small {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+  }
+  .run-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  :global(.run-list li) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+  :global(.run-list li + li) {
+    border-top: 1px solid var(--border);
+  }
+  :global(.run-list a) {
+    color: var(--accent);
+    margin-left: auto;
+  }
+  :global(.run-state) {
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  :global(.run-state.ok) {
+    color: #1d6b3a;
+  }
+  :global(.run-state.error) {
+    color: var(--hot);
+  }
+  :global(.run-state.active) {
+    color: var(--accent);
+  }
+  details.help > summary {
+    cursor: pointer;
+    font-weight: 700;
+  }
   .help {
     margin-top: 14px;
     padding: 10px 14px;
@@ -444,7 +563,8 @@ import { href } from '../../lib/items.ts';
       color: #7ee2a1;
     }
     :global(:root:not([data-theme='light']) .status.ok),
-    :global(:root:not([data-theme='light']) .result-state.ok) {
+    :global(:root:not([data-theme='light']) .result-state.ok),
+    :global(:root:not([data-theme='light']) .run-state.ok) {
       color: #7ee2a1;
     }
   }
@@ -454,7 +574,8 @@ import { href } from '../../lib/items.ts';
     color: #7ee2a1;
   }
   :global(:root[data-theme='dark'] .status.ok),
-  :global(:root[data-theme='dark'] .result-state.ok) {
+  :global(:root[data-theme='dark'] .result-state.ok),
+  :global(:root[data-theme='dark'] .run-state.ok) {
     color: #7ee2a1;
   }
 </style>

@@ -4,8 +4,9 @@
 //                               [--length short|normal|long] [--no-points] [--out prompt.txt]
 //       要約のない記事からプロンプトを作る（--out がなければ画面に出す）
 //
-//   npm run summaries -- import <AIの回答.json> [--dry-run]
+//   npm run summaries -- import <AIの回答.json> [--dry-run] [--skip-existing]
 //       AI の回答（または管理画面の「保存用JSON」）を検証して data/summaries/ に保存する
+//       --skip-existing: すでに要約がある記事は上書きしない（自動要約の取り込みで使う）
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -69,7 +70,10 @@ function importCommand(args: string[]) {
   const { values, positionals } = parseArgs({
     args,
     allowPositionals: true,
-    options: { 'dry-run': { type: 'boolean', default: false } },
+    options: {
+      'dry-run': { type: 'boolean', default: false },
+      'skip-existing': { type: 'boolean', default: false },
+    },
   });
   const file = positionals[0];
   if (!file) throw new Error('取り込む JSON ファイルを指定してください');
@@ -88,6 +92,12 @@ function importCommand(args: string[]) {
   }
 
   const result = validateEntries(entries, (id) => (articles.has(id) ? { summarized: Boolean(getSummary(id)) } : undefined));
+  if (values['skip-existing']) {
+    for (const accepted of result.accepted.filter((entry) => entry.replaces)) {
+      result.skipped.push({ id: accepted.id, reason: 'すでに要約があるため上書きしません' });
+    }
+    result.accepted = result.accepted.filter((entry) => !entry.replaces);
+  }
   for (const issue of result.errors) console.error(`エラー  ${issue.id}: ${issue.reason}`);
   for (const issue of result.skipped) console.error(`見送り  ${issue.id}: ${issue.reason}`);
 
