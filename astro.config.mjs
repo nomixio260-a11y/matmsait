@@ -42,10 +42,12 @@ export default defineConfig({
   },
   integrations: [
     sitemap({
-      // 2ページ目以降の一覧・検索・管理画面は noindex にしているので含めない
+      // noindex にしているページ（2ページ目以降の一覧、掲載元別・新着の一覧、検索、あとで読む、管理画面）は含めない。
+      // 掲載元別・新着の一覧は外部サイトへのリンクが並ぶだけなので、検索エンジンにはトップ・カテゴリ・要約・話題・日別まとめを見てもらう
       filter: (page) =>
         !/\/\d+\/$/.test(page) &&
-        !/\/(search|admin)\/$/.test(page) &&
+        !/\/(search|admin|saved|latest)\/$/.test(page) &&
+        !/\/source\//.test(page) &&
         (summarizedAt.size > 0 || !/\/summaries\/$/.test(page)),
       // 更新されるページには最終更新日時を付け、検索エンジンに再クロールを促す
       serialize(item) {

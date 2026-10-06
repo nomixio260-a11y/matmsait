@@ -76,3 +76,122 @@ export function buildRelatedIndex(
     },
   };
 }
+
+/** 同じ話題（同じ出来事）を報じた記事のまとまり */
+export interface TopicCluster {
+  /** 同じ話題の記事（新しい順） */
+  items: Item[];
+  /** 報じた掲載元の数（同じ掲載元の記事は1と数える） */
+  coverage: number;
+  /** 最初に報じられた日時（ISO 8601） */
+  firstAt: string;
+  /** 最後に報じられた日時（ISO 8601） */
+  latestAt: string;
+}
+
+export interface ClusterOptions {
+  /** 公開日時がこれ以上離れた記事はまとめない */
+  windowHours?: number;
+  /** 似ている度合い（0〜1）の下限 */
+  minScore?: number;
+  /** 珍しい組をいくつ以上共有していれば候補にするか */
+  minShared?: number;
+  /** 珍しい組とみなす出現数の割合（記事数に対する比。少なくとも minRareCount 件までは珍しいとみなす） */
+  rareRatio?: number;
+  minRareCount?: number;
+}
+
+/**
+ * 別々の掲載元が同じ出来事を報じた記事をまとめる（「◯社が報道」の話題度に使う）。
+ * 見出しの2文字の組のうち珍しいものを共有する記事どうしだけを比べるので、記事が多くても速い。
+ * 同じ掲載元の記事どうしはつながない（「〜を開催しました」のような定型の見出しで別の話題がまとまらないように）
+ */
+export function clusterTopics(
+  items: Item[],
+  { windowHours = 48, minScore = 0.33, minShared = 2, rareRatio = 0.003, minRareCount = 5 }: ClusterOptions = {},
+): TopicCluster[] {
+  const unique = [...new Map(items.map((item) => [item.id, item])).values()];
+  const total = unique.length;
+  const grams = unique.map((item) => titleGrams(item.title));
+  const counts = new Map<string, number>();
+  for (const set of grams) for (const gram of set) counts.set(gram, (counts.get(gram) ?? 0) + 1);
+  const weight = (gram: string) => Math.log((total + 1) / ((counts.get(gram) ?? 0) + 1));
+  const totalWeight = grams.map((set) => [...set].reduce((sum, gram) => sum + weight(gram), 0));
+  const rareMax = Math.max(minRareCount, Math.round(total * rareRatio));
+
+  // 珍しい組 → その組を含む記事の番号
+  const postings = new Map<string, number[]>();
+  grams.forEach((set, index) => {
+    for (const gram of set) {
+      if ((counts.get(gram) ?? 0) > rareMax) continue;
+      const list = postings.get(gram);
+      if (list) list.push(index);
+      else postings.set(gram, [index]);
+    }
+  });
+
+  // 珍しい組を共有する記事の組ごとに、共有している数を数える
+  const shared = new Map<number, number>();
+  for (const list of postings.values()) {
+    for (let a = 0; a < list.length; a++) {
+      for (let b = a + 1; b < list.length; b++) {
+        const key = list[a] * total + list[b];
+        shared.set(key, (shared.get(key) ?? 0) + 1);
+      }
+    }
+  }
+
+  const parent = unique.map((_, index) => index);
+  const find = (index: number): number => {
+    while (parent[index] !== index) {
+      parent[index] = parent[parent[index]];
+      index = parent[index];
+    }
+    return index;
+  };
+  const times = unique.map((item) => Date.parse(item.publishedAt));
+  const window = windowHours * 60 * 60 * 1000;
+  for (const [key, count] of shared) {
+    if (count < minShared) continue;
+    const i = Math.floor(key / total);
+    const j = key % total;
+    if (unique[i].sourceId === unique[j].sourceId || Math.abs(times[i] - times[j]) > window) continue;
+    let both = 0;
+    for (const gram of grams[i]) if (grams[j].has(gram)) both += weight(gram);
+    if ((2 * both) / (totalWeight[i] + totalWeight[j] || 1) < minScore) continue;
+    parent[find(i)] = find(j);
+  }
+
+  const groups = new Map<number, Item[]>();
+  unique.forEach((item, index) => {
+    const root = find(index);
+    const group = groups.get(root);
+    if (group) group.push(item);
+    else groups.set(root, [item]);
+  });
+  return [...groups.values()].map((group) => {
+    const sorted = group.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    return {
+      items: sorted,
+      coverage: new Set(sorted.map((item) => item.sourceId)).size,
+      firstAt: sorted[sorted.length - 1].publishedAt,
+      latestAt: sorted[0].publishedAt,
+    };
+  });
+}
+
+/** 記事に話題度（同じ話題を報じた掲載元の数。2以上のときだけ）を付けたコピーを返す */
+export function withCoverage(items: Item[], options?: ClusterOptions): Item[] {
+  const coverage = new Map<string, number>();
+  for (const cluster of clusterTopics(items, options)) {
+    if (cluster.coverage < 2) continue;
+    for (const item of cluster.items) coverage.set(item.id, cluster.coverage);
+  }
+  return items.map((item) => {
+    const value = coverage.get(item.id);
+    if (value) return { ...item, coverage: value };
+    if (item.coverage === undefined) return item;
+    const { coverage: _, ...rest } = item;
+    return rest;
+  });
+}

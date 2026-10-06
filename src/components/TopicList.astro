@@ -1,0 +1,87 @@
+---
+import { faviconUrl, formatDateTime, getCategory, href, siteOf } from '../lib/items.ts';
+import { getSummary, summaryPath } from '../lib/summaries.ts';
+import type { HotTopic } from '../lib/topics.ts';
+
+interface Props {
+  topics: HotTopic[];
+  /** 抜粋・カテゴリ・ほかの報道をすべて表示する（話題のニュースのページ用） */
+  detailed?: boolean;
+  /** ほかの報道を何件まで見せるか（detailed でないとき） */
+  othersLimit?: number;
+}
+const { topics, detailed = false, othersLimit = 2 } = Astro.props;
+---
+
+<ol class:list={['topics', { detailed }]}>
+  {
+    topics.map((topic, index) => {
+      const { lead } = topic;
+      const site = siteOf(lead);
+      const category = getCategory(lead.category);
+      const summary = getSummary(lead.id);
+      const others = detailed ? topic.others : topic.others.slice(0, othersLimit);
+      const hidden = topic.others.length - others.length;
+      return (
+        <li class="topic">
+          <span class:list={['rank', `rank-${index + 1}`]}>{index + 1}</span>
+          <div class="topic-body">
+            {summary ? (
+              <a class="item-title" href={href(summaryPath(lead.id))}>
+                {lead.title}
+              </a>
+            ) : (
+              <a class="item-title" href={lead.url} target="_blank" rel="noopener">
+                {lead.title}
+              </a>
+            )}
+            {detailed &&
+              (summary ? (
+                <p class="item-excerpt item-summary">
+                  <span class="ai-badge">AI要約</span>
+                  {summary.summary}
+                </p>
+              ) : (
+                lead.excerpt && <p class="item-excerpt">{lead.excerpt}</p>
+              ))}
+            <div class="item-meta">
+              <span class="coverage" title="この話題を報じた掲載元の数">
+                <b>{topic.coverage}</b>社が報道
+              </span>
+              <span class="item-site">
+                <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                {site.label}
+              </span>
+              {detailed && category && (
+                <a class="item-cat" href={href(`/category/${category.slug}/`)}>
+                  <span class="dot" style={`--c:${category.color}`} />
+                  {category.name}
+                </a>
+              )}
+              <time datetime={topic.latestAt} data-rel>
+                {formatDateTime(topic.latestAt)}
+              </time>
+              {summary && !detailed && <span class="ai-badge">AI要約</span>}
+            </div>
+            {others.length > 0 && (
+              <ul class="others" aria-label="ほかの報道">
+                {others.map((other) => {
+                  const otherSite = siteOf(other);
+                  return (
+                    <li>
+                      <a href={other.url} target="_blank" rel="noopener">
+                        <span class="others-site">{otherSite.label}</span>
+                        <span class="others-title">{other.title}</span>
+                      </a>
+                    </li>
+                  );
+                })}
+                {hidden > 0 && <li class="others-more">ほか{hidden}件</li>}
+              </ul>
+            )}
+          </div>
+        </li>
+      );
+    })
+  }
+</ol>

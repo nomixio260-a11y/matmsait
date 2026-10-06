@@ -2,10 +2,14 @@
 import type { GetStaticPaths, Page } from 'astro';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import ItemList from '../../../components/ItemList.astro';
+import SummaryCard from '../../../components/SummaryCard.astro';
+import TopicList from '../../../components/TopicList.astro';
 import Pagination from '../../../components/Pagination.astro';
 import { categories, site, type Category } from '../../../config/site.ts';
-import { getItemsByCategory, href, listItems } from '../../../lib/items.ts';
+import { getItemsByCategory, getSources, href, listItems } from '../../../lib/items.ts';
 import { clampDescription, collectionJsonLd, headlineTeaser } from '../../../lib/seo.ts';
+import { getSummaries } from '../../../lib/summaries.ts';
+import { getHotTopics } from '../../../lib/topics.ts';
 import type { Item } from '../../../lib/types.ts';
 
 export const getStaticPaths = (({ paginate }) =>
@@ -28,6 +32,13 @@ const description = clampDescription(
   `${category.description}。最新：${headlineTeaser(page.data, 2, 24)}など${page.total}件を掲載中（1時間ごとに更新）。`,
 );
 const url = new URL(Astro.url.pathname, Astro.site).toString();
+// 1ページ目だけ、このカテゴリの話題と AI 要約を上に出す（一覧だけのページにしない）
+const first = page.currentPage === 1;
+const topics = first ? getHotTopics({ hours: 72, category: category.slug, limit: 5 }) : [];
+const summaries = first ? getSummaries().filter((record) => record.category === category.slug).slice(0, 4) : [];
+const sourceNames = getSources()
+  .filter((source) => source.category === category.slug)
+  .map((source) => source.name);
 const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.data.slice(0, 10) })];
 ---
 
@@ -49,9 +60,48 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.da
     <p>
       {category.description}（{page.total}件）・<a href={href(`/category/${category.slug}/rss.xml`)}>RSS</a>
     </p>
+    {
+      first && sourceNames.length > 0 && (
+        <p class="sources">
+          {sourceNames.slice(0, 12).join('・')}
+          {sourceNames.length > 12 && `ほか${sourceNames.length - 12}サイト`}
+          の新着記事を1時間ごとに集めています。
+        </p>
+      )
+    }
   </div>
-  <div class="panel">
-    <ItemList items={page.data} showCategory={false} />
+  <div class="stack">
+    {
+      topics.length > 0 && (
+        <section class="panel">
+          <div class="panel-head">
+            <h2>{category.name}の話題（複数のメディアが報道）</h2>
+            <a class="more" href={href('/ranking/')}>
+              話題のニュース →
+            </a>
+          </div>
+          <TopicList topics={topics} />
+        </section>
+      )
+    }
+    {
+      summaries.length > 0 && (
+        <section aria-labelledby="cat-summaries">
+          <h2 id="cat-summaries" class="section-title">
+            <span class="ai-badge">AI要約</span>
+            {category.name}のニュースのポイント
+          </h2>
+          <div class="card-grid">
+            {summaries.map((record) => (
+              <SummaryCard record={record} />
+            ))}
+          </div>
+        </section>
+      )
+    }
+    <section class="panel" aria-label={`${category.name}の新着記事`}>
+      <ItemList items={page.data} showCategory={false} />
+    </section>
   </div>
   <Pagination page={page} />
 </BaseLayout>
@@ -68,5 +118,24 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.da
   }
   .page-head a {
     color: var(--accent);
+  }
+  .sources {
+    font-size: 0.78rem !important;
+  }
+  .section-title {
+    margin: 0 0 10px;
+    font-size: 1.02rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .card-grid {
+    display: grid;
+    gap: 12px;
+  }
+  @media (min-width: 620px) {
+    .card-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 </style>

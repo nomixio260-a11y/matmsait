@@ -1,8 +1,12 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   collapseSameTitle,
   mergeItems,
   pruneItems,
+  readItemsFile,
   serializeItems,
   titleKey,
   withSourceSettings,
@@ -37,12 +41,12 @@ describe('mergeItems', () => {
     expect(mergeItems(mergeItems([], items), items)).toHaveLength(1);
   });
 
-  it('集約元経由の記事は配信元のフィードの情報で置き換え、はてブ数は引き継ぐ', () => {
+  it('集約元経由の記事は配信元のフィードの情報で置き換える', () => {
     const isAggregator = (id: string) => id === 'hatena';
-    const viaHatena = item('a', '2026-01-02T00:00:00.000Z', { sourceId: 'hatena', category: 'life', hatebu: 120 });
+    const viaHatena = item('a', '2026-01-02T00:00:00.000Z', { sourceId: 'hatena', category: 'life' });
     const direct = item('a', '2026-01-01T09:00:00.000Z', { sourceId: 'publisher', category: 'tech', excerpt: '本文' });
     const [merged] = mergeItems([viaHatena], [direct], isAggregator);
-    expect(merged).toMatchObject({ sourceId: 'publisher', category: 'tech', excerpt: '本文', hatebu: 120 });
+    expect(merged).toMatchObject({ sourceId: 'publisher', category: 'tech', excerpt: '本文' });
     expect(merged.publishedAt).toBe('2026-01-01T09:00:00.000Z');
   });
 
@@ -79,13 +83,12 @@ describe('collapseSameTitle', () => {
   const title = 'ミスターマックス、最大173万人分の会員情報流出 不正アクセスで';
   const isAggregator = (id: string) => id === 'hatena';
 
-  it('見出しが同じ記事は配信元のものを残し、はてブ数は多い方を引き継ぐ', () => {
-    const yahoo = item('y', '2026-01-01T03:00:00.000Z', { title: `${title}（ITmedia NEWS） - Yahoo!ニュース`, sourceId: 'hatena', hatebu: 40 });
-    const direct = item('d', '2026-01-01T04:00:00.000Z', { title, sourceId: 'itmedia', hatebu: 27 });
+  it('見出しが同じ記事は配信元のものを残す', () => {
+    const yahoo = item('y', '2026-01-01T03:00:00.000Z', { title: `${title}（ITmedia NEWS） - Yahoo!ニュース`, sourceId: 'hatena' });
+    const direct = item('d', '2026-01-01T04:00:00.000Z', { title, sourceId: 'itmedia' });
     const other = item('o', '2026-01-01T05:00:00.000Z', { title: 'まったく別のニュースの見出しがここに入ります' });
     const result = collapseSameTitle([yahoo, direct, other], isAggregator);
     expect(result.map((i) => i.id).sort()).toEqual(['d', 'o']);
-    expect(result.find((i) => i.id === 'd')?.hatebu).toBe(40);
   });
 
   it('要約のある記事を優先し、なければ先に公開された記事を残す', () => {
@@ -190,10 +193,17 @@ describe('withSourceSettings', () => {
 
 describe('serializeItems', () => {
   it('1記事1行で書き出し、そのまま読み戻せる', () => {
-    const items = [item('a', '2026-01-01T00:00:00.000Z'), item('b', '2026-01-02T00:00:00.000Z', { hatebu: 3 })];
+    const items = [item('a', '2026-01-01T00:00:00.000Z'), item('b', '2026-01-02T00:00:00.000Z', { excerpt: '抜粋' })];
     const text = serializeItems(items);
     expect(text.split('\n')).toHaveLength(5);
     expect(JSON.parse(text)).toEqual(items);
     expect(JSON.parse(serializeItems([]))).toEqual([]);
+  });
+
+  it('以前の版が保存したはてなブックマーク数は読み込むときに外す', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'items-'));
+    const path = join(dir, 'items.json');
+    writeFileSync(path, JSON.stringify([{ ...item('a', '2026-01-01T00:00:00.000Z'), hatebu: 12 }]));
+    expect(readItemsFile(path)).toEqual([item('a', '2026-01-01T00:00:00.000Z')]);
   });
 });

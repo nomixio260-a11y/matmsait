@@ -11,7 +11,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { site } from '../src/config/site.ts';
-import { getItems, siteOf } from '../src/lib/items.ts';
+import { allowsSummary, getItems, siteOf } from '../src/lib/items.ts';
+import { coverageOf } from '../src/lib/topics.ts';
 import {
   buildSummaryPrompt,
   extractJson,
@@ -42,12 +43,13 @@ function promptCommand(args: string[]) {
   });
   const length = values.length as SummaryLength;
   if (!(length in SUMMARY_LENGTHS)) throw new Error(`--length は short / normal / long のいずれかです`);
+  // 要約を載せられる掲載元の記事だけ。popular は多くの掲載元が報じた話題の順
   const pending = getItems()
-    .filter((item) => !getSummary(item.id) && (!values.category || item.category === values.category))
+    .filter((item) => !getSummary(item.id) && allowsSummary(item) && (!values.category || item.category === values.category))
     .sort((a, b) =>
       values.sort === 'latest'
         ? b.publishedAt.localeCompare(a.publishedAt)
-        : (b.hatebu ?? 0) - (a.hatebu ?? 0) || b.publishedAt.localeCompare(a.publishedAt),
+        : coverageOf(b.id) - coverageOf(a.id) || b.publishedAt.localeCompare(a.publishedAt),
     );
   const batch = pending.slice(0, Number(values.count));
   if (batch.length === 0) {

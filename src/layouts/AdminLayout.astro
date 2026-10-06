@@ -6,8 +6,28 @@ import { href } from '../lib/items.ts';
 
 interface Props {
   title: string;
+  /** ログイン中の表示（ログイン名・ログアウト）を出すか */
+  showUser?: boolean;
 }
-const { title } = Astro.props;
+const { title, showUser = true } = Astro.props;
+
+/**
+ * 管理画面のコンテンツセキュリティポリシー。読み込めるのは自分のサイトのファイルだけで、通信先は GitHub API だけにする
+ * （万一、外部から入った文字列がスクリプトとして動いても、トークンをほかへ送れないようにするため）。
+ * GitHub Pages ではレスポンスヘッダーを設定できないので meta で指定する（枠への埋め込みの禁止はスクリプトで行う）
+ */
+const csp = [
+  "default-src 'self'",
+  "script-src 'self'",
+  // 小さなスタイルシートはビルド時にページへ埋め込まれることがあるため、スタイルだけは埋め込みを許す
+  // （画像の読み込み先を制限しているので、スタイルから外へ情報を送ることもできない）
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https://www.google.com https://*.gstatic.com",
+  "connect-src 'self' https://api.github.com",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
 ---
 
 <!doctype html>
@@ -15,22 +35,28 @@ const { title } = Astro.props;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}｜{site.name} 管理画面</title>
+    <meta http-equiv="Content-Security-Policy" content={csp} />
+    <meta name="referrer" content="no-referrer" />
     <meta name="robots" content="noindex, nofollow" />
+    <title>{title}｜{site.name} 管理画面</title>
     <link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
-    <script is:inline>
-      try {
-        var theme = localStorage.getItem('theme');
-        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
-      } catch (e) {}
-    </script>
   </head>
-  <body>
+  <body data-base={href('')}>
     <header class="admin-bar">
       <div class="container admin-bar-inner">
         <a class="admin-brand" href={href('/')}>{site.name}</a>
         <span class="admin-label">管理画面</span>
-        <a class="admin-back" href={href('/')}>サイトを見る →</a>
+        {
+          showUser && (
+            <span class="admin-user" data-admin-user hidden>
+              <span class="admin-login" data-admin-login />
+              <button type="button" class="admin-logout" data-logout>
+                ログアウト
+              </button>
+            </span>
+          )
+        }
+        <a class="admin-back" href={href('/')}>サイト<span class="wide">を見る</span> →</a>
       </div>
     </header>
     <main class="container admin-main">
@@ -55,6 +81,13 @@ const { title } = Astro.props;
     text-decoration: none;
     color: var(--accent);
   }
+  .admin-brand,
+  .admin-label,
+  .admin-logout,
+  .admin-back {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
   .admin-label {
     font-size: 0.75rem;
     font-weight: 700;
@@ -64,11 +97,55 @@ const { title } = Astro.props;
     border: 1px solid var(--border);
     color: var(--muted);
   }
+  .admin-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--text-2);
+  }
+  .admin-login {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .admin-user[hidden] {
+    display: none;
+  }
+  .admin-login::before {
+    content: '●';
+    margin-right: 4px;
+    color: #16a34a;
+  }
+  .admin-logout {
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-2);
+    font: inherit;
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  .admin-logout:hover {
+    border-color: var(--hot);
+    color: var(--hot);
+  }
   .admin-back {
     margin-left: auto;
     font-size: 0.85rem;
     color: var(--accent);
     text-decoration: none;
+  }
+  .admin-user:not([hidden]) + .admin-back {
+    margin-left: 4px;
+  }
+  @media (max-width: 480px) {
+    .admin-login,
+    .admin-back .wide {
+      display: none;
+    }
   }
   .admin-main {
     max-width: 1000px;

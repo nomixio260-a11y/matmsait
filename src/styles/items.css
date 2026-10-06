@@ -30,8 +30,7 @@
   padding: 0;
 }
 
-.item,
-.rank-item {
+.item {
   position: relative;
   padding: 10px 16px 11px;
 }
@@ -42,8 +41,7 @@
   border-top: 1px solid var(--border);
 }
 
-.item:hover,
-.rank-item:hover {
+.item:hover {
   background: var(--surface-2);
 }
 
@@ -67,8 +65,7 @@
   color: var(--visited);
 }
 
-.item:hover .item-title,
-.rank-item:hover .item-title {
+.item:hover .item-title {
   color: var(--accent);
 }
 
@@ -157,25 +154,68 @@
   font-variant-numeric: tabular-nums;
 }
 
-.users {
+/* 話題度（同じ話題を報じた掲載元の数） */
+.coverage {
   display: inline-flex;
   align-items: baseline;
-  gap: 2px;
+  gap: 1px;
   padding: 0 6px;
   border-radius: 4px;
   background: var(--hot-soft);
   color: var(--hot);
   font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.users b {
-  font-size: 0.78rem;
+.coverage b {
+  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }
 
-.users.hot {
+a.coverage:hover {
+  text-decoration: none !important;
   background: var(--hot);
   color: var(--on-hot);
+}
+
+/* 「あとで読む」ボタン（行全体のリンクの上に重ねて押せるようにする） */
+.save-btn {
+  position: relative;
+  z-index: 1;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  margin: -2px 0 -2px auto;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.save-btn:hover {
+  background: var(--surface);
+  color: var(--accent);
+}
+.save-btn[aria-pressed='true'] {
+  color: var(--accent);
+}
+.save-btn[aria-pressed='true'] path {
+  fill: currentColor;
+}
+
+/* 前回の訪問のあとに追加された記事 */
+.item.is-unseen .item-title::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--focus);
+  vertical-align: 0.15em;
 }
 
 .item-ad {
@@ -218,20 +258,30 @@
   font-weight: 600;
 }
 
-/* ===== ランキング ===== */
-.ranking {
+/* ===== 話題のニュース（同じ出来事を報じた記事のまとまり） ===== */
+.topics {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.rank-item {
+.topic {
+  position: relative;
   display: flex;
   gap: 12px;
+  padding: 11px 16px 12px;
 }
 
-.rank-item + .rank-item {
+.topic + .topic {
   border-top: 1px solid var(--border);
+}
+
+.topic:hover {
+  background: var(--surface-2);
+}
+
+.topic:hover .item-title {
+  color: var(--accent);
 }
 
 .rank {
@@ -266,13 +316,13 @@
   background: #8b5a2b;
 }
 
-.rank-body {
+.topic-body {
   min-width: 0;
   flex: 1;
 }
 
-.ranking:not(.detailed) .item-title {
-  font-size: 0.85rem;
+.topics:not(.detailed) .item-title {
+  font-size: 0.875rem;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -280,7 +330,55 @@
   overflow: hidden;
 }
 
-.ranking:not(.detailed) .rank-item {
-  padding-top: 9px;
-  padding-bottom: 9px;
+/* ほかの掲載元の報道（見出しのリンクより上に重ねて、個別に押せるようにする） */
+.others {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0 0 0 10px;
+  border-left: 2px solid var(--border-strong);
+  display: grid;
+  gap: 3px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.others li {
+  min-width: 0;
+}
+
+.others a {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-2);
+  text-decoration: none;
+}
+
+.others a:hover .others-title {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.others-site {
+  flex: none;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.others-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topics.detailed .others-title {
+  white-space: normal;
+}
+
+.others-more {
+  color: var(--muted);
 }

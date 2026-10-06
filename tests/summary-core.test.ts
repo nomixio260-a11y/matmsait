@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSummaryPrompt,
+  editSummaryRecord,
   extractJson,
   groupByFile,
   mergeSummaryRecords,
@@ -96,7 +97,7 @@ describe('extractJson', () => {
 
 describe('normalizeEntries', () => {
   it('配列・{summaries: [...]}・{id: 要約} の形を同じ形にそろえる', () => {
-    const expected = [{ id: 'a', status: 'ok', summary: 'x', points: [] }];
+    const expected = [{ id: 'a', status: 'ok', summary: 'x', points: [], background: '', keywords: [] }];
     expect(normalizeEntries([{ id: 'a', summary: 'x' }])).toEqual(expected);
     expect(normalizeEntries({ summaries: [{ id: 'a', summary: 'x' }] })).toEqual(expected);
     expect(normalizeEntries({ a: 'x' })).toEqual(expected);
@@ -104,7 +105,7 @@ describe('normalizeEntries', () => {
   });
 
   it('項目名のゆれ・1件だけの回答・知らない包み方を吸収する', () => {
-    const expected = [{ id: 'a', status: 'ok', summary: 'x', points: ['p'] }];
+    const expected = [{ id: 'a', status: 'ok', summary: 'x', points: ['p'], background: '', keywords: [] }];
     expect(normalizeEntries([{ 記事ID: 'a', 状態: 'OK', 要約: 'x', 要点: ['p'] }])).toEqual(expected);
     expect(normalizeEntries({ id: 'a', summary: 'x', points: ['p'] })).toEqual(expected);
     expect(normalizeEntries({ output: [{ id: 'a', summary: 'x', points: ['p'] }] })).toEqual(expected);
@@ -118,6 +119,41 @@ describe('normalizeEntries', () => {
       'Switch2/PS5向け',
     ]);
     expect(normalizeEntries([{ id: 'a', summary: 'x', points: '・一つ目\n・二つ目' }])[0].points).toEqual(['一つ目', '二つ目']);
+  });
+
+  it('背景・キーワードを読み取る（日本語の項目名、文字列のキーワード、# 付きも）', () => {
+    const [entry] = normalizeEntries([{ id: 'a', summary: 'x', 背景: '用語の説明', キーワード: '#任天堂、Switch 2, 新作' }]);
+    expect(entry.background).toBe('用語の説明');
+    expect(entry.keywords).toEqual(['任天堂', 'Switch 2', '新作']);
+  });
+});
+
+describe('validateEntries（背景・キーワード）', () => {
+  const lookup = () => ({ summarized: false });
+
+  it('背景とキーワードを整えて受け付け、重複・長すぎるキーワードは外す', () => {
+    const { accepted } = validateEntries(
+      [
+        {
+          id: 'a',
+          status: 'ok',
+          summary: longSummary,
+          points: [],
+          background: '<b>量子化</b>は、AI モデルの数値の精度を下げて軽くする技術。',
+          keywords: ['Qwen', 'Qwen', 'ゲーミングPC', 'あ'.repeat(40), '1', '2', '3', '4', '5'],
+        },
+      ],
+      lookup,
+    );
+    expect(accepted[0].background).toBe('量子化は、AI モデルの数値の精度を下げて軽くする技術。');
+    expect(accepted[0].keywords?.slice(0, 2)).toEqual(['Qwen', 'ゲーミングPC']);
+    expect(accepted[0].keywords?.length).toBeLessThanOrEqual(6);
+  });
+
+  it('背景・キーワードがなくても受け付け、項目ごと省く', () => {
+    const { accepted } = validateEntries([{ id: 'a', status: 'ok', summary: longSummary, points: [], background: '', keywords: [] }], lookup);
+    expect(accepted[0]).not.toHaveProperty('background');
+    expect(accepted[0]).not.toHaveProperty('keywords');
   });
 });
 
@@ -206,8 +242,24 @@ describe('要約ファイル', () => {
     expect(() => parseSummaryFile('{"broken": true}')).toThrow();
   });
 
+  it('背景・キーワードも保存し、手直しでは省略した項目はそのまま・空にした項目は消す', () => {
+    const saved = toSummaryRecord(
+      item('a'),
+      { id: 'a', summary: longSummary, points: [], background: '背景の説明', keywords: ['A社', '新製品'], replaces: false },
+      now,
+    );
+    expect(saved).toMatchObject({ background: '背景の説明', keywords: ['A社', '新製品'] });
+    const later = new Date('2026-10-07T00:00:00.000Z');
+    const kept = editSummaryRecord(saved, { summary: '直した要約', points: ['p'] }, later);
+    expect(kept).toMatchObject({ summary: '直した要約', background: '背景の説明', keywords: ['A社', '新製品'], updatedAt: later.toISOString() });
+    const cleared = editSummaryRecord(saved, { summary: '直した要約', points: [], background: '', keywords: [] }, later);
+    expect(cleared).not.toHaveProperty('background');
+    expect(cleared).not.toHaveProperty('keywords');
+    expect(cleared.summarizedAt).toBe(saved.summarizedAt);
+  });
+
   it('記事情報は回答ではなくサイトのデータから作る', () => {
-    const saved = toSummaryRecord(item('a', { hatebu: 12 }), { id: 'a', summary: longSummary, points: ['p'], replaces: false }, now);
-    expect(saved).toMatchObject({ id: 'a', title: 'タイトルa', url: 'https://example.com/a', hatebu: 12, summarizedAt: now.toISOString() });
+    const saved = toSummaryRecord(item('a'), { id: 'a', summary: longSummary, points: ['p'], replaces: false }, now);
+    expect(saved).toMatchObject({ id: 'a', title: 'タイトルa', url: 'https://example.com/a', summarizedAt: now.toISOString() });
   });
 });

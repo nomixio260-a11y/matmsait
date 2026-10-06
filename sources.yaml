@@ -57,13 +57,6 @@
   siteUrl: https://www.anzen.mofa.go.jp/
   category: news
   excerpt: false
-- id: hatena-social
-  name: はてなブックマーク（世の中）
-  feedUrl: https://b.hatena.ne.jp/hotentry/social.rss
-  siteUrl: https://b.hatena.ne.jp/hotentry/social
-  category: news
-  aggregator: true
-
 - id: president
   name: PRESIDENT Online
   feedUrl: https://president.jp/list/rss
@@ -85,13 +78,6 @@
   siteUrl: https://markezine.jp/
   category: economy
   summary: false
-- id: hatena-economics
-  name: はてなブックマーク（政治と経済）
-  feedUrl: https://b.hatena.ne.jp/hotentry/economics.rss
-  siteUrl: https://b.hatena.ne.jp/hotentry/economics
-  category: economy
-  aggregator: true
-
 - id: gigazine
   name: GIGAZINE
   feedUrl: https://gigazine.net/news/rss_2.0/
@@ -182,13 +168,6 @@
   feedUrl: https://qiita.com/popular-items/feed
   siteUrl: https://qiita.com/
   category: tech
-- id: hatena-it
-  name: はてなブックマーク（テクノロジー）
-  feedUrl: https://b.hatena.ne.jp/hotentry/it.rss
-  siteUrl: https://b.hatena.ne.jp/hotentry/it
-  category: tech
-  aggregator: true
-
 - id: nazology
   name: ナゾロジー
   feedUrl: https://nazology.kusuguru.co.jp/feed
@@ -255,19 +234,6 @@
   feedUrl: https://dailyportalz.jp/feed/headline
   siteUrl: https://dailyportalz.jp/
   category: entertainment
-- id: hatena-entertainment
-  name: はてなブックマーク（エンタメ）
-  feedUrl: https://b.hatena.ne.jp/hotentry/entertainment.rss
-  siteUrl: https://b.hatena.ne.jp/hotentry/entertainment
-  category: entertainment
-  aggregator: true
-- id: hatena-fun
-  name: はてなブックマーク（おもしろ）
-  feedUrl: https://b.hatena.ne.jp/hotentry/fun.rss
-  siteUrl: https://b.hatena.ne.jp/hotentry/fun
-  category: entertainment
-  aggregator: true
-
 - id: 4gamer
   name: 4Gamer.net
   feedUrl: https://www.4gamer.net/rss/index.xml
@@ -304,13 +270,6 @@
   feedUrl: https://otakuma.net/feed
   siteUrl: https://otakuma.net/
   category: game
-- id: hatena-game
-  name: はてなブックマーク（アニメとゲーム）
-  feedUrl: https://b.hatena.ne.jp/hotentry/game.rss
-  siteUrl: https://b.hatena.ne.jp/hotentry/game
-  category: game
-  aggregator: true
-
 - id: football-zone
   name: FOOTBALL ZONE
   feedUrl: https://www.football-zone.net/feed
@@ -410,15 +369,3 @@
   siteUrl: https://www.caa.go.jp/
   category: life
   excerpt: false
-- id: hatena-life
-  name: はてなブックマーク（暮らし）
-  feedUrl: https://b.hatena.ne.jp/hotentry/life.rss
-  siteUrl: https://b.hatena.ne.jp/hotentry/life
-  category: life
-  aggregator: true
-- id: hatena-knowledge
-  name: はてなブックマーク（学び）
-  feedUrl: https://b.hatena.ne.jp/hotentry/knowledge.rss
-  siteUrl: https://b.hatena.ne.jp/hotentry/knowledge
-  category: life
-  aggregator: true

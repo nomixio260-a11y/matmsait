@@ -12,7 +12,7 @@ for (const day of days) {
   if (last?.label === label) last.days.push(day);
   else months.push({ label, days: [day] });
 }
-const topTitle = (day: (typeof days)[number]) => day.items.find((item) => (item.hatebu ?? 0) > 0)?.title;
+const topTitle = (day: (typeof days)[number]) => day.items[0]?.title;
 ---
 
 <BaseLayout

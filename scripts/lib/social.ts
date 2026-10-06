@@ -1,14 +1,15 @@
 /**
  * SNS への自動投稿。アカウントの認証情報（環境変数）が設定されているサービスにだけ投稿する。
  * - 毎日21時以降の最初の実行で「今日の話題ニュース」まとめを投稿
- * - はてブ数が一定以上の記事が出たら「いま話題」として投稿（1日の上限あり）
+ * - 多くの掲載元が報じた話題が出たら「いま話題」として投稿（1日の上限あり）
  */
 import { createHmac, randomBytes } from 'node:crypto';
 import { jstDateKey } from '../../src/lib/dates.ts';
 import type { DailySnapshot, Item } from '../../src/lib/types.ts';
 
 export const DIGEST_HOUR = 21;
-export const HOT_THRESHOLD = 150;
+/** 「いま話題」として投稿する話題度（同じ話題を報じた掲載元の数）の下限 */
+export const HOT_THRESHOLD = 3;
 export const HOT_WINDOW_HOURS = 12;
 export const MAX_HOT_PER_DAY = 4;
 const HOUR = 60 * 60 * 1000;
@@ -88,7 +89,7 @@ function jstHour(date: Date): number {
 }
 
 export function digestPost(snapshot: DailySnapshot, { pageUrl, siteName }: PlanContext): SocialPost | undefined {
-  const top = snapshot.items.filter((item) => (item.hatebu ?? 0) > 0);
+  const top = snapshot.items;
   if (top.length < 3) return undefined;
   const [, month, day] = snapshot.date.split('-').map(Number);
   const header = `【${month}/${day}の話題ニュース】`;
@@ -108,7 +109,7 @@ export function digestPost(snapshot: DailySnapshot, { pageUrl, siteName }: PlanC
     link: {
       url,
       title: `${month}月${day}日の話題のニュースまとめ｜${siteName}`,
-      description: `1位「${truncate(top[0].title, 60)}」ほか、その日に話題になった記事をランキングで紹介します。`,
+      description: `「${truncate(top[0].title, 60)}」ほか、その日に多くのメディアが報じた話題の記事を紹介します。`,
     },
   };
 }
@@ -119,9 +120,13 @@ export function hotPost(item: Item, { pageUrl }: PlanContext): SocialPost {
     key: `hot:${item.id}`,
     compose: (fits) => {
       for (const max of [100, 70, 50, 40, 30, 20]) {
-        const text = [`🔥 いま話題（${item.hatebu} users）`, truncate(item.title, max), item.url, '', `ほかの話題 ▶ ${rankingUrl}`].join(
-          '\n',
-        );
+        const text = [
+          `🔥 いま話題（${item.coverage ?? 1}つのメディアが報道）`,
+          truncate(item.title, max),
+          item.url,
+          '',
+          `ほかの話題 ▶ ${rankingUrl}`,
+        ].join('\n');
         if (fits(text)) return text;
       }
       return `🔥 ${truncate(item.title, 20)}\n${item.url}`;
@@ -151,11 +156,11 @@ export function planPosts(state: SocialState, context: PlanContext): SocialPost[
     const candidate = items
       .filter(
         (item) =>
-          (item.hatebu ?? 0) >= HOT_THRESHOLD &&
+          (item.coverage ?? 1) >= HOT_THRESHOLD &&
           Date.parse(item.publishedAt) >= cutoff &&
           !posted.has(`hot:${item.id}`),
       )
-      .sort((a, b) => (b.hatebu ?? 0) - (a.hatebu ?? 0))[0];
+      .sort((a, b) => (b.coverage ?? 1) - (a.coverage ?? 1) || b.publishedAt.localeCompare(a.publishedAt))[0];
     if (candidate) posts.push(hotPost(candidate, context));
   }
   return posts;

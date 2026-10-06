@@ -5,7 +5,7 @@ import ItemList from '../../components/ItemList.astro';
 import ShareButtons from '../../components/ShareButtons.astro';
 import { site } from '../../config/site.ts';
 import { faviconUrl, formatDateTime, getCategory, getItemsByCategory, href, siteOf } from '../../lib/items.ts';
-import { getRelatedIndex } from '../../lib/topics.ts';
+import { getRelatedIndex, topicOf } from '../../lib/topics.ts';
 import { clampDescription } from '../../lib/seo.ts';
 import { getSummaries, summaryPath } from '../../lib/summaries.ts';
 import type { SummaryRecord } from '../../lib/types.ts';
@@ -20,13 +20,26 @@ const { record } = Astro.props;
 const category = getCategory(record.category);
 const source = siteOf(record);
 const url = new URL(href(summaryPath(record.id)), Astro.site).toString();
-const hatebu = record.hatebu ?? 0;
-
-// 同じ話題の記事（別のサイトの報道など）、同じカテゴリの他の要約、同じカテゴリの新着記事
-const sameTopic = getRelatedIndex().related(record, 5);
-const relatedSummaries = getSummaries()
-  .filter((other) => other.category === record.category && other.id !== record.id && !sameTopic.includes(other))
-  .slice(0, 5);
+// 同じ話題を報じたほかの掲載元の記事（話題のまとまりにあればそれを、なければ見出しの似た記事）
+const topic = topicOf(record.id);
+const coverage = topic?.coverage ?? 1;
+const fromTopic = topic ? topic.items.filter((item) => item.id !== record.id).slice(0, 8) : [];
+const sameTopic = fromTopic.length > 0 ? fromTopic : getRelatedIndex().related(record, 5);
+// 関連する要約: キーワードが共通する要約を先に、足りなければ同じカテゴリの新しい要約
+const keywordSet = new Set((record.keywords ?? []).map((keyword) => keyword.normalize('NFKC').toLowerCase()));
+const sharedKeywords = (other: SummaryRecord) =>
+  (other.keywords ?? []).filter((keyword) => keywordSet.has(keyword.normalize('NFKC').toLowerCase())).length;
+const sameTopicIds = new Set(sameTopic.map((item) => item.id));
+const candidates = getSummaries().filter((other) => other.id !== record.id && !sameTopicIds.has(other.id));
+const byKeyword = candidates
+  .map((other) => ({ other, shared: sharedKeywords(other) }))
+  .filter(({ shared }) => shared > 0)
+  .sort((a, b) => b.shared - a.shared || b.other.summarizedAt.localeCompare(a.other.summarizedAt))
+  .map(({ other }) => other);
+const relatedSummaries = [
+  ...byKeyword,
+  ...candidates.filter((other) => other.category === record.category && !byKeyword.includes(other)),
+].slice(0, 5);
 const relatedIds = new Set([record.id, ...sameTopic.map((item) => item.id), ...relatedSummaries.map((other) => other.id)]);
 const latestInCategory = getItemsByCategory(record.category)
   .filter((item) => !relatedIds.has(item.id))
@@ -46,6 +59,7 @@ const jsonLd = [
     datePublished: record.summarizedAt,
     dateModified: record.updatedAt ?? record.summarizedAt,
     isBasedOn: record.url,
+    ...(record.keywords?.length ? { keywords: record.keywords.join(', ') } : {}),
     image: new URL(href('/og.png'), Astro.site).toString(),
     author: { '@type': 'Organization', name: site.name, url: home },
     publisher: {
@@ -85,10 +99,10 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
         </span>
         <time datetime={record.publishedAt}>{formatDateTime(record.publishedAt)}</time>
         {
-          hatebu >= 3 && (
-            <span class:list={['users', { hot: hatebu >= 100 }]} title="はてなブックマーク数">
-              <b>{hatebu}</b> users
-            </span>
+          coverage >= 2 && (
+            <a class="coverage" href={href('/ranking/')} title="この話題を報じた掲載元の数">
+              <b>{coverage}</b>社が報道
+            </a>
           )
         }
       </p>
@@ -107,8 +121,30 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
           </ul>
         )
       }
+      {
+        record.background && (
+          <div class="background">
+            <h3>背景・用語</h3>
+            <p>{record.background}</p>
+          </div>
+        )
+      }
+      {
+        record.keywords && record.keywords.length > 0 && (
+          <div class="keywords">
+            <h3 class="visually-hidden">キーワード</h3>
+            <ul>
+              {record.keywords.map((keyword) => (
+                <li>
+                  <a href={`${href('/search/')}?q=${encodeURIComponent(keyword)}`}>#{keyword}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
       <p class="ai-note">
-        この要約はAIが元記事をもとに作成したものです。正確な内容や詳細は元記事でご確認ください。
+        この要約はAIが元記事をもとに作成し、運営者が確認して掲載しています。正確な内容や詳細は元記事でご確認ください。要約の作り方は<a href={href('/editorial/')}>編集方針</a>をご覧ください。
       </p>
       <a class="read-original" href={record.url} target="_blank" rel="noopener">
         元記事を読む（{source.label}）↗
@@ -121,7 +157,7 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
       sameTopic.length > 0 && (
         <section class="panel">
           <div class="panel-head">
-            <h2>この話題の関連記事</h2>
+            <h2>{fromTopic.length > 0 ? 'この話題を報じたほかのメディア' : 'この話題の関連記事'}</h2>
           </div>
           <ItemList items={sameTopic} group={false} showExcerpt={false} ads={false} />
         </section>
@@ -132,7 +168,7 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
       relatedSummaries.length > 0 && (
         <section class="panel">
           <div class="panel-head">
-            <h2>{category?.name ?? 'このカテゴリ'}のAI要約</h2>
+            <h2>{byKeyword.length > 0 ? '関連するAI要約' : `${category?.name ?? 'このカテゴリ'}のAI要約`}</h2>
             <a class="more" href={href('/summaries/')}>
               一覧 →
             </a>
@@ -215,10 +251,51 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
     background: var(--surface-2);
     line-height: 1.8;
   }
+  .background {
+    margin: 14px 0 0;
+    padding: 12px 14px;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 10px 10px 0;
+    background: var(--accent-soft);
+  }
+  .background h3 {
+    margin: 0 0 4px;
+    font-size: 0.8rem;
+    color: var(--accent-strong);
+  }
+  .background p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.8;
+  }
+  .keywords ul {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .keywords a {
+    display: inline-block;
+    padding: 3px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--text-2);
+    font-size: 0.8rem;
+    text-decoration: none;
+  }
+  .keywords a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
   .ai-note {
     margin: 14px 0 0;
     font-size: 0.75rem;
     color: var(--muted);
+  }
+  .ai-note a {
+    color: var(--accent);
   }
   .read-original {
     display: flex;

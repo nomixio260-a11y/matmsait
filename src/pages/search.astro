@@ -7,52 +7,82 @@ const categoryData = JSON.stringify(categories.map(({ slug, name, color }) => ({
 const base = href('');
 ---
 
-<BaseLayout title="記事を検索" description="掲載している記事をキーワードで検索できます。" noindex breadcrumbs={[{ name: '検索' }]}>
+<BaseLayout title="記事を検索" description="掲載している記事とAI要約をキーワードで検索できます。" noindex breadcrumbs={[{ name: '検索' }]}>
   <div class="page-head">
     <h1>記事を検索</h1>
-    <p>直近の掲載記事の見出し・掲載元から探せます。スペースで区切ると絞り込み検索になります。</p>
+    <p>見出し・AI要約・抜粋・掲載元から探せます。スペースで区切ると、すべての言葉を含む記事に絞り込みます。</p>
   </div>
 
   <form id="search-form" class="search-box" role="search" aria-label="記事検索" action={href('/search/')} method="get">
-    <input id="q" type="search" name="q" placeholder="キーワードを入力" aria-label="検索キーワード" autocomplete="off" autofocus />
+    <input id="q" type="search" name="q" placeholder="キーワードを入力（例: AI、大谷翔平）" aria-label="検索キーワード" autocomplete="off" />
     <button type="submit">検索</button>
   </form>
 
+  <div class="filters" role="group" aria-label="絞り込み">
+    <label>
+      <span>カテゴリ</span>
+      <select id="f-category">
+        <option value="">すべて</option>
+        {categories.map((category) => <option value={category.slug}>{category.name}</option>)}
+      </select>
+    </label>
+    <label>
+      <span>期間</span>
+      <select id="f-period">
+        <option value="">すべて</option>
+        <option value="1">24時間以内</option>
+        <option value="3">3日以内</option>
+        <option value="7">1週間以内</option>
+      </select>
+    </label>
+    <label>
+      <span>並び順</span>
+      <select id="f-sort">
+        <option value="">関連度順</option>
+        <option value="new">新しい順</option>
+      </select>
+    </label>
+    <label class="check">
+      <input id="f-summary" type="checkbox" />
+      <span>AI要約のある記事だけ</span>
+    </label>
+  </div>
+
+  <section id="suggest" class="suggest" hidden aria-labelledby="suggest-title">
+    <h2 id="suggest-title">いま話題のキーワード</h2>
+    <ul id="suggest-list"></ul>
+  </section>
+
   <p id="search-status" class="search-status" aria-live="polite"></p>
   <div id="results-panel" class="panel" hidden>
-    <ul id="results" class="items" data-base={base} data-categories={categoryData}></ul>
+    <ul id="results" class="items detailed" data-base={base} data-categories={categoryData}></ul>
   </div>
+  <p id="more-wrap" class="more-wrap" hidden><button id="more" type="button">さらに表示</button></p>
 </BaseLayout>
 
 <script>
-  interface Entry {
-    /** 記事ID */
-    i: string;
-    /** AI 要約あり */
-    m?: number;
-    t: string;
-    u: string;
-    s: string;
-    h: string;
-    c: string;
-    d: string;
-    b?: number;
-  }
-  interface Indexed extends Entry {
-    key: string;
-  }
+  import { highlightParts, parseQuery, rankEntries, suggestKeywords, type SearchEntry } from '../lib/search-core.ts';
+
   interface CategoryData {
     slug: string;
     name: string;
     color: string;
   }
 
-  const LIMIT = 100;
+  const PAGE = 50;
   const form = document.querySelector<HTMLFormElement>('#search-form')!;
   const input = document.querySelector<HTMLInputElement>('#q')!;
+  const fCategory = document.querySelector<HTMLSelectElement>('#f-category')!;
+  const fPeriod = document.querySelector<HTMLSelectElement>('#f-period')!;
+  const fSort = document.querySelector<HTMLSelectElement>('#f-sort')!;
+  const fSummary = document.querySelector<HTMLInputElement>('#f-summary')!;
   const status = document.querySelector<HTMLElement>('#search-status')!;
   const panel = document.querySelector<HTMLElement>('#results-panel')!;
   const list = document.querySelector<HTMLUListElement>('#results')!;
+  const moreWrap = document.querySelector<HTMLElement>('#more-wrap')!;
+  const moreButton = document.querySelector<HTMLButtonElement>('#more')!;
+  const suggest = document.querySelector<HTMLElement>('#suggest')!;
+  const suggestList = document.querySelector<HTMLUListElement>('#suggest-list')!;
   const base = list.dataset.base ?? '';
   const categoryBySlug = new Map(
     (JSON.parse(list.dataset.categories ?? '[]') as CategoryData[]).map((c) => [c.slug, c]),
@@ -65,22 +95,12 @@ const base = href('');
     minute: '2-digit',
   });
 
-  /** 全角英数・大文字小文字の違いを吸収する */
-  const normalize = (text: string) => text.normalize('NFKC').toLowerCase();
-
-  let indexPromise: Promise<Indexed[]> | undefined;
-  function loadIndex(): Promise<Indexed[]> {
-    indexPromise ??= fetch(`${base}/search-index.json`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<Entry[]>;
-      })
-      .then((entries) =>
-        entries.map((entry) => ({
-          ...entry,
-          key: normalize(`${entry.t} ${entry.s} ${entry.h} ${categoryBySlug.get(entry.c)?.name ?? ''}`),
-        })),
-      );
+  let indexPromise: Promise<SearchEntry[]> | undefined;
+  function loadIndex(): Promise<SearchEntry[]> {
+    indexPromise ??= fetch(`${base}/search-index.json`).then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<SearchEntry[]>;
+    });
     indexPromise.catch(() => (indexPromise = undefined));
     return indexPromise;
   }
@@ -92,22 +112,14 @@ const base = href('');
     return node;
   }
 
-  /** 一致した部分を <mark> で囲んで表示する（記事タイトルは外部由来なので textContent で組み立てる） */
+  /** 一致した部分を <mark> で囲む（記事タイトルは外部由来なので textContent で組み立てる） */
   function appendHighlighted(target: HTMLElement, text: string, terms: string[]) {
-    const pattern = terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-    if (!pattern) {
-      target.textContent = text;
-      return;
+    for (const part of highlightParts(text, terms)) {
+      target.append(part.match ? el('mark', undefined, part.text) : part.text);
     }
-    let last = 0;
-    for (const match of text.matchAll(new RegExp(pattern, 'gi'))) {
-      target.append(text.slice(last, match.index), el('mark', undefined, match[0]));
-      last = (match.index ?? 0) + match[0].length;
-    }
-    target.append(text.slice(last));
   }
 
-  function renderRow(entry: Indexed, terms: string[]): HTMLLIElement {
+  function renderRow(entry: SearchEntry, terms: string[]): HTMLLIElement {
     const li = el('li', 'item');
     const title = el('a', 'item-title');
     if (entry.m) {
@@ -119,6 +131,15 @@ const base = href('');
       title.rel = 'noopener';
     }
     appendHighlighted(title, entry.t, terms);
+    li.append(title);
+
+    const snippet = entry.m ?? entry.e;
+    if (snippet) {
+      const p = el('p', entry.m ? 'item-excerpt item-summary' : 'item-excerpt');
+      if (entry.m) p.append(el('span', 'ai-badge', 'AI要約'));
+      appendHighlighted(p, snippet, terms);
+      li.append(p);
+    }
 
     const meta = el('div', 'item-meta');
     const site = el('span', 'item-site');
@@ -146,32 +167,64 @@ const base = href('');
     time.dateTime = entry.d;
     meta.append(time);
 
-    const hatebu = entry.b ?? 0;
-    if (hatebu >= 3) {
-      const users = el('span', hatebu >= 100 ? 'users hot' : 'users');
-      users.title = 'はてなブックマーク数';
-      users.append(el('b', undefined, String(hatebu)), ' users');
-      meta.append(users);
+    if ((entry.v ?? 1) >= 2) {
+      const coverage = el('span', 'coverage');
+      coverage.title = 'この話題を報じた掲載元の数';
+      coverage.append(el('b', undefined, String(entry.v)), '社が報道');
+      meta.append(coverage);
     }
-
-    if (entry.m) meta.append(el('span', 'ai-badge', 'AI要約'));
-    li.append(title, meta);
+    if (entry.m) {
+      const original = el('a', 'item-orig', '元記事 ↗');
+      original.href = entry.u;
+      original.target = '_blank';
+      original.rel = 'noopener';
+      meta.append(original);
+    }
+    li.append(meta);
     return li;
   }
 
+  async function showSuggestions() {
+    try {
+      const index = await loadIndex();
+      const keywords = suggestKeywords(index, Date.now());
+      suggestList.replaceChildren(
+        ...keywords.map((keyword) => {
+          const li = el('li');
+          const a = el('a', undefined, keyword);
+          a.href = `${base}/search/?q=${encodeURIComponent(keyword)}`;
+          a.addEventListener('click', (event) => {
+            event.preventDefault();
+            input.value = keyword;
+            update();
+          });
+          li.append(a);
+          return li;
+        }),
+      );
+      suggest.hidden = keywords.length === 0 || input.value.trim() !== '';
+    } catch {
+      suggest.hidden = true;
+    }
+  }
+
+  let shown = PAGE;
   let sequence = 0;
-  async function search(query: string) {
+  async function search() {
     const current = ++sequence;
-    const words = query.trim().split(/\s+/).filter(Boolean);
-    const terms = words.map(normalize);
-    if (terms.length === 0) {
+    const query = input.value;
+    const { words, terms } = parseQuery(query);
+    const filtered = Boolean(fCategory.value || fPeriod.value || fSummary.checked);
+    suggest.hidden = words.length > 0 || suggestList.children.length === 0;
+    if (words.length === 0 && !filtered) {
       list.replaceChildren();
       panel.hidden = true;
-      status.textContent = 'キーワードを入力してください。';
+      moreWrap.hidden = true;
+      status.textContent = 'キーワードを入力するか、絞り込みの条件を選んでください。';
       return;
     }
     status.textContent = '検索しています…';
-    let index: Indexed[];
+    let index: SearchEntry[];
     try {
       index = await loadIndex();
     } catch {
@@ -180,53 +233,79 @@ const base = href('');
     }
     if (current !== sequence) return;
 
-    const hits = index.filter((entry) => terms.every((term) => entry.key.includes(term)));
-    const label = words.join(' ');
-    status.textContent =
-      hits.length === 0
-        ? `「${label}」に一致する記事は見つかりませんでした。`
-        : `「${label}」の検索結果: ${hits.length}件${hits.length > LIMIT ? `（新しい順に${LIMIT}件を表示）` : ''}`;
-    list.replaceChildren(...hits.slice(0, LIMIT).map((entry) => renderRow(entry, words)));
+    const hits = rankEntries(index, terms, {
+      now: Date.now(),
+      category: fCategory.value || undefined,
+      days: fPeriod.value ? Number(fPeriod.value) : undefined,
+      summaryOnly: fSummary.checked,
+      sort: fSort.value === 'new' ? 'new' : 'relevance',
+    });
+    const label = words.length > 0 ? `「${words.join(' ')}」の検索結果` : '絞り込みの結果';
+    status.textContent = hits.length === 0 ? `${label}: 一致する記事は見つかりませんでした。` : `${label}: ${hits.length}件`;
+    list.replaceChildren(...hits.slice(0, shown).map((entry) => renderRow(entry, terms)));
     panel.hidden = hits.length === 0;
+    moreWrap.hidden = hits.length <= shown;
   }
 
-  function syncUrl(query: string) {
+  function syncUrl() {
     const url = new URL(location.href);
-    if (query.trim()) url.searchParams.set('q', query.trim());
-    else url.searchParams.delete('q');
+    const params: [string, string][] = [
+      ['q', input.value.trim()],
+      ['c', fCategory.value],
+      ['p', fPeriod.value],
+      ['s', fSort.value],
+      ['m', fSummary.checked ? '1' : ''],
+    ];
+    for (const [key, value] of params) {
+      if (value) url.searchParams.set(key, value);
+      else url.searchParams.delete(key);
+    }
     history.replaceState(null, '', url);
+  }
+
+  function update() {
+    shown = PAGE;
+    syncUrl();
+    void search();
   }
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   input.addEventListener('input', () => {
     clearTimeout(timer);
-    timer = setTimeout(() => {
-      syncUrl(input.value);
-      void search(input.value);
-    }, 200);
+    timer = setTimeout(update, 200);
   });
+  for (const control of [fCategory, fPeriod, fSort, fSummary]) control.addEventListener('change', update);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     clearTimeout(timer);
-    syncUrl(input.value);
-    void search(input.value);
+    update();
+  });
+  moreButton.addEventListener('click', () => {
+    shown += PAGE;
+    void search();
   });
 
-  const initial = new URLSearchParams(location.search).get('q') ?? '';
-  input.value = initial;
-  void search(initial);
+  const params = new URLSearchParams(location.search);
+  input.value = params.get('q') ?? '';
+  fCategory.value = params.get('c') ?? '';
+  fPeriod.value = params.get('p') ?? '';
+  fSort.value = params.get('s') ?? '';
+  fSummary.checked = params.get('m') === '1';
+  if (!input.value) input.focus();
+  void showSuggestions();
+  void search();
 </script>
 
 <style>
   .search-box {
     display: flex;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
   .search-box input {
     flex: 1;
     min-width: 0;
-    height: 44px;
+    height: 46px;
     padding: 0 14px;
     border: 1px solid var(--border-strong);
     border-radius: 10px;
@@ -239,9 +318,10 @@ const base = href('');
     outline: 2px solid var(--focus);
     outline-offset: 0;
   }
-  .search-box button {
-    height: 44px;
-    padding: 0 18px;
+  .search-box button,
+  .more-wrap button {
+    height: 46px;
+    padding: 0 20px;
     border: 0;
     border-radius: 10px;
     background: var(--accent);
@@ -250,17 +330,79 @@ const base = href('');
     font-weight: 700;
     cursor: pointer;
   }
-  .search-box button:hover {
+  .search-box button:hover,
+  .more-wrap button:hover {
     background: var(--accent-strong);
   }
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 0.82rem;
+    color: var(--text-2);
+  }
+  .filters label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .filters select {
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+  }
+  .filters .check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+  }
+  .suggest {
+    margin: 14px 0 4px;
+  }
+  .suggest h2 {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+  }
+  .suggest ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .suggest a {
+    display: inline-block;
+    padding: 5px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-2);
+    font-size: 0.82rem;
+    text-decoration: none;
+  }
+  .suggest a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
   .search-status {
-    margin: 8px 0 12px;
+    margin: 12px 0;
     color: var(--muted);
     font-size: 0.85rem;
   }
+  .more-wrap {
+    margin: 14px 0 0;
+    text-align: center;
+  }
   :global(.items mark) {
-    background: var(--accent-soft);
-    color: inherit;
+    background: var(--mark);
+    color: var(--text);
     border-radius: 2px;
     padding: 0 1px;
   }

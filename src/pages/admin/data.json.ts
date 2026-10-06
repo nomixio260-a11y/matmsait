@@ -5,6 +5,7 @@ import { getBlocklist } from '../../lib/blocklist.ts';
 import { blockReason } from '../../lib/blocklist-core.ts';
 import { allowsSummary, builtAt, getAllItems, getItems, getSources, siteOf } from '../../lib/items.ts';
 import { getAllSummaries, getSummaries, getSummary } from '../../lib/summaries.ts';
+import { coverageOf } from '../../lib/topics.ts';
 import type { Item } from '../../lib/types.ts';
 
 const article = (item: Item) => ({
@@ -15,22 +16,22 @@ const article = (item: Item) => ({
   sourceId: item.sourceId,
   category: item.category,
   publishedAt: item.publishedAt,
-  ...(item.hatebu ? { hatebu: item.hatebu } : {}),
+  ...(coverageOf(item.id) >= 2 ? { coverage: coverageOf(item.id) } : {}),
   site: siteOf(item).label,
 });
 
 /** 管理画面に渡す要約待ちの記事の数（新着順）。収集元が多いと全件では管理画面の読み込みが重くなる */
 const PENDING_LATEST = 3000;
-/** 上の件数より古くても、はてブ数の多い記事はこの件数まで要約の候補に入れる */
+/** 上の件数より古くても、多くの掲載元が報じた話題の記事はこの件数まで要約の候補に入れる */
 const PENDING_POPULAR = 500;
 
-/** 要約待ちの記事（新しい記事と、はてブ数の多い記事。要約を禁じている掲載元の記事は除く） */
+/** 要約待ちの記事（新しい記事と、話題の記事。要約を載せられない掲載元の記事は除く） */
 function pendingArticles(): Item[] {
   const unsummarized = getItems().filter((item) => !getSummary(item.id) && allowsSummary(item));
   const popular = unsummarized
     .slice(PENDING_LATEST)
-    .filter((item) => (item.hatebu ?? 0) > 0)
-    .sort((a, b) => (b.hatebu ?? 0) - (a.hatebu ?? 0))
+    .filter((item) => coverageOf(item.id) >= 2)
+    .sort((a, b) => coverageOf(b.id) - coverageOf(a.id))
     .slice(0, PENDING_POPULAR);
   return [...unsummarized.slice(0, PENDING_LATEST), ...popular];
 }
@@ -101,6 +102,8 @@ export function GET() {
         ...article(record),
         summary: record.summary,
         points: record.points,
+        ...(record.background ? { background: record.background } : {}),
+        ...(record.keywords?.length ? { keywords: record.keywords } : {}),
         summarizedAt: record.summarizedAt,
       })),
     blocklist: getBlocklist(),

@@ -9,6 +9,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { categories, site } from '../src/config/site.ts';
 import { dailyPath, getDailySnapshots } from '../src/lib/daily.ts';
+import { withCoverage } from '../src/lib/related.ts';
 import { jstDateKey } from '../src/lib/dates.ts';
 import { getSummaries, summaryPath } from '../src/lib/summaries.ts';
 import { indexNowPayload, publishWebSub, submitIndexNow } from './lib/ping.ts';
@@ -62,7 +63,7 @@ async function notifySearchEngines(baseUrl: string, now: Date, dataChanged: bool
   }
   const payload = indexNowPayload(baseUrl, site.indexNowKey, paths);
   const feeds = dataChanged
-    ? ['/rss.xml', '/daily/rss.xml', ...categories.map((category) => `/category/${category.slug}/rss.xml`)].map(
+    ? ['/rss.xml', '/daily/rss.xml', '/summaries/rss.xml', ...categories.map((category) => `/category/${category.slug}/rss.xml`)].map(
         (path) => `${baseUrl}${path}`,
       )
     : [];
@@ -94,8 +95,12 @@ async function postToSocial(baseUrl: string, now: Date) {
   let state = readState();
   const posts = planPosts(state, {
     now,
-    // 管理画面で非表示にした記事は投稿しない
-    items: readItemsFile(ITEMS_PATH).filter((item) => !isHidden(item)),
+    // 管理画面で非表示にした記事は投稿しない。話題度（同じ話題を報じた掲載元の数）は直近3日分の記事から数える
+    items: withCoverage(
+      readItemsFile(ITEMS_PATH).filter(
+        (item) => !isHidden(item) && Date.parse(item.publishedAt) >= now.getTime() - 3 * 24 * 60 * 60 * 1000,
+      ),
+    ),
     snapshots: getDailySnapshots(),
     pageUrl: (path) => `${baseUrl}${path}`,
     siteName: site.name,

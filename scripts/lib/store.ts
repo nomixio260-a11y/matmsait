@@ -55,8 +55,7 @@ const isRepost = (url: string) => {
 
 /**
  * URL は違うが見出しが同じ記事（Yahoo!ニュースへの転載、スマホ版 URL など）を1つにまとめる。
- * 残すのは 要約がある記事 → 配信元のフィードの記事 → 転載サイトでない記事 → 先に公開された記事 の順。
- * はてブ数は多い方を引き継ぐ
+ * 残すのは 要約がある記事 → 配信元のフィードの記事 → 転載サイトでない記事 → 先に公開された記事 の順
  */
 export function collapseSameTitle(
   items: Item[],
@@ -88,8 +87,6 @@ export function collapseSameTitle(
     const flush = () => {
       if (cluster.length === 0) return;
       const kept = { ...[...cluster].sort(better)[0] };
-      const hatebu = Math.max(...cluster.map((item) => item.hatebu ?? 0));
-      if (hatebu > 0) kept.hatebu = hatebu;
       kept.excerpt ||= cluster.find((item) => item.excerpt)?.excerpt ?? '';
       result.push(kept);
       cluster = [];
@@ -105,7 +102,7 @@ export function collapseSameTitle(
 
 /**
  * 記事をIDで重複排除しながらマージする。
- * 基本は先に取得した方を残すが、はてブ等の集約元経由の記事を配信元自身のフィードで取得できた場合は
+ * 基本は先に取得した方を残すが、集約元（他サイトの記事を紹介するフィード）経由の記事を配信元自身のフィードで取得できた場合は
  * 配信元の情報（カテゴリ・公開日時・抜粋）に置き換える。
  * そのあと、URL が違っても見出しが同じ記事を1つにまとめる。
  */
@@ -124,10 +121,7 @@ export function mergeItems(
     }
     const preferNew = isAggregator(prev.sourceId) && !isAggregator(item.sourceId);
     const [kept, other] = preferNew ? [item, prev] : [prev, item];
-    const merged: Item = { ...kept, excerpt: kept.excerpt || other.excerpt };
-    const hatebu = Math.max(kept.hatebu ?? 0, other.hatebu ?? 0);
-    if (hatebu > 0) merged.hatebu = hatebu;
-    byId.set(item.id, merged);
+    byId.set(item.id, { ...kept, excerpt: kept.excerpt || other.excerpt });
   }
   return collapseSameTitle([...byId.values()], isAggregator, isPreferred);
 }
@@ -162,7 +156,7 @@ type SourceSettings = Pick<Source, 'id' | 'category' | 'siteUrl' | 'excerpt'>;
 /**
  * 記事を今の sources.yaml の設定に合わせる。
  * - カテゴリは掲載元の設定にする（掲載元のカテゴリを変えたとき、取得済みの記事も移す）
- * - 抜粋を載せない掲載元（excerpt: false）の記事は抜粋を消す。はてブ経由で見つけた同じサイトの記事も同じ
+ * - 抜粋を載せない掲載元（excerpt: false）の記事は抜粋を消す。集約元経由で見つけた同じサイトの記事も同じ
  */
 export function withSourceSettings(items: Item[], sources: SourceSettings[]): Item[] {
   const byId = new Map(sources.map((source) => [source.id, source]));
@@ -182,11 +176,20 @@ export function serializeItems(items: Item[]): string {
 }
 
 /** items.json を読む。無い・壊れている場合は空配列 */
+/**
+ * 以前の版が保存していた項目を外す（はてなブックマーク数。はてなの規約で商用サイトでは使えないため取得をやめた）
+ */
+function withoutLegacyFields(item: Item & { hatebu?: number }): Item {
+  if (!('hatebu' in item)) return item;
+  const { hatebu: _, ...rest } = item;
+  return rest;
+}
+
 export function readItemsFile(path: string): Item[] {
   if (!existsSync(path)) return [];
   try {
     const data = JSON.parse(readFileSync(path, 'utf8')) as unknown;
-    return Array.isArray(data) ? (data as Item[]) : [];
+    return Array.isArray(data) ? (data as Item[]).map(withoutLegacyFields) : [];
   } catch (error) {
     console.warn(`${path} を読み込めないため空として扱います: ${error}`);
     return [];

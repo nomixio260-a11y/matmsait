@@ -1,23 +1,30 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ItemList from '../components/ItemList.astro';
-import RankingList from '../components/RankingList.astro';
+import SummaryCard from '../components/SummaryCard.astro';
+import TopicList from '../components/TopicList.astro';
 import { categories, site } from '../config/site.ts';
-import { builtAt, formatDateTime, getItems, getItemsByCategory, getRanking, href, pickVaried } from '../lib/items.ts';
+import { builtAt, formatDateTime, getItems, getItemsByCategory, getSources, href, pickVaried } from '../lib/items.ts';
 import { clampDescription, headlineTeaser } from '../lib/seo.ts';
 import { getSummaries } from '../lib/summaries.ts';
+import { getHotTopics } from '../lib/topics.ts';
 
 // 収集元が多く、更新の多いサイトが続くと他が埋もれるため、同じ掲載元は数件までにして新着順に並べる
 const latest = pickVaried(getItems(), 30, 3);
-const summaries = getSummaries().slice(0, 5);
-const hot = getRanking({ hours: 24, limit: 5 });
+const summaries = getSummaries().slice(0, 6);
+const hot = getHotTopics({ hours: 24, limit: 6 });
 const sections = categories
   .map((category) => ({ category, items: pickVaried(getItemsByCategory(category.slug), 6, 2) }))
   .filter((section) => section.items.length > 0);
+const sourceCount = getSources().length;
 
 const description = clampDescription(
   hot.length > 0
-    ? `人気サイトの新着ニュースと、はてブで話題の記事を1時間ごとにまとめてお届け。いま話題：${headlineTeaser(hot, 2, 22)}`
+    ? `${sourceCount}の人気ニュースサイトの新着記事を1時間ごとにまとめてお届け。いま話題：${headlineTeaser(
+        hot.map((topic) => topic.lead),
+        2,
+        22,
+      )}`
     : site.description,
 );
 const home = new URL(href('/'), Astro.site).toString();
@@ -48,19 +55,20 @@ const jsonLd = [
 ];
 ---
 
-<BaseLayout current="" description={description} jsonLd={jsonLd} sidebar={{ rankingWideOnly: true }}>
+<BaseLayout current="" description={description} jsonLd={jsonLd} sidebar={{ hideRanking: true }}>
   <div class="stack">
     <section class="intro">
       <h1>{site.seoTitle}</h1>
       <p>
-        {site.name}は、人気ニュースサイトの新着記事と、はてなブックマークで話題の記事を1時間ごとに自動でまとめています。
+        {site.name}は、{sourceCount}の人気ニュースサイトの新着記事を1時間ごとに自動で集め、多くのメディアが報じた話題とAI要約でポイントをまとめています。
         <span class="updated">最終更新 {formatDateTime(builtAt)}</span>
       </p>
+      <p class="since" data-since-banner hidden></p>
     </section>
 
     {
       hot.length > 0 && (
-        <section class="panel narrow-only">
+        <section class="panel">
           <div class="panel-head">
             <h2>
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" class="flame">
@@ -69,30 +77,34 @@ const jsonLd = [
                   fill="currentColor"
                 />
               </svg>
-              いま話題の記事
+              いま話題のニュース
             </h2>
             <a class="more" href={href('/ranking/')}>
-              ランキング →
+              すべて見る →
             </a>
           </div>
-          <RankingList items={hot} />
+          <TopicList topics={hot} />
         </section>
       )
     }
 
     {
       summaries.length > 0 && (
-        <section class="panel">
-          <div class="panel-head">
-            <h2>
+        <section class="summaries" aria-labelledby="summaries-title">
+          <div class="section-head">
+            <h2 id="summaries-title">
               <span class="ai-badge">AI要約</span>
-              要点がわかる記事
+              ニュースのポイント
             </h2>
             <a class="more" href={href('/summaries/')}>
               もっと見る →
             </a>
           </div>
-          <ItemList items={summaries} group={false} ads={false} />
+          <div class="card-grid">
+            {summaries.map((record) => (
+              <SummaryCard record={record} />
+            ))}
+          </div>
         </section>
       )
     }
@@ -111,10 +123,10 @@ const jsonLd = [
     <div class="cat-grid">
       {
         sections.map(({ category, items }) => (
-          <section class="panel">
+          <section class="panel cat-panel" style={`--c:${category.color}`}>
             <div class="panel-head">
               <h2>
-                <span class="dot" style={`--c:${category.color}`} />
+                <span class="dot" />
                 {category.name}
               </h2>
               <a class="more" href={href(`/category/${category.slug}/`)}>
@@ -132,7 +144,7 @@ const jsonLd = [
 <style>
   .intro h1 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.15rem;
   }
   .intro p {
     margin: 4px 0 0;
@@ -144,8 +156,70 @@ const jsonLd = [
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
+  .since {
+    display: inline-block;
+    margin-top: 10px !important;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--focus) 12%, var(--surface));
+    color: var(--text) !important;
+    font-weight: 600;
+  }
+  .since[hidden] {
+    display: none;
+  }
   .flame {
     color: var(--hot);
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .section-head h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .section-head .more {
+    font-size: 0.8rem;
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .section-head .more:hover {
+    text-decoration: underline;
+  }
+  /* スマートフォンでは横にスクロールして読む（縦に長くなりすぎないように） */
+  .card-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 84%;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 6px;
+  }
+  .card-grid > :global(*) {
+    scroll-snap-align: start;
+  }
+  @media (min-width: 620px) {
+    .card-grid {
+      grid-auto-flow: row;
+      grid-auto-columns: auto;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      overflow: visible;
+      padding-bottom: 0;
+    }
+  }
+  @media (min-width: 1000px) {
+    .card-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
   .cat-grid {
     display: grid;
@@ -156,9 +230,11 @@ const jsonLd = [
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  @media (min-width: 1000px) {
-    .narrow-only {
-      display: none;
-    }
+  /* カテゴリの色を見出しの上に細く入れる */
+  .cat-panel {
+    border-top: 3px solid var(--c);
+  }
+  .cat-panel .dot {
+    background: var(--c);
   }
 </style>

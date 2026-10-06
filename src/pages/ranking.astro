@@ -1,25 +1,30 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import RankingList from '../components/RankingList.astro';
 import ShareButtons from '../components/ShareButtons.astro';
+import TopicList from '../components/TopicList.astro';
 import { categories, site } from '../config/site.ts';
-import { getRanking, href } from '../lib/items.ts';
+import { getSources, href } from '../lib/items.ts';
 import { clampDescription, collectionJsonLd, headlineTeaser } from '../lib/seo.ts';
+import { getHotTopics } from '../lib/topics.ts';
 
-const daily = getRanking({ hours: 24, limit: 30 });
-const weekly = getRanking({ hours: 24 * 7, limit: 30 });
+const daily = getHotTopics({ hours: 24, limit: 30 });
+const weekly = getHotTopics({ hours: 24 * 7, limit: 30 });
 const byCategory = categories
-  .map((category) => ({ category, items: getRanking({ hours: 48, category: category.slug, limit: 5 }) }))
-  .filter((entry) => entry.items.length > 0);
+  .map((category) => ({ category, topics: getHotTopics({ hours: 72, category: category.slug, limit: 5 }) }))
+  .filter((entry) => entry.topics.length > 0);
 
-const title = '人気ニュースランキング（24時間・1週間）';
+const title = '話題のニュースランキング（多くのメディアが報じたニュース）';
 const description = clampDescription(
   daily.length > 0
-    ? `いま話題のニュースをはてなブックマーク数でランキング。1位${headlineTeaser(daily, 1, 30)}ほか、24時間・1週間の人気記事とカテゴリ別ランキングを毎時更新。`
-    : 'はてなブックマーク数をもとに、いま話題のニュースをランキング形式でまとめています。',
+    ? `複数のニュースサイトが報じた「いま話題のニュース」を、報じたメディアの数でランキング。1位${headlineTeaser(
+        daily.map((topic) => topic.lead),
+        1,
+        30,
+      )}ほか、24時間・1週間・カテゴリ別の話題を1時間ごとに更新。`
+    : '複数のニュースサイトが報じた話題のニュースを、報じたメディアの数でランキングしています。',
 );
 const url = new URL(Astro.url.pathname, Astro.site).toString();
-const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.slice(0, 10) })];
+const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.slice(0, 10).map((topic) => topic.lead) })];
 ---
 
 <BaseLayout
@@ -27,46 +32,60 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
   description={description}
   jsonLd={jsonLd}
   current="ranking"
-  breadcrumbs={[{ name: 'ランキング' }]}
+  breadcrumbs={[{ name: '話題のニュース' }]}
   sidebar={{ hideRanking: true }}
 >
   <div class="page-head">
-    <h1>人気ニュースランキング</h1>
-    <p>掲載記事のはてなブックマーク数をもとに集計しています（1時間ごとに更新）。</p>
+    <h1>話題のニュースランキング</h1>
+    <p>
+      {site.name}が記事を掲載している{getSources().length}のサイトのうち、同じ出来事を報じたサイトが多いニュースほど上位にしています。各ニュースの下にはほかのサイトの報道も並べているので、読み比べにも使えます（1時間ごとに更新）。
+    </p>
   </div>
 
   <div class="stack">
     <ShareButtons url={url} text={`いま話題のニュースランキング｜${site.name}`} />
     <section class="panel">
       <div class="panel-head">
-        <h2>ランキング</h2>
+        <h2>話題のニュース</h2>
         <div class="seg" role="tablist" aria-label="集計期間">
           <button type="button" role="tab" aria-selected="true" aria-controls="rank-daily" id="tab-daily">24時間</button>
           <button type="button" role="tab" aria-selected="false" aria-controls="rank-weekly" id="tab-weekly">1週間</button>
         </div>
       </div>
       <div id="rank-daily" role="tabpanel" aria-labelledby="tab-daily">
-        {daily.length > 0 ? <RankingList items={daily} detailed /> : <p class="empty">集計中です。しばらくお待ちください。</p>}
+        {
+          daily.length > 0 ? (
+            <TopicList topics={daily} detailed />
+          ) : (
+            <p class="empty">いまは複数のサイトが報じた話題がありません。しばらくお待ちください。</p>
+          )
+        }
       </div>
       <div id="rank-weekly" role="tabpanel" aria-labelledby="tab-weekly" hidden>
-        {weekly.length > 0 ? <RankingList items={weekly} detailed /> : <p class="empty">集計中です。しばらくお待ちください。</p>}
+        {
+          weekly.length > 0 ? (
+            <TopicList topics={weekly} detailed />
+          ) : (
+            <p class="empty">集計中です。しばらくお待ちください。</p>
+          )
+        }
       </div>
     </section>
 
     <div class="cat-grid">
       {
-        byCategory.map(({ category, items }) => (
+        byCategory.map(({ category, topics }) => (
           <section class="panel">
             <div class="panel-head">
               <h2>
                 <span class="dot" style={`--c:${category.color}`} />
-                {category.name}
+                {category.name}の話題
               </h2>
               <a class="more" href={href(`/category/${category.slug}/`)}>
                 新着を見る →
               </a>
             </div>
-            <RankingList items={items} />
+            <TopicList topics={topics} othersLimit={1} />
           </section>
         ))
       }

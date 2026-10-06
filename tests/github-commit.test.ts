@@ -20,6 +20,7 @@ function fakeGitHub({ patchFailures = 0, files = {} as Record<string, string> } 
     const method = init.method ?? 'GET';
     const headers = init.headers as Record<string, string>;
     calls.push({ method, url, body: init.body ? JSON.parse(String(init.body)) : undefined, accept: headers.Accept });
+    if (url === 'https://api.github.com/user') return respond(200, { login: 'operator' });
     const path = url.replace('https://api.github.com/repos/owner/repo', '');
     if (path === '') return respond(200, { default_branch: 'main', permissions: { push: true } });
     if (path === '/git/ref/heads/main') return respond(200, { object: { sha: head } });
@@ -48,6 +49,13 @@ describe('createGitHubClient', () => {
     const { fetchImpl } = fakeGitHub();
     const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
     expect(await client.repository()).toEqual({ defaultBranch: 'main', canPush: true, isPrivate: false });
+  });
+
+  it('トークンの持ち主のユーザー名を調べる（リポジトリの外の API も同じヘッダーで呼ぶ）', async () => {
+    const { fetchImpl, calls } = fakeGitHub();
+    const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
+    expect(await client.user()).toEqual({ login: 'operator' });
+    expect(calls[0].url).toBe('https://api.github.com/user');
   });
 
   it('最新のファイルを読み、1つのコミットにまとめてブランチを進める', async () => {

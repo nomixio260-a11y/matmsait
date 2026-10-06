@@ -1,9 +1,10 @@
 ---
 import type { GetStaticPaths, Page } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import ItemList from '../../components/ItemList.astro';
+import SummaryCard from '../../components/SummaryCard.astro';
 import Pagination from '../../components/Pagination.astro';
 import { site } from '../../config/site.ts';
+import { href } from '../../lib/items.ts';
 import { collectionJsonLd } from '../../lib/seo.ts';
 import { getSummaries } from '../../lib/summaries.ts';
 import type { SummaryRecord } from '../../lib/types.ts';
@@ -28,13 +29,39 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.da
   noindex={page.currentPage > 1 || page.total === 0}
   jsonLd={jsonLd}
   breadcrumbs={[{ name: 'AI要約' }]}
+  feeds={[{ title: 'AI要約', path: '/summaries/rss.xml' }]}
 >
   <div class="page-head">
     <h1>AI要約つき記事{suffix}</h1>
-    <p>話題の記事のポイントをAIが要約しています（{page.total}件）。</p>
+    <p>
+      話題の記事のポイントをAIが要約しています（{page.total}件）。要約の作り方は<a href={href('/editorial/')}>編集方針</a>をご覧ください。<a href={href('/summaries/rss.xml')}>RSS</a>でも購読できます。
+    </p>
   </div>
-  <div class="panel">
-    <ItemList items={page.data} group={false} />
-  </div>
+  {
+    page.data.length > 0 ? (
+      <div class="card-grid">
+        {page.data.map((record) => (
+          <SummaryCard record={record} headingLevel={2} />
+        ))}
+      </div>
+    ) : (
+      <p class="empty">まだAI要約つきの記事はありません。</p>
+    )
+  }
   <Pagination page={page} />
 </BaseLayout>
+
+<style>
+  .card-grid {
+    display: grid;
+    gap: 12px;
+  }
+  @media (min-width: 620px) {
+    .card-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .page-head a {
+    color: var(--accent);
+  }
+</style>

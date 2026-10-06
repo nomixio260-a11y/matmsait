@@ -5,7 +5,9 @@ import { href } from '../../lib/items.ts';
 ---
 
 <AdminLayout title="AI要約の管理">
-  <div class="admin" data-admin data-base={href('')}>
+  <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
+  <!-- ログインを確かめるまでは表示しない（admin.ts が表示する） -->
+  <div class="admin" data-admin data-base={href('')} hidden>
     <div class="intro">
       <h1>AI要約の管理</h1>
       <p>
@@ -14,45 +16,19 @@ import { href } from '../../lib/items.ts';
       <p class="data-info" id="data-info" aria-live="polite">記事データを読み込んでいます…</p>
     </div>
 
-    <details class="card" id="settings">
-      <summary>
-        <span class="summary-title">GitHub との連携（保存に必要）</span>
-        <span class="badge" id="token-badge">未設定</span>
-      </summary>
+    <section class="card connection" aria-label="GitHub との連携">
       <div class="card-body">
-        <label class="field">
-          <span>GitHub のアクセストークン</span>
-          <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_..." />
-        </label>
-        <label class="check">
-          <input id="remember" type="checkbox" />
-          このブラウザに記憶する（自分専用の端末でだけ使ってください）
-        </label>
-        <div class="actions">
-          <button type="button" id="test-token">接続を確認</button>
-          <button type="button" id="forget-token" class="ghost">トークンを消す</button>
+        <div class="connection-row">
+          <span class="badge ok" id="token-badge">ログイン中</span>
+          <span class="connection-text">保存先 <code id="repo-name">-</code></span>
+          <button type="button" id="test-token" class="ghost small">接続を確認</button>
         </div>
         <p class="status" id="token-status" aria-live="polite"></p>
-        <div class="help">
-          <p>トークンの作り方（最初の1回だけ）:</p>
-          <ol>
-            <li>
-              <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">
-                Fine-grained トークンの作成ページ
-              </a>
-              を開く
-            </li>
-            <li>「Repository access」で <code id="repo-name">このサイトのリポジトリ</code> だけを選ぶ</li>
-            <li>
-              「Repository permissions」の <b>Contents</b> を <b>Read and write</b> にして作成（「今すぐ更新」も使う場合は
-              <b>Actions</b> も <b>Read and write</b> に）
-            </li>
-            <li>表示されたトークンを上の欄に貼り付けて「接続を確認」</li>
-          </ol>
-          <p>トークンはこのブラウザから GitHub に送るだけで、サイトや他の場所には送信・公開されません。</p>
-        </div>
+        <p class="note">
+          GitHub のトークンは、ログインのパスワードで暗号化してこのブラウザにだけ保存しています。しばらく操作がないと自動でログアウトします。トークンを作り直したときは、ログアウトしてログインページの「保存したトークンを消してやり直す」から設定し直してください。
+        </p>
       </div>
-    </details>
+    </section>
 
     <section class="card">
       <h2><span class="step" aria-hidden="true">⚡</span>サイトの更新</h2>
@@ -72,7 +48,7 @@ import { href } from '../../lib/items.ts';
             <button type="button" id="refresh-runs" class="ghost small">状況を更新</button>
           </div>
           <ul class="run-list" id="run-list">
-            <li class="pick-meta">トークンを設定すると表示されます。</li>
+            <li class="pick-meta">読み込んでいます…</li>
           </ul>
         </div>
       </div>
@@ -98,7 +74,7 @@ import { href } from '../../lib/items.ts';
           <label class="field inline">
             <span>並び順</span>
             <select id="sort">
-              <option value="popular">はてブの多い順</option>
+              <option value="popular">話題の順（報じたサイトが多い順）</option>
               <option value="latest">新しい順</option>
             </select>
           </label>
@@ -146,9 +122,7 @@ import { href } from '../../lib/items.ts';
           <span class="note" id="prompt-info"></span>
         </div>
         <p class="hint">
-          プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けてください。
-          AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。
-          一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残ります。
+          プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けてください。AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残ります。
         </p>
       </div>
     </section>
@@ -186,8 +160,7 @@ import { href } from '../../lib/items.ts';
       <summary><span class="summary-title">保存済みの要約</span><span class="badge" id="saved-count">0件</span></summary>
       <div class="card-body">
         <p class="hint">
-          「編集」で要約・要点を直接直せます。内容に問題がある要約は、選んで削除できます（削除した記事は要約待ちに戻ります）。
-          AI で作り直したいときは、手順1の「要約済みの記事も選べるようにする」を使ってください。
+          「編集」で要約・要点を直接直せます。内容に問題がある要約は、選んで削除できます（削除した記事は要約待ちに戻ります）。AI で作り直したいときは、手順1の「要約済みの記事も選べるようにする」を使ってください。
         </p>
         <input id="saved-filter" class="filter" type="search" placeholder="タイトル・要約で絞り込み" aria-label="保存済みの要約を絞り込む" />
         <ul class="pick-list" id="saved-list"></ul>
@@ -204,9 +177,7 @@ import { href } from '../../lib/items.ts';
       </summary>
       <div class="card-body">
         <p class="hint">
-          収集のたびに記録している取得の状態と、直近に集めた記事の数・いちばん新しい記事の日時です。取得の失敗が3回以上続いている収集元や、
-          新しい記事が3日以上ない収集元は、フィードの URL が変わったか配信が止まっている可能性があります（<code>sources.yaml</code>
-          で修正・削除できます）。
+          収集のたびに記録している取得の状態と、直近に集めた記事の数・いちばん新しい記事の日時です。取得の失敗が3回以上続いている収集元や、新しい記事が3日以上ない収集元は、フィードの URL が変わったか配信が止まっている可能性があります（<code>sources.yaml</code>で修正・削除できます）。
         </p>
         <div class="table-wrap">
           <table class="result-table" id="sources-table"></table>
@@ -276,6 +247,9 @@ import { href } from '../../lib/items.ts';
     flex-direction: column;
     gap: 16px;
   }
+  .admin[hidden] {
+    display: none;
+  }
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -298,6 +272,22 @@ import { href } from '../../lib/items.ts';
   }
   .card:not([open]) > summary {
     border-bottom: 0;
+  }
+  .connection-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+  .connection-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.85rem;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .connection .note {
+    margin: 4px 0 0;
   }
   .summary-title {
     flex: 1;

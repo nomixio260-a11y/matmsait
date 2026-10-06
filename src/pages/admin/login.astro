@@ -1,0 +1,198 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { site } from '../../config/site.ts';
+import { MIN_PASSWORD_LENGTH } from '../../lib/admin-auth.ts';
+
+const repository = `${site.repository.owner}/${site.repository.repo}`;
+---
+
+<AdminLayout title="ログイン" showUser={false}>
+  <div class="login" data-login data-owner={site.repository.owner} data-repo={site.repository.repo}>
+    <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
+    <p class="notice" id="login-notice" hidden></p>
+
+    <section class="card" id="login-form-card" hidden>
+      <h1>管理画面にログイン</h1>
+      <p class="lead">このブラウザで設定したパスワードを入力してください。</p>
+      <form id="login-form" class="form">
+        <label class="field">
+          <span>パスワード</span>
+          <input id="login-password" type="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit" class="primary">ログイン</button>
+        <p class="status" id="login-status" aria-live="polite"></p>
+      </form>
+      <details class="help">
+        <summary>パスワードを忘れた・トークンを入れ直したいとき</summary>
+        <p>このブラウザに保存した暗号化済みのトークンを消して、最初の設定からやり直します（GitHub のトークンはそのまま使えます）。</p>
+        <button type="button" class="ghost" id="reset-vault">保存したトークンを消してやり直す</button>
+      </details>
+    </section>
+
+    <section class="card" id="setup-card" hidden>
+      <h1>管理画面の初回設定</h1>
+      <p class="lead">
+        GitHub のアクセストークンと、このブラウザで管理画面を開くためのパスワードを設定します。トークンはパスワードで暗号化してこのブラウザにだけ保存し、GitHub 以外には送りません。
+      </p>
+      <form id="setup-form" class="form">
+        <label class="field">
+          <span>GitHub のアクセストークン</span>
+          <input id="setup-token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_..." required />
+        </label>
+        <p class="note" id="legacy-note" hidden>以前この管理画面に保存したトークンを入れてあります。そのままパスワードを設定すると、暗号化して保存し直します。</p>
+        <label class="field">
+          <span>パスワード（{MIN_PASSWORD_LENGTH}文字以上）</span>
+          <input id="setup-password" type="password" autocomplete="new-password" minlength={MIN_PASSWORD_LENGTH} required />
+        </label>
+        <label class="field">
+          <span>パスワード（確認）</span>
+          <input id="setup-confirm" type="password" autocomplete="new-password" minlength={MIN_PASSWORD_LENGTH} required />
+        </label>
+        <button type="submit" class="primary">確認して設定</button>
+        <p class="status" id="setup-status" aria-live="polite"></p>
+      </form>
+      <div class="help">
+        <p>トークンの作り方（最初の1回だけ）:</p>
+        <ol>
+          <li>
+            <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">
+              Fine-grained トークンの作成ページ
+            </a>を開く
+          </li>
+          <li>「Repository access」で <code>{repository}</code> だけを選ぶ</li>
+          <li>
+            「Repository permissions」の <b>Contents</b> と <b>Actions</b> を <b>Read and write</b> にして作成（有効期限は短めがおすすめ）
+          </li>
+          <li>表示されたトークンを上の欄に貼り付ける</li>
+        </ol>
+        <p>パスワードは自分で覚えておいてください（どこにも保存されないので、忘れたらトークンを入れ直します）。共用のパソコンでは使わないでください。</p>
+      </div>
+    </section>
+  </div>
+</AdminLayout>
+
+<script>
+  import '../../scripts/admin-login.ts';
+</script>
+
+<style>
+  .login {
+    max-width: 520px;
+    margin: 24px auto 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 22px 18px;
+  }
+  .card[hidden] {
+    display: none;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+  .lead {
+    margin: 6px 0 16px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.7;
+  }
+  .form {
+    display: grid;
+    gap: 12px;
+  }
+  .field {
+    display: grid;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .field input {
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-weight: 400;
+  }
+  .field input:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 0;
+  }
+  button {
+    height: 42px;
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .primary {
+    border: 0;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .primary:hover {
+    background: var(--accent-strong);
+  }
+  .primary:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+  .ghost {
+    padding: 0 14px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text-2);
+  }
+  .status {
+    margin: 0;
+    min-height: 1.4em;
+    font-size: 0.85rem;
+  }
+  .status.error,
+  .notice.error {
+    color: var(--hot);
+  }
+  .status.ok {
+    color: #15803d;
+  }
+  .notice {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .notice[hidden] {
+    display: none;
+  }
+  .note {
+    margin: -4px 0 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .note[hidden] {
+    display: none;
+  }
+  .help {
+    margin-top: 16px;
+    font-size: 0.8rem;
+    color: var(--text-2);
+    line-height: 1.7;
+  }
+  .help summary {
+    cursor: pointer;
+    color: var(--accent);
+  }
+  .help a {
+    color: var(--accent);
+  }
+  code {
+    font-size: 0.85em;
+  }
+</style>

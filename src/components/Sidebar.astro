@@ -1,9 +1,10 @@
 ---
 import AdSlot from './AdSlot.astro';
-import RankingList from './RankingList.astro';
+import TopicList from './TopicList.astro';
 import { categories, site } from '../config/site.ts';
 import { dailyPath, formatDay, getDailySnapshots } from '../lib/daily.ts';
-import { countByCategory, getCategory, getRanking, href } from '../lib/items.ts';
+import { countByCategory, getCategory, href } from '../lib/items.ts';
+import { getHotTopics } from '../lib/topics.ts';
 
 interface Props {
   /** ランキングをこのカテゴリに絞る */
@@ -14,8 +15,8 @@ interface Props {
   rankingWideOnly?: boolean;
 }
 const { category, hideRanking = false, rankingWideOnly = false } = Astro.props;
-const hours = category ? 48 : 24;
-const ranking = hideRanking ? [] : getRanking({ hours, category, limit: 10 });
+const hours = category ? 72 : 24;
+const ranking = hideRanking ? [] : getHotTopics({ hours, category, limit: 8 });
 const categoryName = category ? getCategory(category)?.name : undefined;
 const counts = countByCategory();
 const recentDays = getDailySnapshots().slice(0, 7);
@@ -33,13 +34,13 @@ const recentDays = getDailySnapshots().slice(0, 7);
                 fill="currentColor"
               />
             </svg>
-            {categoryName ? `${categoryName}の人気記事` : '人気ランキング'}
+            {categoryName ? `${categoryName}の話題` : '話題のニュース'}
           </h2>
           <span class="window">{hours}時間</span>
         </div>
-        <RankingList items={ranking} />
+        <TopicList topics={ranking} othersLimit={0} />
         <div class="panel-foot">
-          <a href={href('/ranking/')}>ランキングをもっと見る</a>
+          <a href={href('/ranking/')}>話題のニュースをもっと見る</a>
         </div>
       </section>
     )

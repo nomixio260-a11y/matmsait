@@ -14,7 +14,7 @@ export function GET(context: APIContext) {
     items: getDailySnapshots()
       .slice(0, 30)
       .map((day) => {
-        const top = day.items.filter((item) => (item.hatebu ?? 0) > 0).slice(0, 5);
+        const top = day.items.slice(0, 5);
         return {
           title: `${formatDay(day.date)}の話題のニュース`,
           link: new URL(href(dailyPath(day.date)), context.site).toString(),

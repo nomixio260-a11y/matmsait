@@ -37,15 +37,14 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.da
   description={description}
   jsonLd={jsonLd}
   current={source.category}
-  noindex={page.currentPage > 1}
+  noindex
   breadcrumbs={[{ name: '掲載元一覧', path: '/sources/' }, { name: source.name }]}
 >
   <div class="page-head">
     <h1>{source.name}の最新記事{suffix}</h1>
     <p>
       {category && <a href={href(`/category/${category.slug}/`)}>{category.name}</a>}
-      ・{page.total}件 ・
-      <a href={source.siteUrl} target="_blank" rel="noopener">公式サイトを見る</a>
+      ・{page.total}件 ・ <a href={source.siteUrl} target="_blank" rel="noopener">公式サイトを見る</a>
     </p>
   </div>
   <div class="panel">

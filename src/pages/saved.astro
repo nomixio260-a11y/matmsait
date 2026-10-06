@@ -1,0 +1,129 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="あとで読む"
+  description="「あとで読む」に保存した記事の一覧です。"
+  noindex
+  breadcrumbs={[{ name: 'あとで読む' }]}
+>
+  <div class="page-head">
+    <h1>あとで読む</h1>
+    <p>
+      記事の右下にあるしおりの印（<svg class="inline-icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>）を押すと、ここに保存されます。保存した記事はこのブラウザにだけ記録され、サーバーには送られません。
+    </p>
+  </div>
+
+  <div class="toolbar" id="saved-toolbar" hidden>
+    <span id="saved-total"></span>
+    <button type="button" id="clear-saved">すべて削除</button>
+  </div>
+  <div class="panel">
+    <ul class="items" id="saved-list"></ul>
+    <p class="empty" id="saved-empty">まだ保存した記事はありません。</p>
+  </div>
+</BaseLayout>
+
+<script>
+  import { loadSaved, storeSaved, type SavedItem } from '../scripts/reader.ts';
+
+  const list = document.querySelector<HTMLUListElement>('#saved-list')!;
+  const empty = document.querySelector<HTMLElement>('#saved-empty')!;
+  const toolbar = document.querySelector<HTMLElement>('#saved-toolbar')!;
+  const total = document.querySelector<HTMLElement>('#saved-total')!;
+  const clear = document.querySelector<HTMLButtonElement>('#clear-saved')!;
+  const dateFormat = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text) node.textContent = text;
+    return node;
+  }
+
+  function row(item: SavedItem): HTMLLIElement {
+    const li = el('li', 'item');
+    const title = el('a', 'item-title', item.title);
+    title.href = item.url;
+    // 元記事（外部サイト）は別のタブで開く
+    if (/^https?:\/\//.test(item.url)) {
+      title.target = '_blank';
+      title.rel = 'noopener';
+    }
+    const meta = el('div', 'item-meta');
+    meta.append(el('span', 'item-site', item.site));
+    const time = el('time', undefined, dateFormat.format(new Date(item.at)));
+    time.dateTime = item.at;
+    meta.append(time);
+    const remove = el('button', 'save-btn');
+    remove.type = 'button';
+    remove.setAttribute('aria-pressed', 'true');
+    remove.setAttribute('aria-label', 'あとで読むから外す');
+    remove.title = 'あとで読むから外す';
+    remove.innerHTML =
+      '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>';
+    remove.addEventListener('click', () => {
+      storeSaved(loadSaved().filter((saved) => saved.id !== item.id));
+      render();
+    });
+    meta.append(remove);
+    li.append(title, meta);
+    return li;
+  }
+
+  function render() {
+    const saved = loadSaved();
+    list.replaceChildren(...saved.map(row));
+    empty.hidden = saved.length > 0;
+    toolbar.hidden = saved.length === 0;
+    total.textContent = `${saved.length}件`;
+  }
+
+  clear.addEventListener('click', () => {
+    if (!confirm('保存した記事をすべて削除しますか？')) return;
+    storeSaved([]);
+    render();
+  });
+  render();
+</script>
+
+<style>
+  .inline-icon {
+    display: inline-block;
+    vertical-align: -2px;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .toolbar[hidden] {
+    display: none;
+  }
+  .toolbar button {
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-2);
+    font: inherit;
+    padding: 4px 12px;
+    cursor: pointer;
+  }
+  .toolbar button:hover {
+    border-color: var(--hot);
+    color: var(--hot);
+  }
+  .empty[hidden] {
+    display: none;
+  }
+</style>

@@ -23,7 +23,6 @@ describe('loadSources', () => {
   it('リポジトリの sources.yaml が正しく読み込める', () => {
     const sources = loadSources();
     expect(sources.length).toBeGreaterThan(0);
-    expect(sources.some((source) => source.aggregator)).toBe(true);
   });
 
   it('正しい定義を読み込む', () => {

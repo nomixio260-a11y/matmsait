@@ -56,16 +56,17 @@ describe('listItems', () => {
 describe('allowsSummary', () => {
   const at = '2026-10-06T00:00:00.000Z';
 
-  it('要約の掲載を禁じている掲載元（summary: false）の記事は、要約の候補にしない', () => {
+  it('要約の掲載を禁じている掲載元（summary: false）の記事は、要約を作らない・載せない', () => {
     expect(allowsSummary({ ...item('a', at, 'aera-digital'), url: 'https://dot.asahi.com/articles/-/1' })).toBe(false);
   });
 
-  it('はてブ経由で見つけた記事も、元のサイトが summary: false なら候補にしない', () => {
-    expect(allowsSummary({ ...item('b', at, 'hatena-social'), url: 'https://dot.asahi.com/articles/-/2' })).toBe(false);
-    expect(allowsSummary({ ...item('c', at, 'hatena-social'), url: 'https://example.com/news/3' })).toBe(true);
+  it('登録していない（利用条件を確認していない・外した）サイトの記事は、要約を作らない・載せない', () => {
+    expect(allowsSummary({ ...item('b', at, 'itmedia'), url: 'https://www.itmedia.co.jp/news/articles/1.html' })).toBe(false);
+    expect(allowsSummary({ ...item('c', at, 'hatena-social'), url: 'https://example.com/news/3' })).toBe(false);
   });
 
-  it('それ以外の掲載元の記事は候補にする', () => {
+  it('登録している掲載元の記事は、集約元経由で見つけたものも含めて要約できる', () => {
     expect(allowsSummary({ ...item('d', at, 'zenn'), url: 'https://zenn.dev/someone/articles/4' })).toBe(true);
+    expect(allowsSummary({ ...item('e', at, 'hatena-it'), url: 'https://www.4gamer.net/games/1/' })).toBe(true);
   });
 });

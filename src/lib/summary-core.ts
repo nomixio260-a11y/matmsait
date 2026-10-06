@@ -35,17 +35,28 @@ export interface PromptOptions {
   points: boolean;
 }
 
+/** 背景・用語の説明の長さの上限（字） */
+export const BACKGROUND_MAX = 120;
+/** キーワードの数の上限 */
+export const KEYWORDS_MAX = 5;
+
 /** 要約の書き方のルール */
 export function summaryRules(length: SummaryLength, points: boolean): string[] {
   const { min, max } = SUMMARY_LENGTHS[length];
   return [
-    `- summary は${min}〜${max}字程度。何が・誰が・どうなったのかが一読でわかるように書く。`,
+    `- summary は${min}〜${max}字程度。1文目で「誰が（何が）・何を・どうした」を書き、2文目以降で数字・日付・理由・今後の予定など具体的な内容を補う。`,
     '- 文体は常体（だ・である調）。見出しをそのまま繰り返して始めない。',
     ...(points
-      ? ['- points には記事の重要なポイントを重要な順に3つまで。1つ40字以内の短い文にする。']
+      ? [
+          '- points には、記事を読まなくても内容がわかる具体的なポイントを重要な順に3つまで。1つ40字以内の短い文にし、数字・日付・固有名詞を入れる。summary と同じ文を繰り返さない。',
+        ]
       : ['- points は常に空の配列 [] にする。']),
-    '- 原文の文章をそのまま書き写さず、自分の言葉で言い換える（直接の引用はしない）。',
-    '- 記事に書かれていないこと、推測、意見や感想は加えない。',
+    `- background には、この話題を理解するのに役立つ背景や用語の説明を${BACKGROUND_MAX}字以内で1〜2文書く（例: 専門用語の意味、これまでの経緯）。記事の本文に書かれていること、または広く知られた一般的な事実だけを使う。書くことがなければ空文字 ""。`,
+    `- keywords には、記事の中心になる固有名詞（人名・企業名・製品名・作品名・出来事の名前など）を重要な順に3〜${KEYWORDS_MAX}個。記事に出てくる表記のまま、1つ20字以内で書く。「発表」「ニュース」のような一般的な言葉は入れない。`,
+    '- 著作権に配慮し、本文の文章を書き写さない。本文と10文字以上同じ文字の並びを使わない（固有名詞・製品名・正式名称は除く）。発言の直接の引用もしない（「〜と述べた」のように言い換える）。',
+    '- 数字・日付・金額・固有名詞は本文と1文字も違えずに書く。本文で「〜の見通し」「〜と報じられている」など不確かに書かれていることは、断定せずにそのまま不確かな表現で書く。',
+    '- 記事に書かれていないこと、推測、意見や感想（「画期的」「驚き」など）は加えない。見出しのあおるような表現もまねない。',
+    '- 事件・事故の記事では、容疑者・被害者・関係者など一般の個人の名前は書かない（公人・著名人・企業・団体の名前は書いてよい）。',
   ];
 }
 
@@ -81,8 +92,10 @@ export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length
       status: 'ok',
       summary: EXAMPLE_SUMMARIES[length],
       points: points ? ['価格は前モデルから据え置き', '11月に国内で発売', 'カメラ性能と電池の持ちが向上'] : [],
+      background: '○○社のスマートフォンは国内の販売台数で上位を占めており、毎年秋に新モデルを発表している。',
+      keywords: ['○○社', '△△', 'スマートフォン'],
     },
-    { id: EXAMPLE_IDS[1], status: 'unavailable', summary: '', points: [] },
+    { id: EXAMPLE_IDS[1], status: 'unavailable', summary: '', points: [], background: '', keywords: [] },
   ];
   const lines = [
     `あなたはニュースまとめサイト「${siteName}」の編集者です。`,
@@ -97,18 +110,20 @@ export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length
     '',
     '# 要約の書き方',
     ...summaryRules(length, points),
-    '- excerpt は RSS の抜粋。記事を見分ける参考にとどめ、要約は必ず本文にもとづいて書く。',
+    '- excerpt は RSS の抜粋。記事を見分ける参考にとどめ、要約は必ず本文にもとづいて書く。見出しと抜粋だけで要約を書かない。',
     '',
     '# 出力形式（必ず守る）',
     '- 回答は ```json で始まり ``` で終わるコードブロック1つだけにする。コードブロックの前後に説明・あいさつ・注意書きを書かない。',
     `- コードブロックの中身は JSON 配列。記事一覧の1件につきオブジェクト1つを、記事一覧と同じ順番で、ちょうど${count}件入れる。`,
-    '- 各オブジェクトには次の4つの項目だけを入れる（項目名は英字のまま。ほかの項目は足さない）。',
+    '- 各オブジェクトには次の6つの項目だけを入れる（項目名は英字のまま。ほかの項目は足さない）。',
     '  - "id"（文字列）: 記事一覧の id を1文字も変えずにそのまま書き写す。',
     '  - "status"（文字列）: 要約できた記事は "ok"、本文を読めなかった記事は "unavailable"。この2つ以外の値にしない。',
     `  - "summary"（文字列）: 要約文（${min}〜${max}字程度）。status が "unavailable" のときは空文字 ""。`,
     points
       ? '  - "points"（文字列の配列）: 要点を0〜3個。status が "unavailable" のときは空の配列 []。'
       : '  - "points"（文字列の配列）: 常に空の配列 []。',
+    `  - "background"（文字列）: 背景・用語の説明（${BACKGROUND_MAX}字以内）。書くことがない、または status が "unavailable" のときは空文字 ""。`,
+    `  - "keywords"（文字列の配列）: キーワードを3〜${KEYWORDS_MAX}個。status が "unavailable" のときは空の配列 []。`,
     '- JSON の書き方:',
     '  - 文字列はダブルクォート（"）で囲む。項目名もダブルクォートで囲む。',
     '  - 文中で引用符を使うときは「」を使い、" は使わない（どうしても使うときは \\" と書く）。',
@@ -126,6 +141,7 @@ export function buildSummaryPrompt(articles: PromptArticle[], { siteName, length
     `- オブジェクトが${count}件あり、記事一覧と同じ順番になっているか`,
     '- すべての id が記事一覧の id と完全に一致しているか',
     '- 読めなかった記事を推測で要約せず、status を "unavailable" にしたか',
+    '- 数字・日付・固有名詞が本文と一致しているか。本文を書き写した文や、記事にない推測・感想が入っていないか',
     '- 出力がコードブロック1つだけで、JSON として正しい形（括弧・カンマ・ダブルクォート）になっているか',
     '',
     `# 記事一覧（${count}件）`,
@@ -143,6 +159,10 @@ export interface SummaryEntry {
   status: string;
   summary: string;
   points: string[];
+  /** 背景・用語の説明（ない場合は空文字） */
+  background?: string;
+  /** キーワード */
+  keywords?: string[];
 }
 
 /** JSON として読む。末尾の余分なカンマや、配列の括弧がない「1行に1件」の形も読めるよう直して試す */
@@ -190,11 +210,13 @@ export function extractJson(text: string): unknown {
 }
 
 /** 項目名のゆれ（日本語の項目名など）を吸収するための別名 */
-const KEY_ALIASES: Record<'id' | 'status' | 'summary' | 'points', string[]> = {
+const KEY_ALIASES: Record<'id' | 'status' | 'summary' | 'points' | 'background' | 'keywords', string[]> = {
   id: ['id', 'ID', 'Id', 'article_id', 'articleId', '記事ID', '記事id'],
   status: ['status', 'Status', '状態', 'ステータス'],
   summary: ['summary', 'Summary', '要約', '要約文'],
   points: ['points', 'Points', 'key_points', 'keyPoints', 'bullets', '要点', 'ポイント'],
+  background: ['background', 'Background', 'context', 'explanation', '背景', '解説', '用語解説'],
+  keywords: ['keywords', 'Keywords', 'tags', 'Tags', 'キーワード', 'タグ'],
 };
 
 function pick(record: Record<string, unknown>, key: keyof typeof KEY_ALIASES): unknown {
@@ -214,6 +236,16 @@ function toPoints(value: unknown): string[] {
       ? value.split(/\n/)
       : [];
   return list.map(stripBullet);
+}
+
+/** キーワードは配列のほか「A、B、C」「A, B」のような文字列でも受け取る */
+function toKeywords(value: unknown): string[] {
+  const list = Array.isArray(value)
+    ? value.filter((keyword): keyword is string => typeof keyword === 'string')
+    : typeof value === 'string'
+      ? value.split(/[、,，\n]/)
+      : [];
+  return list.map((keyword) => stripBullet(keyword).replace(/^[#＃]/, '').trim()).filter(Boolean);
 }
 
 /** さまざまな形の回答（配列 / {summaries: [...]} / {id: {...}}）を同じ形にそろえる */
@@ -244,11 +276,14 @@ export function normalizeEntries(data: unknown): SummaryEntry[] {
   return list.map((entry) => {
     const record = (entry && typeof entry === 'object' ? entry : {}) as Record<string, unknown>;
     const summary = pick(record, 'summary');
+    const background = pick(record, 'background');
     return {
       id: String(pick(record, 'id') ?? '').trim(),
       status: String(pick(record, 'status') ?? 'ok').trim().toLowerCase(),
       summary: typeof summary === 'string' ? summary : '',
       points: toPoints(pick(record, 'points')),
+      background: typeof background === 'string' ? background : '',
+      keywords: toKeywords(pick(record, 'keywords')),
     };
   });
 }
@@ -295,6 +330,10 @@ export interface AcceptedSummary {
   id: string;
   summary: string;
   points: string[];
+  /** 背景・用語の説明（ない場合は省略） */
+  background?: string;
+  /** キーワード（ない場合は省略） */
+  keywords?: string[];
   /** 既存の要約を置き換える */
   replaces: boolean;
 }
@@ -371,7 +410,19 @@ export function validateEntries(
       .filter(Boolean)
       .slice(0, maxPoints)
       .map((point) => truncate(point, maxPointLength));
-    result.accepted.push({ id, summary, points, replaces: article.summarized });
+    // 背景・キーワードはなくてもよい（長すぎる・多すぎる分は切り詰める）
+    const background = truncate(cleanText(entry.background ?? ''), BACKGROUND_MAX + 30);
+    const keywords = [...new Set((entry.keywords ?? []).map((keyword) => cleanText(keyword)).filter(Boolean))]
+      .filter((keyword) => charLength(keyword) <= 30)
+      .slice(0, KEYWORDS_MAX + 1);
+    result.accepted.push({
+      id,
+      summary,
+      points,
+      ...(background && !(checkRefusal && REFUSAL.test(background)) ? { background } : {}),
+      ...(keywords.length > 0 ? { keywords } : {}),
+      replaces: article.summarized,
+    });
   }
   return result;
 }
@@ -384,7 +435,7 @@ export function summaryFilePath(publishedAt: string): string {
 }
 
 export function toSummaryRecord(article: Item, accepted: AcceptedSummary, now: Date): SummaryRecord {
-  const { id, title, url, excerpt, sourceId, category, publishedAt, hatebu } = article;
+  const { id, title, url, excerpt, sourceId, category, publishedAt } = article;
   return {
     id,
     title,
@@ -393,20 +444,35 @@ export function toSummaryRecord(article: Item, accepted: AcceptedSummary, now: D
     sourceId,
     category,
     publishedAt,
-    ...(hatebu ? { hatebu } : {}),
     summary: accepted.summary,
     points: accepted.points,
+    ...(accepted.background ? { background: accepted.background } : {}),
+    ...(accepted.keywords?.length ? { keywords: accepted.keywords } : {}),
     summarizedAt: now.toISOString(),
   };
 }
 
+export interface SummaryEdit {
+  summary: string;
+  points: string[];
+  /** 空文字・空の配列なら項目ごと消す。省略したら今の値のまま */
+  background?: string;
+  keywords?: string[];
+}
+
 /** 運営者が手直しした要約（記事情報と最初に保存した日時はそのまま） */
-export function editSummaryRecord(
-  record: SummaryRecord,
-  { summary, points }: { summary: string; points: string[] },
-  now: Date,
-): SummaryRecord {
-  return { ...record, summary, points, updatedAt: now.toISOString() };
+export function editSummaryRecord(record: SummaryRecord, edit: SummaryEdit, now: Date): SummaryRecord {
+  const { background: _background, keywords: _keywords, ...rest } = record;
+  const background = edit.background ?? record.background;
+  const keywords = edit.keywords ?? record.keywords;
+  return {
+    ...rest,
+    summary: edit.summary,
+    points: edit.points,
+    ...(background ? { background } : {}),
+    ...(keywords?.length ? { keywords } : {}),
+    updatedAt: now.toISOString(),
+  };
 }
 
 /** 要約ファイルを読む。空なら空配列、壊れていればエラー（上書きして消さないため） */
@@ -414,7 +480,8 @@ export function parseSummaryFile(text: string | null): SummaryRecord[] {
   if (!text || !text.trim()) return [];
   const data = JSON.parse(text) as unknown;
   if (!Array.isArray(data)) throw new Error('要約ファイルの形式が正しくありません');
-  return data as SummaryRecord[];
+  // 以前の版が保存していたはてなブックマーク数（はてなの規約で商用サイトでは使えないため取得をやめた）は外す
+  return (data as (SummaryRecord & { hatebu?: number })[]).map(({ hatebu: _, ...record }) => record);
 }
 
 /** 既存の要約に追加・上書き・削除を反映し、記事の新しい順に並べる */

@@ -4,7 +4,7 @@ export interface Source {
   feedUrl: string;
   siteUrl: string;
   category: string;
-  /** はてなブックマークなど、他サイトの記事を紹介する集約元か */
+  /** 他サイトの記事を紹介する集約元か（現在は登録なし。以前ははてなブックマークに使っていた） */
   aggregator?: boolean;
   /** タイトルから取り除く文字列の正規表現（例: JAXA の「[プレスリリース・記者会見等] 」を消す "^\\[[^\\]]+\\]\\s*"） */
   stripTitle?: string;
@@ -25,8 +25,11 @@ export interface Item {
   category: string;
   /** ISO 8601 */
   publishedAt: string;
-  /** はてなブックマーク数（0件のときは省略） */
-  hatebu?: number;
+  /**
+   * 同じ話題を報じた掲載元の数（話題度。2以上のときだけ）。
+   * items.json には保存せず、日別まとめ（data/daily）に保存するときとビルド時に計算して付ける
+   */
+  coverage?: number;
 }
 
 /** 1日分の話題の記事（data/daily/YYYY-MM-DD.json） */
@@ -39,7 +42,7 @@ export interface DailySnapshot {
   total: number;
   /** カテゴリごとの記事数 */
   counts: Record<string, number>;
-  /** はてブ数の多い記事とカテゴリごとの上位記事（人気順） */
+  /** 多くの掲載元が報じた話題の記事・AI 要約のある記事と、カテゴリごとの上位記事（話題度の高い順） */
   items: Item[];
 }
 
@@ -49,6 +52,10 @@ export interface SummaryRecord extends Item {
   summary: string;
   /** 要点（箇条書き） */
   points: string[];
+  /** 背景・用語の説明（AI が書いた場合だけ） */
+  background?: string;
+  /** キーワード（記事の中心になる固有名詞など） */
+  keywords?: string[];
   /** 要約を保存した日時（ISO 8601） */
   summarizedAt: string;
   /** 管理画面で要約を手直しした日時（ISO 8601。手直ししていなければなし） */

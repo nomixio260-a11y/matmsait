@@ -11,6 +11,8 @@
   --accent: #c2410c;
   --accent-strong: #9a3412;
   --accent-soft: #fff0e6;
+  /* 検索で一致した部分のマーカー */
+  --mark: #fde68a;
   --on-accent: #ffffff;
   --hot: #c0183f;
   --hot-soft: #ffe8ee;
@@ -35,6 +37,7 @@
     --accent: #ff8a4c;
     --accent-strong: #ffa774;
     --accent-soft: #2b1b11;
+    --mark: #6b4a0f;
     --on-accent: #1a0f08;
     --hot: #ff6b8b;
     --hot-soft: #3a1520;
@@ -58,6 +61,7 @@
   --accent: #ff8a4c;
   --accent-strong: #ffa774;
   --accent-soft: #2b1b11;
+  --mark: #6b4a0f;
   --on-accent: #1a0f08;
   --hot: #ff6b8b;
   --hot-soft: #3a1520;

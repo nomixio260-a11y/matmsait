@@ -74,7 +74,8 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
     const { accept, headers, permission, ...rest } = init;
     let res: Response;
     try {
-      res = await fetchImpl(`${base}${path}`, {
+      // path が https:// から始まるときはリポジトリの外の API（ユーザー情報など）
+      res = await fetchImpl(path.startsWith('https://') ? path : `${base}${path}`, {
         ...rest,
         // 管理画面はブラウザから直接 GitHub API を呼ぶので、GitHub の CORS が許可しているヘッダーだけを送る
         // （X-GitHub-Api-Version などを付けるとブラウザに通信を止められる。CORS_ALLOWED_HEADERS を参照）
@@ -101,6 +102,12 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
   async function repository(): Promise<{ defaultBranch: string; canPush: boolean; isPrivate: boolean }> {
     const data = await json<{ default_branch: string; private?: boolean; permissions?: { push?: boolean } }>('');
     return { defaultBranch: data.default_branch, canPush: data.permissions?.push === true, isPrivate: data.private === true };
+  }
+
+  /** トークンの持ち主の GitHub ユーザー名（ログイン中の表示用） */
+  async function user(): Promise<{ login: string }> {
+    const data = await json<{ login?: string }>('https://api.github.com/user');
+    return { login: data.login ?? '' };
   }
 
   /** あるコミット時点のファイルの中身。存在しなければ null */
@@ -184,7 +191,7 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
     }));
   }
 
-  return { repository, readFile, commitFiles, dispatchWorkflow, listWorkflowRuns };
+  return { repository, user, readFile, commitFiles, dispatchWorkflow, listWorkflowRuns };
 }
 
 export interface WorkflowRun {

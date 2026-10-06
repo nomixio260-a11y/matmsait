@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isHidden } from './blocklist.ts';
+import { allowsSummary } from './items.ts';
 import { parseSummaryFile } from './summary-core.ts';
 import type { SummaryRecord } from './types.ts';
 
@@ -30,14 +31,17 @@ export function getAllSummaries(): SummaryRecord[] {
   );
 }
 
-/** サイトに載せる要約（管理画面で非表示にした記事を除く） */
+/** サイトに載せてよい要約か（管理画面で非表示にした記事と、要約を載せられない掲載元の記事を除く） */
+const isPublishable = (record: SummaryRecord) => !isHidden(record) && allowsSummary(record);
+
+/** サイトに載せる要約 */
 export function getSummaries(): SummaryRecord[] {
-  return getAllSummaries().filter((record) => !isHidden(record));
+  return getAllSummaries().filter(isPublishable);
 }
 
 export function getSummary(id: string): SummaryRecord | undefined {
   const record = load().get(id);
-  return record && !isHidden(record) ? record : undefined;
+  return record && isPublishable(record) ? record : undefined;
 }
 
 export function summaryPath(id: string): string {

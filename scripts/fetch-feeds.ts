@@ -4,7 +4,7 @@ import Parser from 'rss-parser';
 import { loadSources, MAX_LIMIT } from '../src/lib/sources.ts';
 import { getSummary } from '../src/lib/summaries.ts';
 import type { Item, Source } from '../src/lib/types.ts';
-import { updateDailySnapshots } from './lib/daily.ts';
+import { pruneDailySnapshots, updateDailySnapshots } from './lib/daily.ts';
 import {
   conditionalHeaders,
   readFeedStates,
@@ -14,7 +14,6 @@ import {
   type FeedStates,
   type FetchOutcome,
 } from './lib/feed-state.ts';
-import { fetchHatenaCounts } from './lib/hatena.ts';
 import { siteKey } from './lib/hosts.ts';
 import { closeConnections, decodeBody, httpGet, type HttpResponse } from './lib/http.ts';
 import { buildExcerpt, cleanTitle, itemId, normalizePublishedAt, normalizeUrl } from './lib/normalize.ts';
@@ -26,8 +25,6 @@ const FEEDS_PATH = resolve(process.cwd(), 'data/feeds.json');
 const DAILY_DIR = resolve(process.cwd(), 'data/daily');
 /** 同時にアクセスするサイト数（同じ運営元のサイトへは常に1件ずつ） */
 const SITE_CONCURRENCY = 6;
-/** はてブ数を更新する対象（公開からこの時間以内の記事） */
-const HATEBU_WINDOW_HOURS = 36;
 
 const parser = new Parser();
 
@@ -174,24 +171,6 @@ function writeJobSummary(results: SourceResult[], added: Map<string, number>, to
   appendFileSync(file, `${lines.join('\n')}\n`);
 }
 
-/** 直近の記事のはてなブックマーク数を更新する。失敗しても前回の値を残して続行 */
-async function updateHatebu(items: Item[], now: Date): Promise<void> {
-  const cutoff = now.getTime() - HATEBU_WINDOW_HOURS * 60 * 60 * 1000;
-  const targets = items.filter((item) => Date.parse(item.publishedAt) >= cutoff);
-  try {
-    const counts = await fetchHatenaCounts(targets.map((item) => item.url));
-    for (const item of targets) {
-      const count = counts.get(item.url);
-      if (count === undefined) continue;
-      if (count > 0) item.hatebu = count;
-      else delete item.hatebu;
-    }
-    console.log(`はてなブックマーク数を ${targets.length} 件更新しました`);
-  } catch (error) {
-    console.warn(`はてなブックマーク数の取得に失敗: ${error instanceof Error ? error.message : error}`);
-  }
-}
-
 async function main() {
   const now = new Date();
   const sources = loadSources();
@@ -212,7 +191,6 @@ async function main() {
   const merged = pruneItems(withSourceSettings(mergeItems(existing, fetched, isAggregator, hasSummary), sources), {
     now,
   });
-  await updateHatebu(merged, now);
   closeConnections();
 
   const existingIds = new Set(existing.map((item) => item.id));
@@ -223,7 +201,11 @@ async function main() {
   writeJobSummary(results, addedBySource, merged.length, states);
   writeFeedStates(FEEDS_PATH, states);
   writeItemsFile(ITEMS_PATH, merged);
-  const days = updateDailySnapshots(merged, DAILY_DIR, now);
+  // 日別まとめ: sources.yaml から外した掲載元の記事は過去の分からも外し、直近数日分を作り直す
+  const keep = (item: Item) => sourceById.has(item.sourceId);
+  const pruned = pruneDailySnapshots(DAILY_DIR, keep);
+  if (pruned.length > 0) console.log(`日別まとめから外した掲載元の記事を削除: ${pruned.join(', ')}`);
+  const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep, hasSummary });
   console.log(
     `新規 ${added} 件 / 合計 ${merged.length} 件を保存しました（成功 ${sources.length - failed.length} / 失敗 ${failed.length}）`,
   );

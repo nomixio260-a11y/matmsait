@@ -7,7 +7,6 @@ import type { Item, Source } from './types.ts';
 
 // Astro のビルド後はモジュールの位置が変わるため、プロジェクトルート基準で解決する
 const ITEMS_PATH = resolve(process.cwd(), 'data/items.json');
-const HOUR = 60 * 60 * 1000;
 const TIME_ZONE = 'Asia/Tokyo';
 
 /** ビルド時刻（ランキングの集計基準・最終更新の表示に使う） */
@@ -16,11 +15,19 @@ export const builtAt = new Date();
 let allItemsCache: Item[] | undefined;
 let itemsCache: Item[] | undefined;
 
-/** 収集済みのすべての記事を新着順で返す（非表示の記事を含む。ビルド時に1回だけ読み込む） */
+/**
+ * 収集済みのすべての記事を新着順で返す（非表示の記事を含む。ビルド時に1回だけ読み込む）。
+ * sources.yaml から外した掲載元の記事は、次の収集で消えるまでの間も載せない
+ */
 export function getAllItems(): Item[] {
   if (!allItemsCache) {
-    const items: Item[] = existsSync(ITEMS_PATH) ? JSON.parse(readFileSync(ITEMS_PATH, 'utf8')) : [];
-    allItemsCache = items.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    const items: (Item & { hatebu?: number })[] = existsSync(ITEMS_PATH)
+      ? JSON.parse(readFileSync(ITEMS_PATH, 'utf8'))
+      : [];
+    allItemsCache = items
+      .filter((item) => getSourceMap().has(item.sourceId))
+      .map(({ hatebu: _, ...item }) => item)
+      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
   }
   return allItemsCache;
 }
@@ -71,27 +78,6 @@ export function countByCategory(): Map<string, number> {
   return counts;
 }
 
-export interface RankingOptions {
-  /** 公開からこの時間以内の記事を対象にする */
-  hours?: number;
-  category?: string;
-  limit?: number;
-}
-
-/** はてなブックマーク数の多い順に並べた人気記事 */
-export function getRanking({ hours = 24, category, limit = 10 }: RankingOptions = {}): Item[] {
-  const cutoff = builtAt.getTime() - hours * HOUR;
-  return getItems()
-    .filter(
-      (item) =>
-        (item.hatebu ?? 0) > 0 &&
-        Date.parse(item.publishedAt) >= cutoff &&
-        (!category || item.category === category),
-    )
-    .sort((a, b) => (b.hatebu ?? 0) - (a.hatebu ?? 0) || b.publishedAt.localeCompare(a.publishedAt))
-    .slice(0, limit);
-}
-
 let sourceMap: Map<string, Source> | undefined;
 let hostMap: Map<string, Source> | undefined;
 
@@ -130,7 +116,7 @@ export interface SiteInfo {
   source?: Source;
 }
 
-/** 記事の出典。はてブ経由の記事でも、元サイトが掲載元にあればその名前で表示する */
+/** 記事の出典。集約元（他サイトの記事を紹介するフィード）経由の記事でも、元サイトが掲載元にあればその名前で表示する */
 export function siteOf(item: Item): SiteInfo {
   const host = hostOf(item.url);
   const source = getSource(item.sourceId);
@@ -140,12 +126,13 @@ export function siteOf(item: Item): SiteInfo {
 }
 
 /**
- * AI 要約の候補にしてよい記事か。利用規約で要約の掲載を禁じている掲載元（summary: false）の記事は、
- * はてブ経由で見つけたものも含めて候補にしない
+ * AI 要約を作って載せてよい記事か。利用条件を確認して登録している掲載元（sources.yaml）の記事で、
+ * 規約で要約の掲載を禁じていない（summary: false でない）ものだけ。
+ * 掲載元を外したら、その掲載元の記事の要約もサイトに載せない
  */
 export function allowsSummary(item: Item): boolean {
-  if (getSource(item.sourceId)?.summary === false) return false;
-  return siteOf(item).source?.summary !== false;
+  const source = siteOf(item).source;
+  return source !== undefined && source.summary !== false;
 }
 
 export function getCategory(slug: string) {

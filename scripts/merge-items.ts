@@ -27,5 +27,5 @@ const other = readItemsFile(otherPath).filter((item) => known(item.sourceId));
 const hasSummary = (id: string) => Boolean(getSummary(id));
 const merged = pruneItems(withSourceSettings(mergeItems(current, other, isAggregator, hasSummary), sources), { now });
 writeItemsFile(ITEMS_PATH, merged);
-const days = updateDailySnapshots(merged, DAILY_DIR, now);
+const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep: (item) => known(item.sourceId), hasSummary });
 console.log(`マージ後 ${merged.length} 件（日別まとめを更新: ${days.join(', ') || 'なし'}）`);

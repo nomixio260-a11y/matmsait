@@ -8,7 +8,7 @@ import {
   serializeBlocklist,
   type Blocklist,
 } from '../lib/blocklist-core.ts';
-import { createGitHubClient, type Repository, type WorkflowRun } from '../lib/github-commit.ts';
+import { createGitHubClient, GitHubError, type Repository, type WorkflowRun } from '../lib/github-commit.ts';
 import {
   buildSummaryPrompt,
   editSummaryRecord,
@@ -22,10 +22,12 @@ import {
   toSummaryRecord,
   validateEntries,
   type AcceptedSummary,
+  type SummaryEdit,
   type SummaryLength,
   type ValidationResult,
 } from '../lib/summary-core.ts';
 import type { Item, SummaryRecord } from '../lib/types.ts';
+import { requireSession, watchSession } from './admin-common.ts';
 
 interface AdminArticle extends Item {
   site: string;
@@ -34,6 +36,8 @@ interface AdminArticle extends Item {
 interface AdminSummary extends AdminArticle {
   summary: string;
   points: string[];
+  background?: string;
+  keywords?: string[];
   summarizedAt: string;
 }
 
@@ -69,7 +73,6 @@ interface AdminData {
 }
 
 const KEYS = {
-  token: 'admin.githubToken',
   saved: 'admin.savedIds',
   deleted: 'admin.deletedIds',
   hidden: 'admin.hiddenIds',
@@ -104,13 +107,6 @@ const storage = {
       // 保存できなくても画面の操作は続けられる
     }
   },
-  remove(key: string) {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      // 同上
-    }
-  },
 };
 
 /** 記事ID → 保存した時刻（サイトに反映されるまでの間、一覧から外すため） */
@@ -143,8 +139,6 @@ const base = root.dataset.base ?? '';
 
 const ui = {
   dataInfo: $('data-info'),
-  token: $<HTMLInputElement>('token'),
-  remember: $<HTMLInputElement>('remember'),
   tokenBadge: $('token-badge'),
   tokenStatus: $('token-status'),
   repoName: $('repo-name'),
@@ -196,6 +190,14 @@ function setStatus(target: HTMLElement, text: string, kind: 'ok' | 'error' | '' 
   target.className = `status ${kind}`.trim();
 }
 
+/** エラーの説明。トークンが使えなくなったときは、設定し直す方法も伝える */
+function errorText(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return error instanceof GitHubError && error.status === 401
+    ? `${message}。ログアウトして、ログインページの「保存したトークンを消してやり直す」から設定し直してください`
+    : message;
+}
+
 const dateFormat = new Intl.DateTimeFormat('ja-JP', {
   timeZone: 'Asia/Tokyo',
   month: 'numeric',
@@ -212,6 +214,7 @@ const selected = new Set<string>();
 let batch: AdminArticle[] = [];
 let validation: ValidationResult | undefined;
 const excluded = new Set<string>();
+/** ログイン中に使う GitHub のトークン（ログインページで暗号化を解いたもの。このタブの中だけで使う） */
 let token = '';
 
 const categoryName = (slug: string) => data?.categories.find((c) => c.slug === slug)?.name ?? slug;
@@ -221,7 +224,7 @@ function articleMeta(article: AdminArticle): string {
     article.site,
     categoryName(article.category),
     dateFormat.format(new Date(article.publishedAt)),
-    article.hatebu ? `${article.hatebu} users` : '',
+    article.coverage ? `${article.coverage}社が報道` : '',
   ]
     .filter(Boolean)
     .join(' ・ ');
@@ -245,7 +248,7 @@ function pendingArticles(): AdminArticle[] {
   const sorted =
     ui.sort.value === 'latest'
       ? list.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-      : list.sort((a, b) => (b.hatebu ?? 0) - (a.hatebu ?? 0) || b.publishedAt.localeCompare(a.publishedAt));
+      : list.sort((a, b) => (b.coverage ?? 1) - (a.coverage ?? 1) || b.publishedAt.localeCompare(a.publishedAt));
   if (!ui.includeSummarized.checked) return sorted;
   // 作り直しのときは、要約済みの記事を先に並べる（多数の記事に埋もれないように）
   const summarizedIds = new Set(data.summarized.map((article) => article.id));
@@ -305,6 +308,7 @@ function renderCounter(total: number) {
 function renderPrompt() {
   if (!data) return;
   batch = pendingArticles().filter((article) => selected.has(article.id));
+  saveDraft();
   if (batch.length === 0) {
     ui.prompt.value = '';
     ui.promptInfo.textContent = '記事を選ぶとプロンプトが表示されます';
@@ -316,6 +320,53 @@ function renderPrompt() {
   );
   ui.promptInfo.textContent = `${batch.length}件 ・ ${ui.prompt.value.length.toLocaleString()}字`;
   saveOptions();
+}
+
+// ===== 作業中の内容（自動ログアウトやページの再読み込みで消えないようにする） =====
+
+/** 選んだ記事と貼り付けた回答。このタブの中にだけ残し、タブを閉じると消える */
+interface Draft {
+  selected: string[];
+  response: string;
+  category: string;
+  includeSummarized: boolean;
+  savedAt: number;
+}
+const DRAFT_KEY = 'admin.draft';
+const DRAFT_TTL = 12 * 60 * 60 * 1000;
+
+function saveDraft() {
+  const draft: Draft = {
+    selected: [...selected],
+    response: ui.response.value,
+    category: ui.category.value,
+    includeSummarized: ui.includeSummarized.checked,
+    savedAt: Date.now(),
+  };
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // 残せなくても作業は続けられる
+  }
+}
+
+/** 残しておいた作業中の内容を戻す。戻したら true */
+function restoreDraft(): boolean {
+  let draft: Partial<Draft> | null;
+  try {
+    draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? 'null') as Partial<Draft> | null;
+  } catch {
+    return false;
+  }
+  if (!draft || !Array.isArray(draft.selected) || Date.now() - (draft.savedAt ?? 0) > DRAFT_TTL) return false;
+  if (draft.selected.length === 0 && !draft.response) return false;
+  ui.includeSummarized.checked = draft.includeSummarized === true;
+  if ([...ui.category.options].some((option) => option.value === draft.category)) ui.category.value = draft.category ?? '';
+  const available = new Set(pendingArticles().map((article) => article.id));
+  selected.clear();
+  for (const id of draft.selected) if (available.has(id)) selected.add(id);
+  ui.response.value = typeof draft.response === 'string' ? draft.response : '';
+  return true;
 }
 
 function saveOptions() {
@@ -391,7 +442,7 @@ function checkResponse() {
   try {
     entries = normalizeEntries(extractJson(text));
   } catch (error) {
-    ui.checkResult.append(el('p', 'status error', error instanceof Error ? error.message : String(error)));
+    ui.checkResult.append(el('p', 'status error', errorText(error)));
     renderSaveArea();
     return;
   }
@@ -436,6 +487,8 @@ function checkResponse() {
       points.append(...entry.points.map((point) => el('li', '', point)));
       body.append(points);
     }
+    if (entry.background) body.append(el('div', 'pick-meta', `背景: ${entry.background}`));
+    if (entry.keywords?.length) body.append(el('div', 'pick-meta', `キーワード: ${entry.keywords.join('、')}`));
     row.append(include, body, el('td', 'result-state ok', entry.replaces ? 'OK（上書き）' : 'OK'));
     table.append(row);
   }
@@ -460,7 +513,7 @@ function checkResponse() {
 
 function githubClient() {
   if (!data) throw new Error('記事データを読み込めていません');
-  if (!token) throw new Error('先に「GitHub との連携」でトークンを設定してください');
+  if (!token) throw new Error('ログインし直してください');
   return createGitHubClient(token, data.repository);
 }
 
@@ -507,7 +560,15 @@ async function saveSummaries() {
     const { changed } = await commitSummaries(records, [], `要約を追加（${records.length}件）`);
     addMarks(KEYS.saved, records.map((record) => record.id));
     // 作り直した要約は、サイトに反映されるまで「保存済みの要約」に新しい内容を出す
-    for (const record of records) if (findArticle(record.id)?.summarized) saveEdit(record.id, record.summary, record.points);
+    for (const record of records) {
+      if (!findArticle(record.id)?.summarized) continue;
+      saveEdit(record.id, {
+        summary: record.summary,
+        points: record.points,
+        background: record.background ?? '',
+        keywords: record.keywords ?? [],
+      });
+    }
     setStatus(
       ui.saveStatus,
       changed
@@ -524,7 +585,7 @@ async function saveSummaries() {
     renderPrompt();
     renderSavedList();
   } catch (error) {
-    setStatus(ui.saveStatus, `保存できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+    setStatus(ui.saveStatus, `保存できませんでした: ${errorText(error)}`, 'error');
   } finally {
     renderSaveArea();
   }
@@ -538,19 +599,21 @@ function downloadRecords() {
 
 // ===== 保存済みの要約（削除） =====
 
+type StoredEdit = SummaryEdit & { at: number };
+
 /** 手直しした要約（サイトに反映されるまでの間、画面に手直し後の内容を出すため） */
-function readEdits(): Map<string, { summary: string; points: string[]; at: number }> {
+function readEdits(): Map<string, StoredEdit> {
   try {
-    const entries = JSON.parse(storage.get(KEYS.edited) ?? '[]') as [string, { summary: string; points: string[]; at: number }][];
+    const entries = JSON.parse(storage.get(KEYS.edited) ?? '[]') as [string, StoredEdit][];
     return new Map(entries.filter(([, edit]) => Date.now() - edit.at < HIDE_FOR));
   } catch {
     return new Map();
   }
 }
 
-function saveEdit(id: string, summary: string, points: string[]) {
+function saveEdit(id: string, edit: SummaryEdit) {
   const edits = readEdits();
-  edits.set(id, { summary, points, at: Date.now() });
+  edits.set(id, { ...edit, at: Date.now() });
   storage.set(KEYS.edited, JSON.stringify([...edits]));
 }
 
@@ -563,12 +626,20 @@ function savedSummaries(): AdminSummary[] {
     .filter((record) => !deleted.has(record.id))
     .map((record) => {
       const edit = edits.get(record.id);
-      return edit ? { ...record, summary: edit.summary, points: edit.points } : record;
+      return edit
+        ? {
+            ...record,
+            summary: edit.summary,
+            points: edit.points,
+            background: edit.background ?? record.background,
+            keywords: edit.keywords ?? record.keywords,
+          }
+        : record;
     });
 }
 
 /** 1件の要約を手直しして保存する（最新のファイルを読み直し、その要約だけを書き換える） */
-async function commitSummaryEdit(record: AdminSummary, summary: string, points: string[]) {
+async function commitSummaryEdit(record: AdminSummary, edit: SummaryEdit) {
   const client = githubClient();
   const { defaultBranch, canPush } = await client.repository();
   if (!canPush) throw new Error('このトークンには書き込み権限がありません（Contents の Read and write が必要です）');
@@ -577,7 +648,7 @@ async function commitSummaryEdit(record: AdminSummary, summary: string, points: 
     const current = parseSummaryFile(await read(path));
     const target = current.find((other) => other.id === record.id);
     if (!target) throw new Error('この要約が見つかりません（削除されたか、まだサイトに反映されていない可能性があります）');
-    const updated = editSummaryRecord(target, { summary, points }, new Date());
+    const updated = editSummaryRecord(target, edit, new Date());
     return [{ path, content: serializeSummaryFile(mergeSummaryRecords(current, [updated])) }];
   });
 }
@@ -600,6 +671,19 @@ function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
   const pointsHead = el('span');
   pointsHead.append('要点（1行に1つ。空欄なら要点なし）');
   pointsField.append(pointsHead, pointsInput);
+  const backgroundField = el('label', 'field');
+  const backgroundInput = el('textarea');
+  backgroundInput.rows = 2;
+  backgroundInput.value = record.background ?? '';
+  const backgroundHead = el('span');
+  backgroundHead.append('背景・用語の説明（空欄なら表示しない）');
+  backgroundField.append(backgroundHead, backgroundInput);
+  const keywordsField = el('label', 'field');
+  const keywordsInput = el('input');
+  keywordsInput.value = (record.keywords ?? []).join('、');
+  const keywordsHead = el('span');
+  keywordsHead.append('キーワード（「、」で区切る）');
+  keywordsField.append(keywordsHead, keywordsInput);
   const status = el('p', 'status');
   const save = el('button', 'primary small', '保存して反映');
   save.type = 'button';
@@ -607,7 +691,7 @@ function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
   cancel.type = 'button';
   const actions = el('div', 'actions');
   actions.append(save, cancel);
-  editor.append(summaryField, pointsField, actions, status);
+  editor.append(summaryField, pointsField, backgroundField, keywordsField, actions, status);
 
   const updateCount = () => (summaryCount.textContent = `${Array.from(summaryInput.value.trim()).length}字`);
   summaryInput.addEventListener('input', updateCount);
@@ -615,9 +699,10 @@ function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
   cancel.addEventListener('click', () => editor.remove());
   save.addEventListener('click', async () => {
     const points = pointsInput.value.split('\n').map((line) => line.trim()).filter(Boolean);
+    const keywords = keywordsInput.value.split(/[、,，]/).map((keyword) => keyword.trim()).filter(Boolean);
     // AI の回答と同じ基準で確かめる（断り文の判定はしない）
     const checked = validateEntries(
-      [{ id: record.id, status: 'ok', summary: summaryInput.value, points }],
+      [{ id: record.id, status: 'ok', summary: summaryInput.value, points, background: backgroundInput.value, keywords }],
       () => ({ summarized: true }),
       { checkRefusal: false },
     );
@@ -629,12 +714,19 @@ function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
     save.disabled = true;
     setStatus(status, '保存しています…');
     try {
-      const { changed } = await commitSummaryEdit(record, accepted.summary, accepted.points);
-      saveEdit(record.id, accepted.summary, accepted.points);
+      // 空にした背景・キーワードは項目ごと消す
+      const edit: SummaryEdit = {
+        summary: accepted.summary,
+        points: accepted.points,
+        background: accepted.background ?? '',
+        keywords: accepted.keywords ?? [],
+      };
+      const { changed } = await commitSummaryEdit(record, edit);
+      saveEdit(record.id, edit);
       setStatus(status, changed ? '保存しました。1〜3分ほどでサイトに反映されます。' : '変更はありませんでした。', 'ok');
       setTimeout(onSaved, 1200);
     } catch (error) {
-      setStatus(status, `保存できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+      setStatus(status, `保存できませんでした: ${errorText(error)}`, 'error');
       save.disabled = false;
     }
   });
@@ -671,6 +763,8 @@ function renderSavedList() {
       if (edits.has(record.id)) meta.append(el('span', 'badge-inline', '手直し済み（反映待ち）'));
       label.append(box, el('span', 'pick-title', record.title), meta, el('span', 'pick-summary', record.summary));
       if (record.points.length > 0) label.append(el('span', 'pick-summary', record.points.map((point) => `・${point}`).join(' ')));
+      if (record.background) label.append(el('span', 'pick-meta', `背景: ${record.background}`));
+      if (record.keywords?.length) label.append(el('span', 'pick-meta', `キーワード: ${record.keywords.join('、')}`));
       const editButton = el('button', 'ghost small edit-button', '編集');
       editButton.type = 'button';
       editButton.setAttribute('aria-label', `${record.title} の要約を編集`);
@@ -704,7 +798,7 @@ function renderSavedList() {
       renderSavedList();
       renderPickList();
     } catch (error) {
-      setStatus(ui.deleteStatus, `削除できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+      setStatus(ui.deleteStatus, `削除できませんでした: ${errorText(error)}`, 'error');
       sync();
     }
   };
@@ -795,7 +889,7 @@ async function hideSelectedArticles() {
     renderPrompt();
     renderHiddenList();
   } catch (error) {
-    setStatus(ui.hideStatus, `非表示にできませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+    setStatus(ui.hideStatus, `非表示にできませんでした: ${errorText(error)}`, 'error');
   } finally {
     ui.hideSelected.disabled = false;
   }
@@ -826,7 +920,7 @@ async function saveBlocklistSettings() {
       'ok',
     );
   } catch (error) {
-    setStatus(ui.blocklistStatus, `保存できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+    setStatus(ui.blocklistStatus, `保存できませんでした: ${errorText(error)}`, 'error');
   } finally {
     ui.saveBlocklist.disabled = false;
   }
@@ -892,7 +986,7 @@ function renderHiddenList() {
       setStatus(ui.unhideStatus, `${ids.length}件を再表示しました。1〜3分ほどでサイトに反映されます。`, 'ok');
       renderHiddenList();
     } catch (error) {
-      setStatus(ui.unhideStatus, `再表示できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+      setStatus(ui.unhideStatus, `再表示できませんでした: ${errorText(error)}`, 'error');
       sync();
     }
   };
@@ -942,7 +1036,7 @@ function runState(run: WorkflowRun): { text: string; kind: 'ok' | 'error' | 'act
 async function renderRuns() {
   clearTimeout(runsTimer);
   if (!data || !token) {
-    ui.runList.replaceChildren(el('li', 'pick-meta', 'トークンを設定すると表示されます。'));
+    ui.runList.replaceChildren(el('li', 'pick-meta', 'ログインすると表示されます。'));
     return;
   }
   try {
@@ -970,7 +1064,7 @@ async function renderRuns() {
     await renderTimerStatus(runs);
   } catch (error) {
     ui.runList.replaceChildren(
-      el('li', 'pick-meta', `実行状況を読み込めませんでした: ${error instanceof Error ? error.message : error}`),
+      el('li', 'pick-meta', `実行状況を読み込めませんでした: ${errorText(error)}`),
     );
   }
 }
@@ -1006,7 +1100,7 @@ async function runUpdate() {
     // 実行が一覧に現れるまで少しかかる
     setTimeout(renderRuns, 4000);
   } catch (error) {
-    setStatus(ui.runStatus, `実行できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+    setStatus(ui.runStatus, `実行できませんでした: ${errorText(error)}`, 'error');
   } finally {
     // 連打で何度も実行しないよう、少し待ってから押せるようにする
     setTimeout(() => (button.disabled = false), 5000);
@@ -1018,54 +1112,22 @@ function setupRuns() {
   $('refresh-runs').addEventListener('click', renderRuns);
 }
 
-// ===== トークン =====
+// ===== GitHub との連携 =====
 
-function renderTokenBadge(text?: string, ok = false) {
-  ui.tokenBadge.textContent = text ?? (token ? '設定済み' : '未設定');
-  ui.tokenBadge.className = `badge${ok ? ' ok' : ''}`;
-}
-
-function setupToken() {
-  const remembered = storage.get(KEYS.token);
-  if (remembered) {
-    token = remembered;
-    ui.token.value = remembered;
-    ui.remember.checked = true;
-  } else {
-    ($('settings') as HTMLDetailsElement).open = true;
-  }
-  renderTokenBadge();
-
-  ui.token.addEventListener('input', () => {
-    token = ui.token.value.trim();
-    if (ui.remember.checked && token) storage.set(KEYS.token, token);
-    renderTokenBadge();
-  });
-  ui.remember.addEventListener('change', () => {
-    if (ui.remember.checked && token) storage.set(KEYS.token, token);
-    else storage.remove(KEYS.token);
-  });
-  $('forget-token').addEventListener('click', () => {
-    token = '';
-    ui.token.value = '';
-    ui.remember.checked = false;
-    storage.remove(KEYS.token);
-    renderTokenBadge();
-    setStatus(ui.tokenStatus, 'トークンを消しました。');
-  });
+function setupConnection() {
   $('test-token').addEventListener('click', async () => {
     setStatus(ui.tokenStatus, '確認しています…');
     try {
       const { defaultBranch, canPush } = await githubClient().repository();
       if (canPush) {
         setStatus(ui.tokenStatus, `接続できました。保存先: ${defaultBranch} ブランチ`, 'ok');
-        renderTokenBadge('接続OK', true);
+        ui.tokenBadge.textContent = '接続OK';
         void renderRuns();
       } else {
         setStatus(ui.tokenStatus, '読み取りはできますが、書き込み権限がありません（Contents の Read and write が必要です）', 'error');
       }
     } catch (error) {
-      setStatus(ui.tokenStatus, error instanceof Error ? error.message : String(error), 'error');
+      setStatus(ui.tokenStatus, errorText(error), 'error');
     }
   });
 }
@@ -1073,14 +1135,21 @@ function setupToken() {
 // ===== 起動 =====
 
 async function main() {
+  // ログインしていなければログインページへ（ログイン中だけ管理画面を表示する）
+  const session = requireSession();
+  if (!session) return;
+  token = session.token;
+  watchSession(session);
+  root.hidden = false;
+
   restoreOptions();
-  setupToken();
+  setupConnection();
   try {
     const res = await fetch(`${base}/admin/data.json`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     data = (await res.json()) as AdminData;
   } catch (error) {
-    ui.dataInfo.textContent = `記事データを読み込めませんでした（${error instanceof Error ? error.message : error}）`;
+    ui.dataInfo.textContent = `記事データを読み込めませんでした（${errorText(error)}）`;
     return;
   }
   ui.dataInfo.textContent = `記事データ: ${dateFormat.format(new Date(data.generatedAt))} 時点（要約待ち ${data.pending.length}件 ・ 要約済み ${data.summarized.length}件）`;
@@ -1134,16 +1203,27 @@ async function main() {
     if (ui.prompt.value) download(`summary-prompt-${stamp()}.txt`, ui.prompt.value, 'text/plain');
   });
   $('check').addEventListener('click', checkResponse);
+  ui.response.addEventListener('input', saveDraft);
   $('clear-response').addEventListener('click', () => {
     ui.response.value = '';
     validation = undefined;
     ui.checkResult.replaceChildren();
     renderSaveArea();
+    saveDraft();
   });
   ui.save.addEventListener('click', saveSummaries);
   ui.downloadJson.addEventListener('click', downloadRecords);
 
-  refresh();
+  if (restoreDraft()) {
+    renderPickList();
+    renderPrompt();
+    ui.dataInfo.after(
+      el('p', 'note', `前回の作業（選んだ記事 ${selected.size}件${ui.response.value.trim() ? '・貼り付けた回答' : ''}）を戻しました。`),
+    );
+    if (ui.response.value.trim()) checkResponse();
+  } else {
+    refresh();
+  }
   renderSavedList();
   renderSaveArea();
   setupRuns();

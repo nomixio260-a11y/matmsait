@@ -83,7 +83,7 @@ describe('planPosts', () => {
     updatedAt: '2026-10-06T12:00:00.000Z',
     total: 10,
     counts: { news: 10 },
-    items: [item('a', { hatebu: 30 }), item('b', { hatebu: 20 }), item('c', { hatebu: 10 })],
+    items: [item('a', { coverage: 4 }), item('b', { coverage: 3 }), item('c')],
   };
 
   it('21時（日本時間）以降に1日1回だけ日別まとめを投稿する', () => {
@@ -98,9 +98,13 @@ describe('planPosts', () => {
     expect(planPosts(state, context(after, [], [snapshot]))).toEqual([]);
   });
 
-  it('はてブ数の多い直近の記事を投稿し、同じ記事は二度投稿しない', () => {
+  it('多くの掲載元が報じた直近の話題を投稿し、同じ記事は二度投稿しない', () => {
     const now = new Date('2026-10-06T11:00:00.000Z');
-    const items = [item('low', { hatebu: 20 }), item('hot', { hatebu: 300 }), item('old', { hatebu: 999, publishedAt: '2026-10-01T00:00:00.000Z' })];
+    const items = [
+      item('low', { coverage: 2 }),
+      item('hot', { coverage: 4 }),
+      item('old', { coverage: 9, publishedAt: '2026-10-01T00:00:00.000Z' }),
+    ];
     const [post] = planPosts({ posted: [] }, context(now, items));
     expect(post.key).toBe('hot:hot');
     expect(planPosts(recordPost({ posted: [] }, post, now), context(now, items))).toEqual([]);
@@ -109,11 +113,11 @@ describe('planPosts', () => {
   it('1日の投稿数の上限を守る', () => {
     const now = new Date('2026-10-06T11:00:00.000Z');
     const posted = Array.from({ length: MAX_HOT_PER_DAY }, (_, n) => ({ key: `hot:x${n}`, at: now.toISOString() }));
-    expect(planPosts({ posted }, context(now, [item('hot', { hatebu: 300 })]))).toEqual([]);
+    expect(planPosts({ posted }, context(now, [item('hot', { coverage: 5 })]))).toEqual([]);
   });
 
   it('文字数の上限に収まるようにタイトルを縮める', () => {
-    const long = item('long', { hatebu: 500, title: 'と'.repeat(200) });
+    const long = item('long', { coverage: 5, title: 'と'.repeat(200) });
     const text = hotPost(long, context(new Date())).compose((t) => xLength(t) <= 280);
     expect(xLength(text)).toBeLessThanOrEqual(280);
     expect(text).toContain(long.url);

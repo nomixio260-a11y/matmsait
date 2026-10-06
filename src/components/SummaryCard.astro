@@ -1,0 +1,148 @@
+---
+import { faviconUrl, formatDateTime, getCategory, href, siteOf } from '../lib/items.ts';
+import { summaryPath } from '../lib/summaries.ts';
+import type { SummaryRecord } from '../lib/types.ts';
+
+interface Props {
+  record: SummaryRecord;
+  /** 見出しの見出しレベル */
+  headingLevel?: 2 | 3;
+}
+const { record, headingLevel = 3 } = Astro.props;
+const Heading = headingLevel === 2 ? 'h2' : 'h3';
+const category = getCategory(record.category);
+const site = siteOf(record);
+---
+
+<article class="summary-card">
+  <p class="card-kicker">
+    {
+      category && (
+        <span class="card-cat">
+          <span class="dot" style={`--c:${category.color}`} />
+          {category.name}
+        </span>
+      )
+    }
+    <span class="ai-badge">AI要約</span>
+  </p>
+  <Heading class="card-title">
+    <a href={href(summaryPath(record.id))}>{record.title}</a>
+  </Heading>
+  <p class="card-text">{record.summary}</p>
+  {
+    record.points.length > 0 && (
+      <p class="card-points">
+        <span aria-hidden="true">✓</span> {record.points[0]}
+        {record.points.length > 1 && <span class="card-more">ほか{record.points.length - 1}つのポイント</span>}
+      </p>
+    )
+  }
+  <p class="card-meta">
+    <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+    <span>{site.label}</span>
+    <time datetime={record.publishedAt} data-rel>{formatDateTime(record.publishedAt)}</time>
+  </p>
+</article>
+
+<style>
+  .summary-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    min-width: 0;
+  }
+  .summary-card:hover {
+    border-color: var(--accent);
+  }
+  .card-kicker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .card-cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 600;
+  }
+  .card-kicker .ai-badge {
+    margin: 0;
+  }
+  .card-title {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  .card-title a {
+    color: var(--text);
+    text-decoration: none;
+  }
+  /* カード全体を押せるようにする */
+  .card-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .summary-card:hover .card-title a {
+    color: var(--accent);
+  }
+  .card-text {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
+  }
+  .card-points {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-2);
+    line-height: 1.6;
+  }
+  .card-points span[aria-hidden] {
+    color: var(--accent);
+    font-weight: 800;
+  }
+  .card-more {
+    margin-left: 6px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: auto 0 0;
+    padding-top: 4px;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .card-meta img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  .card-meta span {
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .card-meta time {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

@@ -22,12 +22,7 @@
 
 確認日: 2026-10-06（根拠の文言は確認時点のもの）
 
-## 注意: はてなブックマーク数の取得（ランキング）
-
-はてなブックマークのホットエントリーの RSS には利用の制限の記載がありませんが、ブックマーク数を取得している API（`bookmark.hatenaapis.com/count/entries`）は、[Hatena Developer Center の利用規約](https://developer.hatena.ne.jp/license/)で「宣伝や商用を目的とした内容」のアプリでの利用を、はてなの特別な許諾がない限り認めていません。
-広告を載せる前に、はてなに商用での利用を問い合わせるか、許諾が得られなければブックマーク数の取得をやめる必要があります（ランキングと「users」の表示が使えなくなります）。
-
-## 登録しているサイト（74件）
+## 登録しているサイト（66件）
 
 | サイト | カテゴリ | 判定の根拠 | 設定・条件 |
 | --- | --- | --- | --- |
@@ -38,7 +33,6 @@
 | 日刊SPA! | ニュース | RSS・リンクの規定なし、無断転載禁止の一般条項（[著作権](https://nikkan-spa.jp/copyright)） | `summary: false`（出版物の要約の掲載も禁止） |
 | 首相官邸 | ニュース | 公共データ利用規約（PDL1.0）で商用利用可（[利用規約](https://www.kantei.go.jp/jp/terms.html)） | `excerpt: false`（加工した場合はその旨の記載が必要なため見出しとリンクだけ）。出典として名称を表示 |
 | 外務省 海外安全ホームページ | ニュース | PDL1.0、リンクは自由（[法的事項](https://www.anzen.mofa.go.jp/c_info/legalmatters.html)） | `excerpt: false`。出典として名称を表示 |
-| はてなブックマーク（8カテゴリ） | 各カテゴリ | ホットエントリーの RSS に制限の記載なし | 上の「注意」を参照 |
 | PRESIDENT Online | 経済 | 「PRESIDENT Onlineへのリンクは自由です」（[about](https://president.jp/list/about)） | |
 | Business Journal | 経済 | RSS・リンクの規定なし、一般条項（[規約](https://biz-journal.jp/rule)） | |
 | 財経新聞 | 経済 | RSS のページで「どうぞご利用下さい」、出典明記のリンク・一部引用は連絡不要（[RSS](https://www.zaikei.co.jp/rss/)、[記事使用](https://corp.zaikei.co.jp/advertising/article-use-rule/)） | 媒体名を表示 |
@@ -97,6 +91,7 @@
 | ゲキサカ | NG | 「当社ウェブサイトまたは本サービスを営利目的のために利用する行為」を禁止（[利用規約](https://web.gekisaka.jp/agreement)） |
 | ハフポスト日本版 | 要確認 | 明示的に許可された場合を除き、コンテンツの「データベースへの組み込み、表示…その他の方法で利用することはできません」（[利用規約](https://www.huffingtonpost.jp/static/huffingtonpostjp-terms-and-conditions)） |
 | J-CASTニュース | 要確認 | 「記事、見出し…」をコンテンツとし、事前の承諾なしの転載・公衆送信等を禁止（[規約](https://www.j-cast.com/etc/kiyaku.html)） |
+| はてなブックマーク（ホットエントリー8カテゴリ）とブックマーク数の API | NG | ホットエントリーの RSS とブックマーク数の API（`bookmark.hatenaapis.com/count/entries`）は Hatena Developer Center の提供物で、[利用規約](https://developer.hatena.ne.jp/license/)が「宣伝や商用を目的とした内容。ただし当社が特別に許諾を行った場合を除きます」の利用を認めていない。広告を載せるサイトでは使えないため、2026-10-06 に収集元とブックマーク数の取得（はてブ数のランキング・「users」の表示）をやめた。人気の目安は、同じ出来事を報じた掲載元の数（「N社が報道」）に置き換えた |
 
 ### 今回の候補で見送ったサイト
 

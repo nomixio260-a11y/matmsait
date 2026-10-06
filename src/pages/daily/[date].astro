@@ -2,12 +2,11 @@
 import type { GetStaticPaths } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ItemList from '../../components/ItemList.astro';
-import RankingList from '../../components/RankingList.astro';
 import ShareButtons from '../../components/ShareButtons.astro';
 import { categories, site } from '../../config/site.ts';
 import { dailyPath, formatDay, getDailySnapshots } from '../../lib/daily.ts';
 import { jstDateKey } from '../../lib/dates.ts';
-import { builtAt, formatTime, href, siteOf } from '../../lib/items.ts';
+import { builtAt, formatTime, href } from '../../lib/items.ts';
 import { clampDescription, collectionJsonLd, headlineTeaser } from '../../lib/seo.ts';
 import type { DailySnapshot } from '../../lib/types.ts';
 
@@ -28,7 +27,8 @@ const { snapshot, newer, older } = Astro.props;
 const label = formatDay(snapshot.date, true);
 const shortLabel = formatDay(snapshot.date);
 const isToday = snapshot.date === jstDateKey(builtAt);
-const ranked = snapshot.items.filter((item) => (item.hatebu ?? 0) > 0).slice(0, 20);
+// 多くの掲載元が報じた話題（同じ話題は1件だけ）
+const ranked = snapshot.items.filter((item) => (item.coverage ?? 1) >= 2).slice(0, 20);
 const sections = categories
   .map((category) => ({ category, items: snapshot.items.filter((item) => item.category === category.slug).slice(0, 5) }))
   .filter((section) => section.items.length > 0);
@@ -43,13 +43,13 @@ const breakdown = categories
 const top = ranked[0];
 const summary = [
   `${shortLabel}は${isToday ? `${formatTime(builtAt.toISOString())}までに` : ''}合計${snapshot.total}件の記事を掲載${isToday ? 'しています' : 'しました'}（${breakdown}）。`,
-  top ? `最も話題になったのは${siteOf(top).label}の「${top.title}」（${top.hatebu} users）です。` : '',
+  top ? `最も多くのメディアが報じたのは「${top.title}」（${top.coverage}社が報道）です。` : '',
 ].join('');
 
 const title = `${label}の話題のニュースまとめ`;
 const description = clampDescription(
   top
-    ? `${label}に話題になったニュースまとめ。1位${headlineTeaser(ranked, 1, 34)}ほか、はてなブックマーク数の多い人気記事をランキングで紹介します。`
+    ? `${label}に話題になったニュースまとめ。${headlineTeaser(ranked, 1, 34)}ほか、多くのメディアが報じたニュースとカテゴリ別の注目記事を紹介します。`
     : `${label}に掲載したニュースをカテゴリごとにまとめました。`,
 );
 const url = new URL(href(dailyPath(snapshot.date)), Astro.site).toString();
@@ -74,10 +74,10 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: ranked.
       ranked.length > 0 && (
         <section class="panel">
           <div class="panel-head">
-            <h2>人気記事ランキング</h2>
-            <span class="note">はてなブックマーク数順</span>
+            <h2>多くのメディアが報じたニュース</h2>
+            <span class="note">報じたサイトの数の順</span>
           </div>
-          <RankingList items={ranked} detailed />
+          <ItemList items={ranked} group={false} ads={false} />
         </section>
       )
     }

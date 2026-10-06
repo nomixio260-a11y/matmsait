@@ -130,6 +130,9 @@ const toJson = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
     <Footer />
 
     <script>
+      // あとで読む・前回の訪問以降の新着（閲覧者のブラウザにだけ保存）
+      import '../scripts/reader.ts';
+
       // ===== 表示テーマの切り替え =====
       const root = document.documentElement;
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
