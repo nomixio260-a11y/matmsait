@@ -19,10 +19,6 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: update-and-deploy
-  cancel-in-progress: false
-
 env:
   ASTRO_TELEMETRY_DISABLED: 1
 
@@ -125,8 +121,14 @@ jobs:
         with:
           path: dist
 
+  # 収集・要約（build）は同時に動いてもデータのコミットが衝突しないので並行させ、公開だけを1つずつ行う。
+  # （同じ concurrency group で待っている実行は、次の実行が来ると取り消されるため、
+  #   管理画面から依頼した AI 要約が定期実行に取り消されないよう build には付けない）
   deploy:
     needs: build
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -138,6 +140,10 @@ jobs:
   # 公開後に検索エンジン（IndexNow）・フィード購読者（WebSub）へ更新を知らせ、SNS に自動投稿する
   notify:
     needs: [build, deploy]
+    # 同じまとめを二重に投稿しないよう、通知・SNS 投稿も1つずつ
+    concurrency:
+      group: notify
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
