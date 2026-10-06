@@ -1,5 +1,13 @@
 // 管理画面（/admin/）: 要約待ちの記事を選んでプロンプトを作り、AI の回答を検証して GitHub に保存する。
 // GitHub Actions の更新・AI 自動要約の実行もここから行う
+import {
+  BLOCKLIST_PATH,
+  emptyBlocklist,
+  normalizeHost,
+  parseBlocklist,
+  serializeBlocklist,
+  type Blocklist,
+} from '../lib/blocklist-core.ts';
 import { createGitHubClient, type Repository, type WorkflowRun } from '../lib/github-commit.ts';
 import {
   buildSummaryPrompt,
@@ -27,6 +35,11 @@ interface AdminSummary extends AdminArticle {
   summarizedAt: string;
 }
 
+interface HiddenArticle extends AdminArticle {
+  /** 非表示の理由（「個別に非表示」「NGワード「〇〇」」など） */
+  reason: string;
+}
+
 interface AdminData {
   generatedAt: string;
   siteName: string;
@@ -34,12 +47,16 @@ interface AdminData {
   categories: { slug: string; name: string }[];
   pending: AdminArticle[];
   summarized: AdminSummary[];
+  blocklist?: Blocklist;
+  hidden?: HiddenArticle[];
 }
 
 const KEYS = {
   token: 'admin.githubToken',
   saved: 'admin.savedIds',
   deleted: 'admin.deletedIds',
+  hidden: 'admin.hiddenIds',
+  unhidden: 'admin.unhiddenIds',
   options: 'admin.options',
 };
 /** 保存・削除した記事を、サイトに反映されるまで一覧から隠しておく時間 */
@@ -90,6 +107,12 @@ function addMarks(key: string, ids: string[]) {
   storage.set(key, JSON.stringify([...marks]));
 }
 
+function removeMarks(key: string, ids: string[]) {
+  const marks = readMarks(key);
+  for (const id of ids) marks.delete(id);
+  storage.set(key, JSON.stringify([...marks]));
+}
+
 // ===== 画面の要素 =====
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -127,6 +150,16 @@ const ui = {
   autoCount: $<HTMLSelectElement>('auto-count'),
   runStatus: $('run-status'),
   runList: $<HTMLUListElement>('run-list'),
+  hideSelected: $<HTMLButtonElement>('hide-selected'),
+  hideStatus: $('hide-status'),
+  hiddenCount: $('hidden-count'),
+  blockWords: $<HTMLTextAreaElement>('block-words'),
+  blockHosts: $<HTMLTextAreaElement>('block-hosts'),
+  saveBlocklist: $<HTMLButtonElement>('save-blocklist'),
+  blocklistStatus: $('blocklist-status'),
+  hiddenList: $<HTMLUListElement>('hidden-list'),
+  unhideSelected: $<HTMLButtonElement>('unhide-selected'),
+  unhideStatus: $('unhide-status'),
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) {
@@ -177,11 +210,12 @@ function pendingArticles(): AdminArticle[] {
   if (!data) return [];
   const saved = readMarks(KEYS.saved);
   const deleted = readMarks(KEYS.deleted);
+  const hidden = readMarks(KEYS.hidden);
   // 削除した要約はサイトに反映されるまで pending に入っていないので、ここで戻す
   const restored = data.summarized.filter((article) => deleted.has(article.id));
   const category = ui.category.value;
   const list = [...data.pending, ...restored].filter(
-    (article) => !saved.has(article.id) && (!category || article.category === category),
+    (article) => !saved.has(article.id) && !hidden.has(article.id) && (!category || article.category === category),
   );
   return ui.sort.value === 'latest'
     ? list.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
@@ -519,6 +553,151 @@ function renderSavedList() {
   };
 }
 
+// ===== 記事の非表示（data/blocklist.json） =====
+
+/** 非表示の設定を最新の状態から読み直して変更し、1つのコミットで保存する */
+async function updateBlocklist(change: (current: Blocklist) => Blocklist, message: string) {
+  const client = githubClient();
+  const { defaultBranch, canPush } = await client.repository();
+  if (!canPush) throw new Error('このトークンには書き込み権限がありません（Contents の Read and write が必要です）');
+  return client.commitFiles(defaultBranch, message, async (read) => {
+    const current = parseBlocklist(await read(BLOCKLIST_PATH));
+    const content = serializeBlocklist(change(current));
+    return content === serializeBlocklist(current) ? [] : [{ path: BLOCKLIST_PATH, content }];
+  });
+}
+
+async function hideSelectedArticles() {
+  const ids = [...selected];
+  if (ids.length === 0) {
+    setStatus(ui.hideStatus, '非表示にする記事にチェックを入れてください。', 'error');
+    return;
+  }
+  if (!confirm(`チェックした${ids.length}件の記事をサイトから非表示にします。よろしいですか？`)) return;
+  ui.hideSelected.disabled = true;
+  setStatus(ui.hideStatus, '保存しています…');
+  try {
+    await updateBlocklist((current) => ({ ...current, ids: [...current.ids, ...ids] }), `記事を非表示（${ids.length}件）`);
+    addMarks(KEYS.hidden, ids);
+    removeMarks(KEYS.unhidden, ids);
+    setStatus(ui.hideStatus, `${ids.length}件を非表示にしました。1〜3分ほどでサイトに反映されます。`, 'ok');
+    autoSelect();
+    renderPickList();
+    renderPrompt();
+    renderHiddenList();
+  } catch (error) {
+    setStatus(ui.hideStatus, `非表示にできませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+  } finally {
+    ui.hideSelected.disabled = false;
+  }
+}
+
+const lines = (text: string) =>
+  text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+async function saveBlocklistSettings() {
+  const words = lines(ui.blockWords.value);
+  const hostLines = lines(ui.blockHosts.value);
+  const invalid = hostLines.filter((line) => !normalizeHost(line));
+  if (invalid.length > 0) {
+    setStatus(ui.blocklistStatus, `サイトの書き方が正しくありません: ${invalid.join('、')}`, 'error');
+    return;
+  }
+  const hosts = hostLines.map(normalizeHost);
+  ui.saveBlocklist.disabled = true;
+  setStatus(ui.blocklistStatus, '保存しています…');
+  try {
+    const { changed } = await updateBlocklist((current) => ({ ...current, words, hosts }), 'NGワード・非表示サイトを更新');
+    setStatus(
+      ui.blocklistStatus,
+      changed ? '保存しました。1〜3分ほどでサイトに反映されます。' : '変更はありませんでした。',
+      'ok',
+    );
+  } catch (error) {
+    setStatus(ui.blocklistStatus, `保存できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+  } finally {
+    ui.saveBlocklist.disabled = false;
+  }
+}
+
+function renderHiddenList() {
+  if (!data) return;
+  const unhidden = readMarks(KEYS.unhidden);
+  const justHidden = readMarks(KEYS.hidden);
+  const known = new Set((data.hidden ?? []).map((article) => article.id));
+  const list: HiddenArticle[] = [
+    ...data.pending
+      .filter((article) => justHidden.has(article.id) && !known.has(article.id))
+      .map((article) => ({ ...article, reason: '個別に非表示（反映待ち）' })),
+    ...(data.hidden ?? []).filter((article) => !unhidden.has(article.id)),
+  ];
+  ui.hiddenCount.textContent = `${list.length}件`;
+  const checked = new Set<string>();
+  const sync = () => {
+    ui.unhideSelected.disabled = checked.size === 0;
+    ui.unhideSelected.textContent = checked.size > 0 ? `選んだ${checked.size}件を再表示` : '選んだ記事を再表示';
+  };
+  ui.hiddenList.replaceChildren(
+    ...list.map((article) => {
+      const item = el('li');
+      const label = el('label');
+      // NGワード・サイトで外れている記事は、その設定を消すと戻る（ここでは個別に非表示にした記事だけ戻せる）
+      const individual = article.reason.startsWith('個別');
+      const box = el('input');
+      box.type = 'checkbox';
+      box.disabled = !individual;
+      box.setAttribute('aria-label', `${article.title} を再表示する`);
+      box.addEventListener('change', () => {
+        if (box.checked) checked.add(article.id);
+        else checked.delete(article.id);
+        sync();
+      });
+      label.append(
+        box,
+        el('span', 'pick-title', article.title),
+        el('span', 'pick-meta', articleMeta(article)),
+        el('span', 'pick-reason', article.reason),
+      );
+      item.append(label);
+      return item;
+    }),
+  );
+  if (list.length === 0) ui.hiddenList.append(el('li', 'pick-meta', '非表示の記事はありません。'));
+  sync();
+
+  ui.unhideSelected.onclick = async () => {
+    const ids = [...checked];
+    if (ids.length === 0) return;
+    ui.unhideSelected.disabled = true;
+    setStatus(ui.unhideStatus, '保存しています…');
+    try {
+      await updateBlocklist(
+        (current) => ({ ...current, ids: current.ids.filter((id) => !ids.includes(id)) }),
+        `記事の非表示を解除（${ids.length}件）`,
+      );
+      addMarks(KEYS.unhidden, ids);
+      removeMarks(KEYS.hidden, ids);
+      setStatus(ui.unhideStatus, `${ids.length}件を再表示しました。1〜3分ほどでサイトに反映されます。`, 'ok');
+      renderHiddenList();
+    } catch (error) {
+      setStatus(ui.unhideStatus, `再表示できませんでした: ${error instanceof Error ? error.message : error}`, 'error');
+      sync();
+    }
+  };
+}
+
+function setupBlocklist() {
+  const list = data?.blocklist ?? emptyBlocklist();
+  ui.blockWords.value = list.words.join('\n');
+  ui.blockHosts.value = list.hosts.join('\n');
+  ui.hideSelected.addEventListener('click', hideSelectedArticles);
+  ui.saveBlocklist.addEventListener('click', saveBlocklistSettings);
+  renderHiddenList();
+}
+
 // ===== サイトの更新・AI で自動要約（GitHub Actions のワークフローを実行） =====
 
 const WORKFLOW = 'update.yml';
@@ -745,6 +924,7 @@ async function main() {
   renderSavedList();
   renderSaveArea();
   setupRuns();
+  setupBlocklist();
   void renderRuns();
 }
 

@@ -112,6 +112,15 @@ Variables（Settings → Secrets and variables → Actions → **Variables**）�
 
 コマンドラインでは `npm run auto-summarize -- --count 5`（`--dry-run` で本文の取得だけを確認、`--order popular|latest`、`--category tech`）。
 
+### 記事の非表示（NGワード・サイト・個別）
+
+管理画面の「記事の非表示」で、見出しに含まれると非表示にする **NGワード** と、記事を載せない **サイト**（サブドメインを含む）を設定できます。
+手順1の一覧でチェックした記事を「選んだ記事をサイトから非表示」で個別に外すこともできます。
+
+設定は `data/blocklist.json` に保存され、一覧・ランキング・検索・RSS・日別まとめ・要約ページ・SNS 投稿のすべてから外れます。
+収集したデータからは消さないので、設定を消せば元に戻ります（個別に外した記事は「非表示中の記事」から再表示）。
+AdSense などの広告は、成人向け・暴力的・ショッキングな内容のページへの掲載が禁止されています。収益化する前に、気になる記事は非表示にしておくと安心です。
+
 ### 最初に1回だけ: GitHub のトークン
 
 管理画面は静的なページなので、保存には GitHub のアクセストークンを使います。
@@ -186,6 +195,7 @@ AdSense の審査や `ads.txt`・`robots.txt`（ドメイン直下に置く必�
 | 保存期間・件数 | `scripts/lib/store.ts` の `maxAgeDays` / `maxItems` |
 | SNS 共有用の画像 | `public/og.png`（1200×630）。サイト名を変えたら差し替えてください |
 | SNS 自動投稿の条件 | `scripts/lib/social.ts` の `DIGEST_HOUR` / `HOT_THRESHOLD` / `MAX_HOT_PER_DAY` |
+| 載せない記事（NGワード・サイト・個別） | 管理画面の「記事の非表示」、または `data/blocklist.json` |
 | AI要約のプロンプト・検証ルール | `src/lib/summary-core.ts`（`buildSummaryPrompt` / `validateEntries`） |
 | 管理画面の保存先リポジトリ | `src/config/site.ts` の `repository` |
 

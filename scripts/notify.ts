@@ -13,6 +13,7 @@ import { jstDateKey } from '../src/lib/dates.ts';
 import { getSummaries, summaryPath } from '../src/lib/summaries.ts';
 import { indexNowPayload, publishWebSub, submitIndexNow } from './lib/ping.ts';
 import { configuredPlatforms, planPosts, previewPlatforms, recordPost, type SocialState } from './lib/social.ts';
+import { isHidden } from '../src/lib/blocklist.ts';
 import { readItemsFile } from './lib/store.ts';
 
 const ITEMS_PATH = resolve(process.cwd(), 'data/items.json');
@@ -93,7 +94,8 @@ async function postToSocial(baseUrl: string, now: Date) {
   let state = readState();
   const posts = planPosts(state, {
     now,
-    items: readItemsFile(ITEMS_PATH),
+    // 管理画面で非表示にした記事は投稿しない
+    items: readItemsFile(ITEMS_PATH).filter((item) => !isHidden(item)),
     snapshots: getDailySnapshots(),
     pageUrl: (path) => `${baseUrl}${path}`,
     siteName: site.name,

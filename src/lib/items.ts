@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { categories } from '../config/site.ts';
+import { isHidden } from './blocklist.ts';
 import { loadSources } from './sources.ts';
 import type { Item, Source } from './types.ts';
 
@@ -12,14 +13,21 @@ const TIME_ZONE = 'Asia/Tokyo';
 /** ビルド時刻（ランキングの集計基準・最終更新の表示に使う） */
 export const builtAt = new Date();
 
+let allItemsCache: Item[] | undefined;
 let itemsCache: Item[] | undefined;
 
-/** 収集済み記事を新着順で返す（ビルド時に1回だけ読み込む） */
-export function getItems(): Item[] {
-  if (!itemsCache) {
+/** 収集済みのすべての記事を新着順で返す（非表示の記事を含む。ビルド時に1回だけ読み込む） */
+export function getAllItems(): Item[] {
+  if (!allItemsCache) {
     const items: Item[] = existsSync(ITEMS_PATH) ? JSON.parse(readFileSync(ITEMS_PATH, 'utf8')) : [];
-    itemsCache = items.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    allItemsCache = items.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
   }
+  return allItemsCache;
+}
+
+/** サイトに載せる記事を新着順で返す（管理画面で非表示にした記事を除く） */
+export function getItems(): Item[] {
+  itemsCache ??= getAllItems().filter((item) => !isHidden(item));
   return itemsCache;
 }
 

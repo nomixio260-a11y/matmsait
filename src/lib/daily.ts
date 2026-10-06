@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { isHidden } from './blocklist.ts';
 import { dateFromKey } from './dates.ts';
 import type { DailySnapshot } from './types.ts';
 
@@ -15,6 +16,8 @@ export function getDailySnapshots(): DailySnapshot[] {
       ? readdirSync(DAILY_DIR)
           .filter((file) => /^\d{4}-\d{2}-\d{2}\.json$/.test(file))
           .map((file) => JSON.parse(readFileSync(resolve(DAILY_DIR, file), 'utf8')) as DailySnapshot)
+          // 管理画面で非表示にした記事は、過去の日別まとめからも外す
+          .map((snapshot) => ({ ...snapshot, items: snapshot.items.filter((item) => !isHidden(item)) }))
           .sort((a, b) => b.date.localeCompare(a.date))
       : [];
   }

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { isHidden } from './blocklist.ts';
 import { parseSummaryFile } from './summary-core.ts';
 import type { SummaryRecord } from './types.ts';
 
@@ -22,15 +23,21 @@ function load(): Map<string, SummaryRecord> {
   return cache;
 }
 
-/** 要約つきの記事を、要約した日時の新しい順で返す */
-export function getSummaries(): SummaryRecord[] {
+/** 要約つきのすべての記事を、要約した日時の新しい順で返す（非表示の記事を含む） */
+export function getAllSummaries(): SummaryRecord[] {
   return [...load().values()].sort(
     (a, b) => b.summarizedAt.localeCompare(a.summarizedAt) || b.publishedAt.localeCompare(a.publishedAt),
   );
 }
 
+/** サイトに載せる要約（管理画面で非表示にした記事を除く） */
+export function getSummaries(): SummaryRecord[] {
+  return getAllSummaries().filter((record) => !isHidden(record));
+}
+
 export function getSummary(id: string): SummaryRecord | undefined {
-  return load().get(id);
+  const record = load().get(id);
+  return record && !isHidden(record) ? record : undefined;
 }
 
 export function summaryPath(id: string): string {
