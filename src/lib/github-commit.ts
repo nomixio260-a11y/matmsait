@@ -74,10 +74,10 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
     return (await (await api(path, init)).json()) as T;
   }
 
-  /** 既定ブランチと、トークンで書き込めるかを調べる */
-  async function repository(): Promise<{ defaultBranch: string; canPush: boolean }> {
-    const data = await json<{ default_branch: string; permissions?: { push?: boolean } }>('');
-    return { defaultBranch: data.default_branch, canPush: data.permissions?.push === true };
+  /** 既定ブランチ、トークンで書き込めるか、非公開リポジトリかを調べる */
+  async function repository(): Promise<{ defaultBranch: string; canPush: boolean; isPrivate: boolean }> {
+    const data = await json<{ default_branch: string; private?: boolean; permissions?: { push?: boolean } }>('');
+    return { defaultBranch: data.default_branch, canPush: data.permissions?.push === true, isPrivate: data.private === true };
   }
 
   /** あるコミット時点のファイルの中身。存在しなければ null */
@@ -142,13 +142,14 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
     });
   }
 
-  /** ワークフローの最近の実行（新しい順） */
-  async function listWorkflowRuns(workflow: string, perPage = 5): Promise<WorkflowRun[]> {
+  /** ワークフローの最近の実行（新しい順）。branch を指定するとそのブランチの実行だけ */
+  async function listWorkflowRuns(workflow: string, perPage = 5, branch?: string): Promise<WorkflowRun[]> {
+    const query = `per_page=${perPage}${branch ? `&branch=${encodeURIComponent(branch)}` : ''}`;
     const data = await json<{ workflow_runs: WorkflowRun[] }>(
-      `/actions/workflows/${encodeURIComponent(workflow)}/runs?per_page=${perPage}`,
+      `/actions/workflows/${encodeURIComponent(workflow)}/runs?${query}`,
       { permission: 'Actions' },
     );
-    return data.workflow_runs.map(({ id, event, status, conclusion, created_at, updated_at, html_url }) => ({
+    return data.workflow_runs.map(({ id, event, status, conclusion, created_at, updated_at, html_url, triggering_actor }) => ({
       id,
       event,
       status,
@@ -156,6 +157,7 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
       created_at,
       updated_at,
       html_url,
+      ...(triggering_actor?.login ? { triggering_actor: { login: triggering_actor.login } } : {}),
     }));
   }
 
@@ -173,4 +175,6 @@ export interface WorkflowRun {
   created_at: string;
   updated_at: string;
   html_url: string;
+  /** 実行のきっかけを作ったユーザー（自動更新タイマーなら github-actions[bot]） */
+  triggering_actor?: { login: string };
 }

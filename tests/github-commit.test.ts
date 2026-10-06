@@ -47,7 +47,7 @@ describe('createGitHubClient', () => {
   it('既定ブランチと書き込み権限を調べる', async () => {
     const { fetchImpl } = fakeGitHub();
     const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
-    expect(await client.repository()).toEqual({ defaultBranch: 'main', canPush: true });
+    expect(await client.repository()).toEqual({ defaultBranch: 'main', canPush: true, isPrivate: false });
   });
 
   it('最新のファイルを読み、1つのコミットにまとめてブランチを進める', async () => {

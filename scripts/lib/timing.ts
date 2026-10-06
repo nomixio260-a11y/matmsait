@@ -15,3 +15,9 @@ export function shuffle<T>(items: readonly T[]): T[] {
   }
   return result;
 }
+
+/** Retry-After（秒）の指定があれば、その時間（最大60秒）。なければ数秒のランダムな時間 */
+export function retryDelay(retryAfter: string | string[] | undefined): number {
+  const seconds = Number(Array.isArray(retryAfter) ? retryAfter[0] : retryAfter);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 60) * 1000 : jitter(3000, 6000);
+}

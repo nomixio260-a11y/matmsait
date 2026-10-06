@@ -28,8 +28,11 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 - 通常の閲覧者と同じに見えるよう、Windows 版 Chrome と同じヘッダー（User-Agent・Accept・`sec-ch-ua`・`Sec-Fetch-*` など）を同じ順序で送ります。
   Node の `fetch` は独自のヘッダーを付け足してしまうため、`node:https` で直接リクエストしています（`scripts/lib/http.ts`）。
 - User-Agent の Chrome のバージョンは日付から自動で計算する（現行の 1 つ前の版）ので、放置しても古くなりません。
-- 同じサイトへは 1 件ずつ、1.5〜4 秒のランダムな間隔を空けてアクセスし、サイトの巡回順も毎回入れ替えます。定期実行の開始時刻も最大 2 分ずらします。
-- gzip / deflate / brotli / zstd の圧縮、リダイレクト、Shift_JIS・EUC-JP のフィードに対応しています。一時的なエラー（通信失敗・429・5xx）は 1 回だけ再試行します。
+- 同じサイトへは 1 件ずつ、1.5〜4 秒のランダムな間隔を空けてアクセスし、サイトの巡回順も毎回入れ替えます。自動更新の開始時刻も毎回少しずらします。
+- ブラウザが再読み込みのときにするのと同じく、前回の `ETag`・`Last-Modified` を送る条件付きリクエストにしています。フィードが変わっていなければ（304）本文を受け取らないので、相手サイトの負担と通信量が減ります（念のため12時間に1回は全部取り直します）。
+- gzip / deflate / brotli / zstd の圧縮、リダイレクト、Shift_JIS・EUC-JP のフィードに対応しています。一時的なエラー（通信失敗・429・5xx）は 1 回だけ再試行し、`Retry-After` の指定（最大60秒）があれば従います。
+- 収集元ごとの取得の状態（最後に取得できた日時、連続で失敗した回数と最後のエラー、ETag など）を `data/feeds.json` に記録し、管理画面の「収集元の状況」で確認できます。毎回の結果は Actions の実行ページの Summary にも表で出ます。
+- はてなブックマーク数の取得は、一部が失敗しても1回やり直したうえで残りを続けます（失敗した分は前回の値のまま）。
 
 ## 検索・集客のしくみ
 
@@ -169,16 +172,28 @@ npm run check     # 型チェック（.astro ファイルを含む）
 `.github/workflows/update.yml` が以下のタイミングで「テスト → 収集 → データをコミット → ビルド → GitHub Pages へ公開 → 検索エンジン・SNS へ通知」を行います。
 データのコミットは、再実行や同時実行で古いコミットから始まった場合でも、ブランチの最新状態に取り込み直してから push します。
 
-- 毎時 23 分（UTC）の定期実行
+- **自動更新タイマー**（`.github/workflows/timer.yml`）による約1時間ごとの実行
 - 既定ブランチへの push（管理画面から要約を保存したときも）
 - 管理画面の「今すぐ更新」ボタン、または Actions タブからの手動実行（Run workflow）
 
 GitHub Pages の設定（Settings → Pages → Source）は **GitHub Actions** にしてください。
-定期実行は、リポジトリに 60 日間動きがないと GitHub に停止されますが、収集データを毎時コミットしているので通常は止まりません。
 
-GitHub の定期実行は混雑時に遅れたり、作ったばかりのリポジトリではしばらく動かなかったりすることがあります。
-Actions タブで「定期更新」（schedule）の実行が続かない場合は、外部の cron サービス（[cron-job.org](https://cron-job.org/) など）から
-次の API を毎時呼ぶと確実です（トークンは Actions: Read and write だけを付けた Fine-grained トークン）。
+### 自動更新タイマー
+
+GitHub の定期実行（`schedule`）は「ベストエフォート」で、作ったばかりのリポジトリでは登録されずに動かないことがあります（このリポジトリでも一度も動きませんでした）。
+そこで、定期的な更新は GitHub の定期実行に頼らず、次の仕組みで行っています。
+
+1. 自動更新タイマー（`timer.yml`）が、前回の収集・公開（`update.yml`）から60分たつまで待つ
+2. `update.yml` を実行し、自分自身（`timer.yml`）を次に予約する（1 に戻る）
+
+- 待っている間に push や「今すぐ更新」で更新されたら、そこから数え直します（同じ時間帯に二重に更新しません）。
+- タイマーは常に1つだけ動きます。何かの理由で止まっても、`update.yml` が動くたびに（push・「今すぐ更新」など）自動で再開します。管理画面の「サイトの更新」に「自動更新: 動作中／停止中」と次の更新の目安が出ます。
+- 待っている間も GitHub Actions の実行時間を使います。**公開リポジトリでは無料**ですが、非公開リポジトリでは月の無料枠を超えてしまうため、非公開にするとタイマーは自動で止まります（その場合は下の外部 cron を使ってください）。
+- 更新の間隔は、リポジトリの変数（Settings → Secrets and variables → Actions → Variables）`UPDATE_INTERVAL_MINUTES` で変えられます（15〜360分、既定60分）。
+- 予備として、GitHub の定期実行が動くようになった場合は3時間ごとにタイマーの再開も試みます。
+
+外部の cron サービス（[cron-job.org](https://cron-job.org/) など）から次の API を毎時呼んで更新することもできます（トークンは Actions: Read and write だけを付けた Fine-grained トークン）。
+タイマーが動いていれば必要ありません。
 
 ```sh
 curl -X POST -H "Authorization: Bearer <トークン>" -H "Accept: application/vnd.github+json" \
@@ -204,6 +219,7 @@ AdSense の審査や `ads.txt`・`robots.txt`（ドメイン直下に置く必�
 | SNS 共有用の画像 | `public/og.png`（1200×630）。サイト名を変えたら差し替えてください |
 | SNS 自動投稿の条件 | `scripts/lib/social.ts` の `DIGEST_HOUR` / `HOT_THRESHOLD` / `MAX_HOT_PER_DAY` |
 | 載せない記事（NGワード・サイト・個別） | 管理画面の「記事の非表示」、または `data/blocklist.json` |
+| 自動更新の間隔 | リポジトリの変数 `UPDATE_INTERVAL_MINUTES`（15〜360分、既定60分） |
 | AI要約のプロンプト・検証ルール | `src/lib/summary-core.ts`（`buildSummaryPrompt` / `validateEntries`） |
 | 管理画面の保存先リポジトリ | `src/config/site.ts` の `repository` |
 

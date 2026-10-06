@@ -58,9 +58,10 @@ import { href } from '../../lib/items.ts';
       <h2><span class="step" aria-hidden="true">⚡</span>サイトの更新</h2>
       <div class="card-body">
         <p class="note">
-          記事の収集とサイトの更新は1時間ごとに自動で行われます。すぐに最新の記事を集めて更新したいときに使います（GitHub Actions
-          で動くので費用はかかりません）。
+          記事の収集とサイトの更新は「自動更新タイマー」が約1時間ごとに行います。すぐに最新の記事を集めて更新したいときに使います（GitHub
+          Actions で動くので費用はかかりません）。
         </p>
+        <p class="timer-status" id="timer-status" aria-live="polite"></p>
         <div class="controls run-controls">
           <button type="button" id="run-update" class="primary">今すぐ更新</button>
         </div>
@@ -203,8 +204,9 @@ import { href } from '../../lib/items.ts';
       </summary>
       <div class="card-body">
         <p class="hint">
-          直近30日に集めた記事の数と、いちばん新しい記事の日時です。新しい記事が3日以上ない収集元は、フィードの URL
-          が変わったか配信が止まっている可能性があります（<code>sources.yaml</code> で修正・削除できます）。
+          収集のたびに記録している取得の状態と、直近に集めた記事の数・いちばん新しい記事の日時です。取得の失敗が3回以上続いている収集元や、
+          新しい記事が3日以上ない収集元は、フィードの URL が変わったか配信が止まっている可能性があります（<code>sources.yaml</code>
+          で修正・削除できます）。
         </p>
         <div class="table-wrap">
           <table class="result-table" id="sources-table"></table>
@@ -436,6 +438,17 @@ import { href } from '../../lib/items.ts';
   }
   .run-controls {
     margin-top: 10px;
+  }
+  .timer-status {
+    margin: 8px 0 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  :global(.timer-status.ok) {
+    color: #1d6b3a;
+  }
+  :global(.timer-status.error) {
+    color: var(--hot);
   }
   :global(.admin input.filter) {
     width: 100%;

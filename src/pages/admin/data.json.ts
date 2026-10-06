@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { categories, site } from '../../config/site.ts';
 import { getBlocklist } from '../../lib/blocklist.ts';
 import { blockReason } from '../../lib/blocklist-core.ts';
@@ -30,8 +32,26 @@ function hiddenArticles() {
     .slice(0, 300);
 }
 
-/** 収集元ごとの記事数と最新の記事の日時（フィードが止まっていないかの確認用） */
+interface FeedState {
+  okAt?: string;
+  failures?: number;
+  failedAt?: string;
+  error?: string;
+}
+
+/** 収集元ごとの取得の状態（data/feeds.json。収集のたびに更新される） */
+function feedStates(): Record<string, FeedState> {
+  const path = resolve(process.cwd(), 'data/feeds.json');
+  try {
+    return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, FeedState>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** 収集元ごとの記事数・最新の記事の日時・取得の状態（フィードが止まっていないかの確認用） */
 function sourceStats() {
+  const states = feedStates();
   const latest = new Map<string, string>();
   const counts = new Map<string, number>();
   for (const item of getAllItems()) {
@@ -45,6 +65,9 @@ function sourceStats() {
     siteUrl: source.siteUrl,
     count: counts.get(source.id) ?? 0,
     latest: latest.get(source.id) ?? null,
+    okAt: states[source.id]?.okAt ?? null,
+    failures: states[source.id]?.failures ?? 0,
+    error: states[source.id]?.failures ? (states[source.id]?.error ?? null) : null,
   }));
 }
 

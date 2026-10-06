@@ -15,7 +15,8 @@
     "check": "astro check",
     "merge": "tsx scripts/merge-items.ts",
     "notify": "tsx scripts/notify.ts",
-    "summaries": "tsx scripts/summaries.ts"
+    "summaries": "tsx scripts/summaries.ts",
+    "timer": "tsx scripts/timer.ts"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.19",

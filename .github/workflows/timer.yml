@@ -1,0 +1,58 @@
+name: 自動更新タイマー
+
+# 一定時間（既定60分）ごとに収集・公開（update.yml）を実行する。
+# GitHub の定期実行（schedule）は新しいリポジトリだと動かないことがあるため、このワークフローが
+# 「前回の更新から60分たつまで待つ → update.yml を実行 → 自分自身を次に予約」を繰り返す。
+# 止まっても、update.yml が動くたびに（push・管理画面の「今すぐ更新」など）自動で再開する。
+# 待っている間も Actions の実行時間を使うので、公開リポジトリ（実行時間が無料）でだけ動く。
+on:
+  workflow_dispatch:
+  schedule:
+    # 予備: GitHub の定期実行が動く場合は、止まったタイマーをここからも再開する
+    - cron: '41 */3 * * *'
+
+permissions:
+  actions: write
+  contents: read
+
+# タイマーは常に1つだけ（待機中に別の実行が来たら、新しい方が順番を待つ）
+concurrency:
+  group: auto-update-timer
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: 前回の更新から待って、収集・公開を実行
+        run: npm run --silent timer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          # 更新の間隔（分）を変えるときは、リポジトリの変数 UPDATE_INTERVAL_MINUTES を設定する（15〜360）
+          UPDATE_INTERVAL_MINUTES: ${{ vars.UPDATE_INTERVAL_MINUTES }}
+
+      # 一時的な失敗（npm や GitHub API の不調など）で止まらないよう、少し待ってから次のタイマーを予約する。
+      # 失敗が3回続いているときは、繰り返さないよう止める（update.yml が動けば自動で再開する）
+      - name: 失敗したときは5分後にタイマーを再開
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          failures=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/timer.yml/runs?per_page=3&status=completed" \
+            --jq '[.workflow_runs[] | select(.conclusion == "failure")] | length')
+          if [ "$failures" -ge 3 ]; then
+            echo '::warning::自動更新タイマーの失敗が続いているため、再開しません'
+            exit 0
+          fi
+          sleep 300
+          gh workflow run timer.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"

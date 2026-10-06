@@ -85,6 +85,8 @@ export interface HttpGetOptions {
   kind?: RequestKind;
   timeoutMs?: number;
   maxRedirects?: number;
+  /** ブラウザの既定のヘッダーの後ろに足すヘッダー（条件付きリクエストの If-None-Match など） */
+  headers?: [string, string][];
 }
 
 // Node の fetch は Sec-Fetch-Mode を cors に固定し独自の既定ヘッダーも足すため、
@@ -96,10 +98,10 @@ const agents = {
 
 /** リダイレクトを辿って GET し、圧縮を展開した本文を返す */
 export async function httpGet(url: string, options: HttpGetOptions = {}): Promise<HttpResponse> {
-  const { kind = 'document', timeoutMs = 15_000, maxRedirects = 5 } = options;
+  const { kind = 'document', timeoutMs = 15_000, maxRedirects = 5, headers = [] } = options;
   let current = new URL(url);
   for (let redirects = 0; ; redirects++) {
-    const res = await requestOnce(current, browserHeaders(kind), timeoutMs);
+    const res = await requestOnce(current, [...browserHeaders(kind), ...headers], timeoutMs);
     const location = res.headers.location;
     if (!REDIRECT_STATUSES.has(res.status) || !location) {
       return { url: current.toString(), ...res };

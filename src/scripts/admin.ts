@@ -49,6 +49,11 @@ interface SourceStat {
   siteUrl: string;
   count: number;
   latest: string | null;
+  /** 最後に取得できた日時 */
+  okAt?: string | null;
+  /** 連続で取得に失敗している回数 */
+  failures?: number;
+  error?: string | null;
 }
 
 interface AdminData {
@@ -79,6 +84,8 @@ const LIST_LIMIT = 300;
 const STALE_HOURS = 3;
 /** 収集元の最新記事がこれより古ければ、フィードが止まっている可能性を示す */
 const SOURCE_STALE_DAYS = 3;
+/** 取得の失敗がこの回数続いたら確認を促す（一時的な失敗は数えない） */
+const SOURCE_FAILURE_ALERT = 3;
 
 // ===== ストレージ（使えない環境でも動くようにする） =====
 
@@ -709,14 +716,22 @@ function renderSources() {
   if (!data?.sources) return;
   const now = Date.now();
   const days = (iso: string | null) => (iso ? Math.floor((now - Date.parse(iso)) / (24 * 60 * 60 * 1000)) : Infinity);
-  const sources = [...data.sources].sort((a, b) => days(b.latest) - days(a.latest) || a.name.localeCompare(b.name, 'ja'));
-  const stale = sources.filter((source) => days(source.latest) >= SOURCE_STALE_DAYS);
+  /** 確認が必要か（取得の失敗が続いている、または新しい記事が長く出ていない） */
+  const trouble = (source: SourceStat) => (source.failures ?? 0) >= SOURCE_FAILURE_ALERT || days(source.latest) >= SOURCE_STALE_DAYS;
+  const sources = [...data.sources].sort(
+    (a, b) =>
+      Number(trouble(b)) - Number(trouble(a)) ||
+      (b.failures ?? 0) - (a.failures ?? 0) ||
+      days(b.latest) - days(a.latest) ||
+      a.name.localeCompare(b.name, 'ja'),
+  );
+  const troubled = sources.filter(trouble);
   const badge = $('sources-badge');
-  badge.textContent = stale.length > 0 ? `${stale.length}件 要確認` : `${sources.length}件 正常`;
-  badge.className = `badge${stale.length > 0 ? '' : ' ok'}`;
-  if (stale.length > 0) badge.style.color = 'var(--hot)';
+  badge.textContent = troubled.length > 0 ? `${troubled.length}件 要確認` : `${sources.length}件 正常`;
+  badge.className = `badge${troubled.length > 0 ? '' : ' ok'}`;
+  if (troubled.length > 0) badge.style.color = 'var(--hot)';
   const head = el('tr');
-  head.append(el('th', '', '収集元'), el('th', '', 'カテゴリ'), el('th', '', '記事数'), el('th', '', '最新の記事'));
+  head.append(el('th', '', '収集元'), el('th', '', '状態'), el('th', '', '記事数'), el('th', '', '最新の記事'));
   const rows = sources.map((source) => {
     const row = el('tr');
     const name = el('td');
@@ -724,14 +739,24 @@ function renderSources() {
     link.href = source.siteUrl;
     link.target = '_blank';
     link.rel = 'noopener';
-    name.append(link);
+    name.append(link, el('div', 'pick-meta', categoryName(source.category)));
+    const failures = source.failures ?? 0;
+    const state = el(
+      'td',
+      failures > 0 ? 'result-state error' : '',
+      failures > 0
+        ? `取得失敗 ${failures}回連続${source.error ? `（${source.error}）` : ''}`
+        : source.okAt
+          ? `正常（${dateFormat.format(new Date(source.okAt))} 取得）`
+          : '—',
+    );
     const age = days(source.latest);
     const latest = el(
       'td',
       `num${age >= SOURCE_STALE_DAYS ? ' result-state error' : ''}`,
       source.latest ? `${dateFormat.format(new Date(source.latest))}${age >= SOURCE_STALE_DAYS ? `（${age}日前）` : ''}` : 'なし',
     );
-    row.append(name, el('td', '', categoryName(source.category)), el('td', 'num', `${source.count}件`), latest);
+    row.append(name, state, el('td', 'num', `${source.count}件`), latest);
     return row;
   });
   $('sources-table').replaceChildren(head, ...rows);
@@ -885,11 +910,17 @@ function setupBlocklist() {
 // ===== サイトの更新（GitHub Actions のワークフローを実行） =====
 
 const WORKFLOW = 'update.yml';
+const TIMER_WORKFLOW = 'timer.yml';
 const RUN_EVENTS: Record<string, string> = {
   schedule: '定期更新',
   workflow_dispatch: '手動実行',
   push: '変更の反映',
 };
+/** 自動更新タイマーが実行したもの（Actions のトークンで実行される） */
+const runLabel = (run: WorkflowRun) =>
+  run.event === 'workflow_dispatch' && run.triggering_actor?.login === 'github-actions[bot]'
+    ? '自動更新'
+    : (RUN_EVENTS[run.event] ?? run.event);
 let runsTimer: ReturnType<typeof setTimeout> | undefined;
 
 function runState(run: WorkflowRun): { text: string; kind: 'ok' | 'error' | 'active' | '' } {
@@ -926,7 +957,7 @@ async function renderRuns() {
         const item = el('li');
         item.append(
           el('span', `run-state ${state.kind}`.trim(), state.text),
-          el('span', '', RUN_EVENTS[run.event] ?? run.event),
+          el('span', '', runLabel(run)),
           el('span', 'pick-meta', dateFormat.format(new Date(run.created_at))),
           link,
         );
@@ -936,10 +967,29 @@ async function renderRuns() {
     if (runs.length === 0) ui.runList.append(el('li', 'pick-meta', 'まだ実行されていません。'));
     // 実行中のものがあれば、終わるまで自動で状況を更新する
     if (runs.some((run) => run.status !== 'completed')) runsTimer = setTimeout(renderRuns, 15_000);
+    await renderTimerStatus(runs);
   } catch (error) {
     ui.runList.replaceChildren(
       el('li', 'pick-meta', `実行状況を読み込めませんでした: ${error instanceof Error ? error.message : error}`),
     );
+  }
+}
+
+/** 自動更新タイマー（timer.yml）が動いているか、次の更新はいつごろか */
+async function renderTimerStatus(updateRuns: WorkflowRun[]) {
+  const target = $('timer-status');
+  try {
+    const timers = await githubClient().listWorkflowRuns(TIMER_WORKFLOW, 5);
+    const active = timers.some((run) => run.status !== 'completed');
+    const last = updateRuns[0] ? Date.parse(updateRuns[0].created_at) : undefined;
+    const next = last ? `（次の更新は ${dateFormat.format(new Date(last + 60 * 60 * 1000))} ごろ）` : '';
+    target.textContent = active
+      ? `自動更新: 動作中${next}`
+      : '自動更新: 停止中です。「今すぐ更新」を押すと、更新と一緒に自動更新も再開します。';
+    target.className = `timer-status ${active ? 'ok' : 'error'}`;
+  } catch {
+    // タイマーの状況が読めなくても、ほかの表示は続ける
+    target.textContent = '';
   }
 }
 
