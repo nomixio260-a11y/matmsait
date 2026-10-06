@@ -39,8 +39,15 @@ describe('トークンの暗号化', () => {
     const vault = await createVault('github_pat_secret', 'correct horse battery', { iterations, login: 'operator' });
     expect(vault.data).not.toContain('secret');
     expect(vault.login).toBe('operator');
-    expect(await openVault(vault, 'correct horse battery')).toBe('github_pat_secret');
+    expect(await openVault(vault, 'correct horse battery')).toEqual({ token: 'github_pat_secret' });
     await expect(openVault(vault, 'wrong password!!')).rejects.toThrow('パスワードが違います');
+  });
+
+  it('本文を読むための鍵もトークンと一緒に暗号化して保存し、取り出せる', async () => {
+    const textKey = { kid: '0123456789abcdef', publicKey: 'PUBLIC', privateKey: 'PRIVATE-KEY' };
+    const vault = await createVault({ token: 'github_pat_secret', textKey }, 'correct horse battery', { iterations });
+    expect(vault.data).not.toContain('PRIVATE');
+    expect(await openVault(vault, 'correct horse battery')).toEqual({ token: 'github_pat_secret', textKey });
   });
 
   it('同じトークンとパスワードでも、毎回違う暗号文になる（salt と iv が毎回違う）', async () => {
@@ -88,6 +95,13 @@ describe('ログイン中の状態', () => {
       expect(touchSession(store, now)).toBeDefined();
     }
     expect(currentSession(store, start + MAX_SESSION + 1)).toBeUndefined();
+  });
+
+  it('本文を読むための鍵もログイン中の状態に入れる', () => {
+    const store = memoryStore();
+    const textKey = { kid: 'k', publicKey: 'p', privateKey: 's' };
+    startSession(store, 'token', 'operator', 0, textKey);
+    expect(currentSession(store, 1)?.textKey).toEqual(textKey);
   });
 
   it('ログアウトすると状態を消す', () => {

@@ -106,6 +106,15 @@ import { href } from '../../lib/items.ts';
         <p class="hint">
           貼り付けた本文はこのタブの中でプロンプトを作るのに使うだけで、サイトや GitHub には保存・公開しません（タブを閉じると消えます）。本文は1記事{ARTICLE_TEXT_MAX.toLocaleString()}字までを使います。
         </p>
+        <div class="auto-text">
+          <p class="hint">
+            <b>本文の自動取得:</b> AI が開けなかった記事は、自動収集（約1時間ごと・依頼した直後にも実行）が本文を取りに行き、取得できた本文がここに入ります（数分かかります）。取得するときは「TopiatsumeBot」と名乗り、robots.txt で断っているサイト、AI での利用を断っているサイト（robots.txt・noai）、アクセスを拒否したサイトからは取得しません。その場合は本文を貼り付けてください。取得した本文は、管理画面にログインした人だけが読めるよう暗号化して保存し、公開しません。
+          </p>
+          <div class="actions">
+            <button type="button" id="request-texts" class="small">一覧の記事の本文を自動で取得する</button>
+            <span class="note" id="auto-text-status" aria-live="polite"></span>
+          </div>
+        </div>
         <div class="bookmarklet-row">
           <a class="bookmarklet" id="bookmarklet" href={COPY_ARTICLE_BOOKMARKLET} draggable="true">本文をコピー（トピあつめ）</a>
           <span class="note">
@@ -382,6 +391,31 @@ import { href } from '../../lib/items.ts';
     flex: 1;
     min-width: 220px;
     margin: 0;
+  }
+  .auto-text {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .auto-text .hint {
+    margin-top: 0;
+  }
+  .auto-text .actions {
+    margin-top: 6px;
+  }
+  :global(.auto-info) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-2);
+  }
+  :global(.auto-info.warn) {
+    color: var(--hot);
   }
   .bulk-paste {
     display: grid;

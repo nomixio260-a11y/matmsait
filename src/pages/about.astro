@@ -32,6 +32,14 @@ const sourceCount = getSources().length;
       一部の記事には、AIを利用して作成した要約を掲載しています（<a href={href('/summaries/')}>AI要約つき記事</a>）。要約は元記事の内容をもとに作成していますが、誤りを含む可能性があります。正確な内容は必ず元記事でご確認ください。
     </p>
 
+    <h2 id="bot">記事の本文の取得について（TopiatsumeBot）</h2>
+    <p>
+      AI要約を作るときに、AIが記事のページを開けない場合に限り、当サイトの自動収集が「TopiatsumeBot」という名前（User-Agent に「TopiatsumeBot/1.0」と当ページの URL を含みます）で記事のページを1回だけ取得することがあります。取得した本文は要約を作るためだけに使い、暗号化して保管し、当サイトで公開することはありません。
+    </p>
+    <p>
+      robots.txt で TopiatsumeBot を拒否しているページや、主な AI のクローラー（GPTBot・ChatGPT-User・ClaudeBot・Google-Extended など）を拒否しているページ、ページに noai の指定があるページ、アクセスを拒否されたページからは取得しません。取得を止めたい場合は、robots.txt に「User-agent: TopiatsumeBot」と「Disallow: /」を記載いただくか、<a href={href('/contact/')}>お問い合わせ</a>からご連絡ください。
+    </p>
+
     <h2>日別アーカイブについて</h2>
     <p>
       その日に話題になったニュースを1日ごとに<a href={href('/daily/')}>日別アーカイブ</a>としてまとめ、過去の分もいつでも振り返れるようにしています。<a href={href('/daily/rss.xml')}>日別まとめのRSS</a>でも購読できます。

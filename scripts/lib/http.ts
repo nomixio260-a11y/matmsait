@@ -87,6 +87,21 @@ export interface HttpGetOptions {
   maxRedirects?: number;
   /** ブラウザの既定のヘッダーの後ろに足すヘッダー（条件付きリクエストの If-None-Match など） */
   headers?: [string, string][];
+  /** ブラウザの既定のヘッダーの代わりに送るヘッダー（記事の本文の取得では、ボットとして名乗る） */
+  baseHeaders?: [string, string][];
+}
+
+/** 記事の本文を自動で取得するときに名乗る名前（サイトが robots.txt でこの名前を指定して断れる） */
+export const BOT_NAME = 'TopiatsumeBot';
+
+/** 本文の取得で送るヘッダー。ブラウザのふりはせず、ボットの名前と説明のページを名乗る */
+export function botHeaders(infoUrl: string): [string, string][] {
+  return [
+    ['User-Agent', `Mozilla/5.0 (compatible; ${BOT_NAME}/1.0; +${infoUrl})`],
+    ['Accept', 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5'],
+    ['Accept-Language', 'ja,en;q=0.5'],
+    ['Accept-Encoding', ACCEPT_ENCODING],
+  ];
 }
 
 // Node の fetch は Sec-Fetch-Mode を cors に固定し独自の既定ヘッダーも足すため、
@@ -98,10 +113,10 @@ const agents = {
 
 /** リダイレクトを辿って GET し、圧縮を展開した本文を返す */
 export async function httpGet(url: string, options: HttpGetOptions = {}): Promise<HttpResponse> {
-  const { kind = 'document', timeoutMs = 15_000, maxRedirects = 5, headers = [] } = options;
+  const { kind = 'document', timeoutMs = 15_000, maxRedirects = 5, headers = [], baseHeaders } = options;
   let current = new URL(url);
   for (let redirects = 0; ; redirects++) {
-    const res = await requestOnce(current, [...browserHeaders(kind), ...headers], timeoutMs);
+    const res = await requestOnce(current, [...(baseHeaders ?? browserHeaders(kind)), ...headers], timeoutMs);
     const location = res.headers.location;
     if (!REDIRECT_STATUSES.has(res.status) || !location) {
       return { url: current.toString(), ...res };

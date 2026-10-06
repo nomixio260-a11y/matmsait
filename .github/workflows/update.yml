@@ -49,6 +49,14 @@ jobs:
       - name: フィードを取得
         run: npm run fetch
 
+      # 管理画面から依頼された「AI が開けない記事」の本文を取得する（TopiatsumeBot と名乗り、robots.txt・AI での利用の
+      # 拒否・アクセスの拒否を守る。本文は運営者の公開鍵で暗号化して data/texts.json に置く）。失敗しても収集・公開は続ける
+      - name: AI が開けない記事の本文を取得
+        continue-on-error: true
+        run: npm run texts
+        env:
+          SITE_BASE_URL: ${{ steps.pages.outputs.base_url }}
+
       - name: 取得したデータをコミット
         id: commit
         run: |
@@ -59,12 +67,15 @@ jobs:
           cp data/items.json "$RUNNER_TEMP/fetched-items.json"
           # 収集元ごとの取得状態（ETag・連続失敗の回数など）は、今回の取得結果で上書きする
           cp data/feeds.json "$RUNNER_TEMP/feeds.json"
+          # 本文の自動取得の結果は、最新の data/texts.json にまとめる（同じ記事は新しく取得した方を残す）
+          if [ -f data/texts.json ]; then cp data/texts.json "$RUNNER_TEMP/texts.json"; fi
           for attempt in 1 2 3; do
             git fetch --quiet origin "$GITHUB_REF_NAME"
             git reset --quiet --hard "origin/$GITHUB_REF_NAME"
             git diff --quiet "$GITHUB_SHA" HEAD -- package-lock.json || npm ci
             npm run --silent merge -- "$RUNNER_TEMP/fetched-items.json"
             cp "$RUNNER_TEMP/feeds.json" data/feeds.json
+            if [ -f "$RUNNER_TEMP/texts.json" ]; then npm run --silent texts -- --merge "$RUNNER_TEMP/texts.json"; fi
             git add data
             if git diff --cached --quiet; then
               echo '更新なし'

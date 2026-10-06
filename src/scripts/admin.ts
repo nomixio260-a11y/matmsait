@@ -37,6 +37,21 @@ import {
   type ValidationResult,
 } from '../lib/summary-core.ts';
 import type { Item, SummaryRecord } from '../lib/types.ts';
+import {
+  TEXT_KEYS_PATH,
+  TEXT_REQUESTS_PATH,
+  TEXT_STATUS_LABELS,
+  mergeTextKeys,
+  mergeTextRequests,
+  parseJsonList,
+  pickKeys,
+  pickRequests,
+  pickResults,
+  serializeLines,
+  type TextRequest,
+  type TextResult,
+} from '../lib/article-texts.ts';
+import { decryptText, type TextKeyPair } from '../lib/text-crypto.ts';
 import { requireSession, watchSession } from './admin-common.ts';
 
 interface AdminArticle extends Item {
@@ -82,6 +97,8 @@ interface AdminData {
   summarized: AdminSummary[];
   blocklist?: Blocklist;
   hidden?: HiddenArticle[];
+  /** 本文の自動取得に登録してある公開鍵の ID */
+  textKeys?: string[];
 }
 
 const KEYS = {
@@ -249,6 +266,17 @@ let token = '';
 const texts = new Map<string, string>();
 /** 「本文を貼る」で、本文を貼り付ける記事に加えた記事 */
 const pasteIds = new Set<string>();
+/** 自動で取得した本文の記事（運営者が自分で貼った本文と見分ける） */
+const autoTexts = new Set<string>();
+/** 運営者が自動で取得した本文を消した記事（自動の本文を入れ直さない） */
+const noAuto = new Set<string>();
+/** 自動で取得した本文を読むための鍵（ログイン中だけ） */
+let textKey: TextKeyPair | undefined;
+/** 本文の自動取得の依頼と結果 */
+let textRequests: TextRequest[] = [];
+const textResults = new Map<string, TextResult>();
+/** 鍵が違って読めなかった記事 */
+const undecryptable = new Set<string>();
 
 const categoryName = (slug: string) => data?.categories.find((c) => c.slug === slug)?.name ?? slug;
 
@@ -762,9 +790,16 @@ function pasteRow(article: AdminArticle, marks: Map<string, UnavailableMark>): H
   area.value = texts.get(article.id) ?? '';
   area.setAttribute('aria-label', `「${article.title}」の本文`);
   const info = el('p', 'paste-info');
-  /** 本文を読み取って表示を更新する */
-  const update = () => {
+  const auto = autoInfo(article);
+  /** 本文を読み取って表示を更新する（edited: 運営者が書き換えたとき） */
+  const update = (edited = false) => {
     const parsed = parsePastedText(area.value);
+    if (edited) {
+      // 自分で書き換えた本文は、自動で取得した本文として扱わない（消したら自動の本文を入れ直さない）
+      autoTexts.delete(article.id);
+      if (!parsed.text) noAuto.add(article.id);
+      else noAuto.delete(article.id);
+    }
     if (parsed.text) texts.set(article.id, parsed.text);
     else texts.delete(article.id);
     const warnings: string[] = [];
@@ -777,19 +812,22 @@ function pasteRow(article: AdminArticle, marks: Map<string, UnavailableMark>): H
     if (parsed.truncated) warnings.push(`長いので先頭の${ARTICLE_TEXT_MAX.toLocaleString()}字だけを使います。`);
     else if (parsed.text && length < 200) warnings.push('本文が短いようです。本文全体をコピーできているか確かめてください。');
     info.textContent = parsed.text
-      ? [`本文 ${length.toLocaleString()}字（AI は URL を開かずに、この本文から要約します）。`, ...warnings].join(' ')
+      ? [
+          `${autoTexts.has(article.id) ? '自動で取得した本文' : '本文'} ${length.toLocaleString()}字（AI は URL を開かずに、この本文から要約します）。`,
+          ...warnings,
+        ].join(' ')
       : '本文はまだありません（このままでは AI が URL を開こうとします）。';
     info.className = warnings.length > 0 ? 'paste-info warn' : 'paste-info';
   };
   let timer: ReturnType<typeof setTimeout> | undefined;
   area.addEventListener('input', () => {
-    update();
+    update(true);
+    saveDraft();
     // 本文入りのプロンプトを作り直す（打つたびに作り直さないよう少し待つ）
     clearTimeout(timer);
     timer = setTimeout(() => {
       renderPastePrompt();
       if (selected.has(article.id)) renderPrompt();
-      else saveDraft();
     }, 250);
   });
   update();
@@ -815,8 +853,191 @@ function pasteRow(article: AdminArticle, marks: Map<string, UnavailableMark>): H
     renderPrompt();
   });
   actions.append(remove);
-  item.append(title, meta, area, info, actions);
+  item.append(title, meta, area, info, ...(auto ? [auto] : []), actions);
   return item;
+}
+
+// ===== 本文の自動取得（依頼・結果の読み込み・復号） =====
+
+/** 自動取得を断っているサイト（robots.txt・noai で断っていた結果があるサイト）。依頼しても同じなので、自動では依頼しない */
+function refusedSources(): Set<string> {
+  const sourceOf = new Map(textRequests.map((request) => [request.id, request.sourceId]));
+  const refused = new Set<string>();
+  for (const result of textResults.values()) {
+    const sourceId = sourceOf.get(result.id) ?? findArticle(result.id)?.article.sourceId;
+    if (sourceId && (result.status === 'robots' || result.status === 'ai-optout')) refused.add(sourceId);
+  }
+  return refused;
+}
+
+/** 記事の最新の依頼と結果 */
+function textState(id: string): { request?: TextRequest; result?: TextResult; waiting: boolean } {
+  const request = textRequests.find((entry) => entry.id === id);
+  const result = textResults.get(id);
+  const waiting = !!request && (!result || result.fetchedAt < request.requestedAt);
+  return { request, result, waiting };
+}
+
+/** 記事ごとの欄に出す、自動取得の状況（と、依頼し直すボタン） */
+function autoInfo(article: AdminArticle): HTMLElement | undefined {
+  const { request, result, waiting } = textState(article.id);
+  if (autoTexts.has(article.id) && texts.has(article.id)) return undefined;
+  const box = el('p', 'auto-info');
+  const retry = (label: string) => {
+    const button = el('button', 'ghost small', label);
+    button.type = 'button';
+    button.addEventListener('click', () => void requestTexts([article]));
+    return button;
+  };
+  if (waiting) {
+    box.append('本文を自動で取得しています（依頼から数分かかります。この画面を開いたままにすると自動で確認します）…');
+  } else if (result && result.status === 'ok' && !textKey) {
+    box.classList.add('warn');
+    box.append('自動で取得した本文があります。読むには、いったんログアウトしてログインし直してください。');
+  } else if (result && result.status === 'ok' && undecryptable.has(article.id)) {
+    box.classList.add('warn');
+    box.append('自動で取得した本文を、このログインの鍵では読めませんでした（鍵を作り直す前に取得した本文です）。', retry('もう一度自動で取得'));
+  } else if (result && result.status !== 'ok') {
+    box.classList.add('warn');
+    box.append(`自動で取得できませんでした: ${TEXT_STATUS_LABELS[result.status]}${result.detail ? `（${result.detail}）` : ''}。本文を貼り付けてください。`);
+    // サイトが断っている場合は、依頼し直しても同じなのでボタンを出さない
+    if (result.status === 'error' || result.status === 'no-text') box.append(retry('もう一度自動で取得'));
+  } else if (!request && !texts.has(article.id)) {
+    box.append(retry('本文を自動で取得'));
+  } else {
+    return undefined;
+  }
+  return box;
+}
+
+/** 本文の自動取得を依頼する（data/text-requests.json に書く。書き込むと自動収集が動き、数分で結果が入る） */
+async function requestTexts(articles: AdminArticle[]) {
+  const status = $('auto-text-status');
+  if (!data || articles.length === 0) return;
+  if (!textKey) {
+    setStatus(status, '本文の自動取得を使うには、いったんログアウトしてログインし直してください（本文を読むための鍵を作ります）。', 'error');
+    return;
+  }
+  const requestedAt = new Date().toISOString();
+  const additions = articles.map(({ id, url, sourceId }) => ({ id, url, sourceId, requestedAt }));
+  setStatus(status, `${additions.length}件の本文の自動取得を依頼しています…`);
+  try {
+    const client = githubClient();
+    const { defaultBranch } = await client.repository();
+    await client.commitFiles(defaultBranch, `本文の自動取得を依頼（${additions.length}件）`, async (read) => {
+      const current = parseJsonList((await read(TEXT_REQUESTS_PATH)) ?? undefined, pickRequests);
+      return [{ path: TEXT_REQUESTS_PATH, content: serializeLines(mergeTextRequests(current, additions, Date.now())) }];
+    });
+    textRequests = mergeTextRequests(textRequests, additions, Date.now());
+    for (const article of articles) {
+      undecryptable.delete(article.id);
+      // 依頼し直した記事は、取得できた本文を入れ直す
+      noAuto.delete(article.id);
+    }
+    setStatus(
+      status,
+      `${additions.length}件の本文の自動取得を依頼しました。数分後に、取得できた本文がこの欄に入ります（この画面を開いたままにすると自動で確認します）。`,
+      'ok',
+    );
+    renderPasteList();
+    scheduleTextsCheck();
+  } catch (error) {
+    setStatus(status, `本文の自動取得を依頼できませんでした: ${errorText(error)}`, 'error');
+  }
+}
+
+/** 一覧の記事のうち、まだ本文がなく、自動取得も依頼していない（または取得に失敗した）記事の本文を依頼する */
+function requestListedTexts() {
+  const refused = refusedSources();
+  const targets = pasteArticles().filter((article) => {
+    if (texts.has(article.id) || refused.has(article.sourceId)) return false;
+    const { waiting, result } = textState(article.id);
+    return !waiting && (!result || result.status === 'error' || result.status === 'no-text' || result.status === 'ok');
+  });
+  if (targets.length === 0) {
+    setStatus($('auto-text-status'), '自動取得を依頼できる記事はありません（本文がある記事・取得中の記事・サイトが断っている記事は除きます）。');
+    return;
+  }
+  void requestTexts(targets);
+}
+
+/** 自分の公開鍵がまだ登録されていなければ、data/text-keys.json に登録する（自動収集が本文をこの鍵で暗号化する） */
+async function ensureTextKey() {
+  if (!data || !textKey || (data.textKeys ?? []).includes(textKey.kid)) return;
+  const key = textKey;
+  try {
+    const client = githubClient();
+    const { defaultBranch } = await client.repository();
+    await client.commitFiles(defaultBranch, '本文の自動取得の鍵を登録', async (read) => {
+      const current = parseJsonList((await read(TEXT_KEYS_PATH)) ?? undefined, pickKeys);
+      if (current.some((entry) => entry.kid === key.kid)) return [];
+      const next = mergeTextKeys(current, { kid: key.kid, publicKey: key.publicKey, createdAt: new Date().toISOString() });
+      return [{ path: TEXT_KEYS_PATH, content: serializeLines(next) }];
+    });
+    data.textKeys = [...(data.textKeys ?? []), key.kid];
+  } catch (error) {
+    setStatus($('auto-text-status'), `本文の自動取得の鍵を登録できませんでした: ${errorText(error)}`, 'error');
+  }
+}
+
+let textsTimer: ReturnType<typeof setTimeout> | undefined;
+let textsChecks = 0;
+
+/** 取得を待っている記事があれば、しばらくして結果を確かめる（最大30分） */
+function scheduleTextsCheck() {
+  clearTimeout(textsTimer);
+  const waiting = textRequests.some((request) => textState(request.id).waiting && findArticle(request.id));
+  if (waiting && textsChecks < 30) textsTimer = setTimeout(() => void loadTexts(), 60_000);
+}
+
+/** 自動取得の依頼と結果を読み込み、取得できた本文を復号して入れる */
+async function loadTexts() {
+  textsChecks++;
+  try {
+    const res = await fetch(`${base}/admin/texts.json`, { cache: 'no-store' });
+    if (res.ok) {
+      const body = (await res.json()) as { requests?: unknown; items?: unknown };
+      textRequests = mergeTextRequests(textRequests, pickRequests(body.requests), Date.now());
+      for (const result of pickResults({ items: body.items })) {
+        const known = textResults.get(result.id);
+        if (!known || known.fetchedAt < result.fetchedAt) textResults.set(result.id, result);
+      }
+      await applyTexts();
+    }
+  } catch {
+    // 読めなくても、手で貼り付ける作業は続けられる
+  }
+  scheduleTextsCheck();
+}
+
+/** 取得できた本文を復号して、本文の欄に入れる（自分で貼った本文は上書きしない） */
+async function applyTexts() {
+  let added = 0;
+  for (const result of textResults.values()) {
+    if (result.status !== 'ok' || !result.enc || texts.has(result.id) || noAuto.has(result.id) || !findArticle(result.id)) continue;
+    if (readMarks(KEYS.saved).has(result.id)) continue;
+    if (!textKey) {
+      undecryptable.add(result.id);
+      continue;
+    }
+    try {
+      texts.set(result.id, await decryptText(result.enc, textKey));
+      autoTexts.add(result.id);
+      pasteIds.add(result.id);
+      selected.delete(result.id);
+      undecryptable.delete(result.id);
+      added++;
+    } catch {
+      undecryptable.add(result.id);
+    }
+  }
+  if (added > 0) {
+    syncPickList();
+    renderPrompt();
+    setStatus($('auto-text-status'), `${added}件の本文を自動で取得しました。下の本文入りのプロンプトに入っています。`, 'ok');
+    ui.pasteCard.open = true;
+  }
+  renderPasteList();
 }
 
 function renderPasteList() {
@@ -926,6 +1147,7 @@ async function loadTextFiles(files: FileList | File[]) {
 
 function setupPaste() {
   setupPanel(pastePanel, $<HTMLButtonElement>('paste-prompt-copy'), $<HTMLButtonElement>('paste-prompt-download'));
+  $('request-texts').addEventListener('click', requestListedTexts);
   $('bulk-assign').addEventListener('click', assignBulkText);
   // 貼り付けたらすぐに振り分ける
   ui.bulkText.addEventListener('paste', () => setTimeout(assignBulkText, 0));
@@ -1018,6 +1240,9 @@ interface Draft {
   texts?: [string, string][];
   /** 本文を貼り付ける記事に加えた記事 */
   pasteIds?: string[];
+  /** 自動で取得した本文の記事・自動の本文を消した記事 */
+  autoTexts?: string[];
+  noAuto?: string[];
   savedAt: number;
 }
 const DRAFT_KEY = 'admin.draft';
@@ -1031,6 +1256,8 @@ function saveDraft() {
     includeSummarized: ui.includeSummarized.checked,
     texts: [...texts],
     pasteIds: [...pasteIds],
+    autoTexts: [...autoTexts],
+    noAuto: [...noAuto],
     savedAt: Date.now(),
   };
   try {
@@ -1063,6 +1290,10 @@ function restoreDraft(): boolean {
   }
   pasteIds.clear();
   for (const id of Array.isArray(draft.pasteIds) ? draft.pasteIds : []) if (exists(id)) pasteIds.add(id);
+  autoTexts.clear();
+  for (const id of Array.isArray(draft.autoTexts) ? draft.autoTexts : []) if (texts.has(id)) autoTexts.add(id);
+  noAuto.clear();
+  for (const id of Array.isArray(draft.noAuto) ? draft.noAuto : []) if (exists(id)) noAuto.add(id);
   ui.response.value = typeof draft.response === 'string' ? draft.response : '';
   return true;
 }
@@ -1132,7 +1363,8 @@ function renderSaveArea() {
       : '確認できた要約はまだありません。';
 }
 
-function checkResponse() {
+/** AI の回答を確認する。record が false なら（作業を戻したときなど）、AI が開けなかった記事の記録や自動取得の依頼はしない */
+function checkResponse({ record = true }: { record?: boolean } = {}) {
   validation = undefined;
   excluded.clear();
   ui.checkResult.replaceChildren();
@@ -1219,14 +1451,21 @@ function checkResponse() {
 
   // AI が開けなかった記事を記録し、「AI が開けない記事」に移す（次からは自動で選ばない）
   const unavailable = validation.skipped.filter((issue) => issue.unavailable).map((issue) => issue.id);
-  if (unavailable.length > 0) {
+  if (unavailable.length > 0 && record) {
     markUnavailable(unavailable);
+    // 本文の自動取得を依頼する（本文がなく、まだ依頼していない記事）
+    const refused = refusedSources();
+    const toRequest = unavailable.flatMap((id) => {
+      const found = findArticle(id);
+      return found && !texts.has(id) && !textState(id).waiting && !refused.has(found.article.sourceId) ? [found.article] : [];
+    });
+    void requestTexts(toRequest);
     const note = el('div', 'unavailable-note');
     note.append(
       el(
         'p',
         'note',
-        `AI が開けなかった記事 ${unavailable.length}件を「AI が開けない記事」に移しました。保存のあと、本文を貼り付けるか、同じ話題の別の記事に切り替えて、もう一度プロンプトを作ってください。`,
+        `AI が開けなかった記事 ${unavailable.length}件を「AI が開けない記事」に移し、本文の自動取得を依頼しました。数分後に本文が入ったら（入らない記事は本文を貼り付けるか、同じ話題の別の記事に切り替えて）、本文入りのプロンプトで依頼してください。`,
       ),
     );
     const go = el('button', 'small', '「AI が開けない記事」を開く');
@@ -1869,6 +2108,7 @@ async function main() {
   const session = requireSession();
   if (!session) return;
   token = session.token;
+  textKey = session.textKey;
   watchSession(session);
   root.hidden = false;
 
@@ -1924,7 +2164,7 @@ async function main() {
   ui.maxChars.addEventListener('change', rerenderPrompts);
   ui.answerMode.addEventListener('change', rerenderPrompts);
   setupPanel(promptPanel, $<HTMLButtonElement>('copy-prompt'), $<HTMLButtonElement>('download-prompt'));
-  $('check').addEventListener('click', checkResponse);
+  $('check').addEventListener('click', () => checkResponse());
   $('response-file-button').addEventListener('click', () => ui.responseFile.click());
   ui.responseFile.addEventListener('change', () => {
     if (ui.responseFile.files?.length) void loadResponseFiles(ui.responseFile.files);
@@ -1949,11 +2189,16 @@ async function main() {
     ui.dataInfo.after(
       el('p', 'note', `前回の作業（選んだ記事 ${selected.size}件${ui.response.value.trim() ? '・貼り付けた回答' : ''}）を戻しました。`),
     );
-    if (ui.response.value.trim()) checkResponse();
+    if (ui.response.value.trim()) checkResponse({ record: false });
   } else {
     refresh();
   }
   renderPasteList();
+  void ensureTextKey();
+  void loadTexts();
+  if (!textKey) {
+    setStatus($('auto-text-status'), '本文の自動取得を使うには、いったんログアウトしてログインし直してください（本文を読むための鍵を作ります）。');
+  }
   renderSavedList();
   renderSaveArea();
   setupRuns();

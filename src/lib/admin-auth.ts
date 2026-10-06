@@ -1,10 +1,12 @@
 /**
- * 管理画面のログイン（ブラウザだけで動く。サーバーはないので、守る対象は GitHub のトークン）
- * - トークンは運営者が決めたパスワードで暗号化して、このブラウザ（localStorage）に保存する
- *   （PBKDF2-SHA256 で鍵を作り、AES-GCM で暗号化。パスワードがわからなければ取り出せない）
+ * 管理画面のログイン（ブラウザだけで動く。サーバーはないので、守る対象は GitHub のトークンと、自動で取得した本文を読む秘密鍵）
+ * - トークンと秘密鍵は運営者が決めたパスワードで暗号化して、このブラウザ（localStorage）に保存する
+ *   （PBKDF2-SHA256 で鍵を作り、AES-GCM で暗号化。パスワードがわからなければ取り出せない。パスワード自体はどこにも保存しない）
  * - ログイン中だけ、取り出したトークンをこのタブ（sessionStorage）に置く。操作がないまま一定時間たつと自動でログアウト
  * - パスワードを続けて間違えると、しばらくログインできなくする
  */
+
+import type { TextKeyPair } from './text-crypto.ts';
 
 export const VAULT_KEY = 'admin.vault';
 export const SESSION_KEY = 'admin.session';
@@ -29,16 +31,25 @@ export interface Vault {
   iterations: number;
   salt: string;
   iv: string;
-  /** 暗号化したトークン（base64） */
+  /** 暗号化したトークンと秘密鍵（base64） */
   data: string;
   /** GitHub のユーザー名（表示用） */
   login?: string;
   createdAt: string;
 }
 
+/** パスワードで暗号化して保存するもの */
+export interface VaultSecrets {
+  token: string;
+  /** 自動で取得した本文を読むための鍵（以前の版で保存したものにはない） */
+  textKey?: TextKeyPair;
+}
+
 export interface Session {
   token: string;
   login?: string;
+  /** 自動で取得した本文を読むための鍵 */
+  textKey?: TextKeyPair;
   startedAt: number;
   lastActive: number;
 }
@@ -91,16 +102,19 @@ export function passwordProblem(password: string, confirm?: string): string | un
   return undefined;
 }
 
-/** トークンをパスワードで暗号化する */
+/** トークン（と秘密鍵）をパスワードで暗号化する */
 export async function createVault(
-  token: string,
+  secrets: VaultSecrets | string,
   password: string,
   { login, iterations = PBKDF2_ITERATIONS, now = new Date() }: { login?: string; iterations?: number; now?: Date } = {},
 ): Promise<Vault> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await deriveKey(password, salt, iterations);
-  const data = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(token)));
+  const { token, textKey } = typeof secrets === 'string' ? { token: secrets, textKey: undefined } : secrets;
+  // 秘密鍵がなければ、以前の版と同じくトークンだけを暗号化する
+  const plain = textKey ? JSON.stringify({ token, textKey }) : token;
+  const data = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(plain)));
   return {
     v: 1,
     iterations,
@@ -112,15 +126,25 @@ export async function createVault(
   };
 }
 
-/** パスワードでトークンを取り出す。パスワードが違えばエラー */
-export async function openVault(vault: Vault, password: string): Promise<string> {
+/** パスワードでトークン（と秘密鍵）を取り出す。パスワードが違えばエラー */
+export async function openVault(vault: Vault, password: string): Promise<VaultSecrets> {
   const key = await deriveKey(password, fromBase64(vault.salt), vault.iterations);
+  let plain: string;
   try {
-    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromBase64(vault.iv) }, key, fromBase64(vault.data));
-    return decoder.decode(plain);
+    plain = decoder.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromBase64(vault.iv) }, key, fromBase64(vault.data)));
   } catch {
     throw new Error('パスワードが違います');
   }
+  // 以前の版はトークンだけを暗号化していた
+  if (plain.startsWith('{')) {
+    try {
+      const secrets = JSON.parse(plain) as VaultSecrets;
+      if (typeof secrets.token === 'string') return secrets;
+    } catch {
+      // トークンとして扱う
+    }
+  }
+  return { token: plain };
 }
 
 function readJson<T>(store: KeyValueStore, key: string): T | undefined {
@@ -175,8 +199,14 @@ export function deleteVault(store: KeyValueStore): void {
 
 // ===== ログイン中の状態 =====
 
-export function startSession(store: KeyValueStore, token: string, login: string | undefined, now: number): Session {
-  const session: Session = { token, ...(login ? { login } : {}), startedAt: now, lastActive: now };
+export function startSession(
+  store: KeyValueStore,
+  token: string,
+  login: string | undefined,
+  now: number,
+  textKey?: TextKeyPair,
+): Session {
+  const session: Session = { token, ...(login ? { login } : {}), ...(textKey ? { textKey } : {}), startedAt: now, lastActive: now };
   writeJson(store, SESSION_KEY, session);
   return session;
 }

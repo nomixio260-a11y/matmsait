@@ -5,6 +5,7 @@ import { getBlocklist } from '../../lib/blocklist.ts';
 import { blockReason } from '../../lib/blocklist-core.ts';
 import { allowsSummary, builtAt, getAllItems, getItems, getSources, siteOf } from '../../lib/items.ts';
 import { getAllSummaries, getSummaries, getSummary } from '../../lib/summaries.ts';
+import { TEXT_KEYS_PATH, parseJsonList, pickKeys } from '../../lib/article-texts.ts';
 import { coverageOf, topicOf } from '../../lib/topics.ts';
 import type { Item } from '../../lib/types.ts';
 
@@ -119,6 +120,11 @@ export function GET() {
     blocklist: getBlocklist(),
     hidden: hiddenArticles(),
     sources: sourceStats(),
+    // 本文の自動取得に登録してある公開鍵の ID（自分の鍵が登録済みかを管理画面が確かめる）
+    textKeys: parseJsonList(
+      existsSync(resolve(process.cwd(), TEXT_KEYS_PATH)) ? readFileSync(resolve(process.cwd(), TEXT_KEYS_PATH), 'utf8') : undefined,
+      pickKeys,
+    ).map((key) => key.kid),
   };
   return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }

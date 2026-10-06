@@ -1,7 +1,9 @@
 /**
  * 管理画面のログインページ
- * - 初回: GitHub のトークンを確かめ（このリポジトリに書き込めるか）、パスワードで暗号化して保存してログイン
- * - 2回目から: パスワードでトークンを取り出し、まだ使えるかを確かめてログイン
+ * - 初回: GitHub のトークンを確かめ（このリポジトリに書き込めるか）、自動で取得した本文を読むための鍵を作り、
+ *   トークンと鍵をパスワードで暗号化して保存してログイン
+ * - 2回目から: パスワードでトークンと鍵を取り出し、トークンがまだ使えるかを確かめてログイン
+ *   （以前の版で保存した、鍵のない保存内容には、ここで鍵を足して保存し直す）
  */
 import {
   LEGACY_TOKEN_KEY,
@@ -18,6 +20,7 @@ import {
   startSession,
 } from '../lib/admin-auth.ts';
 import { createGitHubClient, GitHubError } from '../lib/github-commit.ts';
+import { generateTextKeyPair, type TextKeyPair } from '../lib/text-crypto.ts';
 import { base } from './admin-common.ts';
 
 const root = document.querySelector<HTMLElement>('[data-login]')!;
@@ -66,9 +69,9 @@ function showNotice(text: string, kind: '' | 'error' = '') {
   notice.hidden = false;
 }
 
-function finish(token: string, login: string) {
+function finish(token: string, login: string, textKey: TextKeyPair) {
   clearFailures(localStorage);
-  startSession(sessionStorage, token, login, Date.now());
+  startSession(sessionStorage, token, login, Date.now(), textKey);
   location.replace(nextUrl());
 }
 
@@ -97,9 +100,9 @@ function showLogin() {
     }
     button.disabled = true;
     setStatus(status, '確認しています…');
-    let token: string;
+    let secrets: Awaited<ReturnType<typeof openVault>>;
     try {
-      token = await openVault(vault, password.value);
+      secrets = await openVault(vault, password.value);
     } catch {
       const failures = recordFailure(localStorage, Date.now());
       const locked = failures.lockedUntil > Date.now();
@@ -115,8 +118,15 @@ function showLogin() {
       return;
     }
     try {
-      const login = await verifyToken(token);
-      finish(token, login || vault.login || '');
+      const login = await verifyToken(secrets.token);
+      let { textKey } = secrets;
+      if (!textKey) {
+        // 以前の版で保存した内容には本文を読む鍵がないので、作って保存し直す
+        setStatus(status, '自動で取得した本文を読むための鍵を作っています…');
+        textKey = await generateTextKeyPair();
+        saveVault(localStorage, await createVault({ token: secrets.token, textKey }, password.value, { login: login || vault.login }));
+      }
+      finish(secrets.token, login || vault.login || '', textKey);
     } catch (error) {
       setStatus(status, describe(error), 'error');
       button.disabled = false;
@@ -173,9 +183,10 @@ function showSetup() {
     setStatus(status, 'GitHub に接続して確認しています…');
     try {
       const login = await verifyToken(token);
-      setStatus(status, 'トークンを暗号化して保存しています…');
-      saveVault(localStorage, await createVault(token, password.value, { login }));
-      finish(token, login);
+      setStatus(status, 'トークンと、自動で取得した本文を読むための鍵を暗号化して保存しています…');
+      const textKey = await generateTextKeyPair();
+      saveVault(localStorage, await createVault({ token, textKey }, password.value, { login }));
+      finish(token, login, textKey);
     } catch (error) {
       setStatus(status, describe(error), 'error');
       button.disabled = false;

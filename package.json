@@ -16,12 +16,14 @@
     "merge": "tsx scripts/merge-items.ts",
     "notify": "tsx scripts/notify.ts",
     "summaries": "tsx scripts/summaries.ts",
-    "timer": "tsx scripts/timer.ts"
+    "timer": "tsx scripts/timer.ts",
+    "texts": "tsx scripts/fetch-texts.ts"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.5",
+    "node-html-parser": "^9.0.4",
     "rss-parser": "^3.13.0",
     "yaml": "^2.9.1"
   },
