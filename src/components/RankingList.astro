@@ -1,0 +1,46 @@
+---
+import { faviconUrl, getCategory, href, siteOf } from '../lib/items.ts';
+import type { Item } from '../lib/types.ts';
+
+interface Props {
+  items: Item[];
+  /** 抜粋とカテゴリも表示する（ランキングページ用） */
+  detailed?: boolean;
+}
+const { items, detailed = false } = Astro.props;
+---
+
+<ol class:list={['ranking', { detailed }]}>
+  {
+    items.map((item, index) => {
+      const site = siteOf(item);
+      const category = detailed ? getCategory(item.category) : undefined;
+      return (
+        <li class="rank-item">
+          <span class:list={['rank', `rank-${index + 1}`]}>{index + 1}</span>
+          <div class="rank-body">
+            <a class="item-title" href={item.url} target="_blank" rel="noopener">
+              {item.title}
+            </a>
+            {detailed && item.excerpt && <p class="item-excerpt">{item.excerpt}</p>}
+            <div class="item-meta">
+              <span class="item-site">
+                <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                {site.label}
+              </span>
+              {category && (
+                <a class="item-cat" href={href(`/category/${category.slug}/`)}>
+                  <span class="dot" style={`--c:${category.color}`} />
+                  {category.name}
+                </a>
+              )}
+              <span class:list={['users', { hot: (item.hatebu ?? 0) >= 100 }]} title="はてなブックマーク数">
+                <b>{item.hatebu}</b> users
+              </span>
+            </div>
+          </div>
+        </li>
+      );
+    })
+  }
+</ol>

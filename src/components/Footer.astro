@@ -1,0 +1,111 @@
+---
+import Logo from './Logo.astro';
+import { categories, site } from '../config/site.ts';
+import { builtAt, formatDateTime, href } from '../lib/items.ts';
+
+const year = builtAt.getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-about">
+      <a class="footer-brand" href={href('/')}>
+        <Logo size={24} />
+        <span>{site.name}</span>
+      </a>
+      <p>{site.description}</p>
+      <p class="updated">最終更新: {formatDateTime(builtAt)}</p>
+    </div>
+    <nav aria-label="カテゴリ一覧">
+      <h2>カテゴリ</h2>
+      <ul>
+        <li><a href={href('/latest/')}>すべての新着</a></li>
+        <li><a href={href('/ranking/')}>人気ランキング</a></li>
+        {
+          categories.map((c) => (
+            <li>
+              <a href={href(`/category/${c.slug}/`)}>{c.name}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+    <nav aria-label="サイト情報">
+      <h2>サイト情報</h2>
+      <ul>
+        <li><a href={href('/about/')}>このサイトについて</a></li>
+        <li><a href={href('/sources/')}>掲載元一覧</a></li>
+        <li><a href={href('/privacy/')}>プライバシーポリシー</a></li>
+        <li><a href={href('/contact/')}>お問い合わせ</a></li>
+        <li><a href={href('/rss.xml')}>RSSフィード</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="container footer-bottom">
+    <p>掲載している記事の見出し・抜粋の著作権は各配信元に帰属します。記事本文は各リンク先でご覧ください。</p>
+    <p>&copy; {year} {site.name}</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+  .footer-grid {
+    display: grid;
+    gap: 24px;
+    padding-top: 28px;
+    padding-bottom: 20px;
+  }
+  @media (min-width: 720px) {
+    .footer-grid {
+      grid-template-columns: 2fr 1fr 1fr;
+    }
+  }
+  .footer-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    font-weight: 800;
+    font-size: 1rem;
+    text-decoration: none;
+  }
+  .footer-about p {
+    margin: 8px 0 0;
+    line-height: 1.7;
+  }
+  .updated {
+    font-variant-numeric: tabular-nums;
+  }
+  h2 {
+    margin: 0 0 8px;
+    font-size: 0.82rem;
+    color: var(--text);
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+  }
+  a {
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--text);
+    text-decoration: underline;
+  }
+  .footer-bottom {
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+    padding-bottom: 24px;
+  }
+  .footer-bottom p {
+    margin: 4px 0;
+  }
+</style>

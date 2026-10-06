@@ -4,9 +4,9 @@ import { site } from '../config/site.ts';
 import { href } from '../lib/items.ts';
 ---
 
-<BaseLayout title="プライバシーポリシー">
-  <div class="prose">
-    <h1>プライバシーポリシー</h1>
+<BaseLayout title="プライバシーポリシー・免責事項" breadcrumbs={[{ name: 'プライバシーポリシー' }]}>
+  <article class="prose">
+    <h1>プライバシーポリシー・免責事項</h1>
 
     <h2>広告の配信について</h2>
     <p>
@@ -24,9 +24,17 @@ import { href } from '../lib/items.ts';
 
     <h2>アクセス解析ツールについて</h2>
     <p>
-      当サイトではアクセス解析ツールを利用する場合があります。これらのツールはトラフィックデータの収集のために Cookie を使用しますが、
-      個人を特定する情報は含まれません。Cookie はブラウザの設定で無効にできます。
+      当サイトでは Google アナリティクスなどのアクセス解析ツールを利用する場合があります。これらのツールはトラフィックデータの収集のために
+      Cookie を使用しますが、個人を特定する情報は含まれません。Cookie はブラウザの設定で無効にできます。
     </p>
+
+    <h2>外部サービスの利用について</h2>
+    <ul>
+      <li>記事の配信元サイトのアイコン表示に、Google のファビコン取得サービスを利用しています。</li>
+      <li>
+        表示テーマ（ライト／ダーク）の設定は、お使いのブラウザ内（ローカルストレージ）にのみ保存し、外部へは送信しません。
+      </li>
+    </ul>
 
     <h2>外部リンクについて</h2>
     <p>
@@ -36,20 +44,20 @@ import { href } from '../lib/items.ts';
 
     <h2>免責事項</h2>
     <p>
-      当サイトに掲載している見出し・抜粋は各配信元のRSSフィードから自動で取得したものであり、その内容の正確性を保証するものではありません。
+      当サイトに掲載している見出し・抜粋は各配信元のRSSフィードから自動で取得したものであり、その内容の正確性・最新性を保証するものではありません。
       当サイトの情報を利用したことにより生じた損害について、一切の責任を負いかねます。
     </p>
 
     <h2>お問い合わせ</h2>
     <p>本ポリシーに関するお問い合わせは<a href={href('/contact/')}>お問い合わせ</a>ページからご連絡ください。</p>
 
-    <p class="updated">運営者: {site.operator}</p>
-  </div>
+    <p class="signature">運営者: {site.operator}</p>
+  </article>
 </BaseLayout>
 
 <style>
-  .updated {
-    margin-top: 24px;
+  .signature {
+    margin-top: 28px;
     color: var(--muted);
     font-size: 0.85rem;
   }

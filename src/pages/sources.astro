@@ -1,57 +1,104 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { categories } from '../config/site.ts';
-import { getItemsBySource, getSources, href } from '../lib/items.ts';
+import { categories, site } from '../config/site.ts';
+import { faviconUrl, getItemsBySource, getSources, href } from '../lib/items.ts';
 
 const sources = getSources();
 const groups = categories
   .map((category) => ({ category, sources: sources.filter((s) => s.category === category.slug) }))
   .filter((group) => group.sources.length > 0);
+const hostOf = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 ---
 
-<BaseLayout title="掲載元一覧" description="当サイトが新着記事を掲載しているサイトの一覧です。">
-  <h1>掲載元一覧</h1>
-  <p class="lead">当サイトは以下のサイトが公開しているRSSフィードから、見出しと抜粋を掲載しています。</p>
-  {
-    groups.map(({ category, sources }) => (
-      <section class="prose">
-        <h2>{category.name}</h2>
-        <ul>
-          {sources.map((source) => (
-            <li>
-              <a href={href(`/source/${source.id}/`)}>{source.name}</a>
-              <span class="count">（{getItemsBySource(source.id).length}件）</span>
-              <a class="external" href={source.siteUrl} target="_blank" rel="noopener">
-                公式サイト
-              </a>
-            </li>
-          ))}
-        </ul>
-      </section>
-    ))
-  }
+<BaseLayout
+  title="掲載元一覧"
+  description={`${site.name}が新着記事を掲載しているサイトの一覧です。`}
+  breadcrumbs={[{ name: '掲載元一覧' }]}
+>
+  <div class="page-head">
+    <h1>掲載元一覧</h1>
+    <p>以下のサイトが公開しているRSSフィードから、記事の見出しと冒頭の短い抜粋を掲載しています（全{sources.length}サイト）。</p>
+  </div>
+  <div class="stack">
+    {
+      groups.map(({ category, sources }) => (
+        <section class="panel">
+          <div class="panel-head">
+            <h2>
+              <span class="dot" style={`--c:${category.color}`} />
+              {category.name}
+            </h2>
+          </div>
+          <ul class="source-list">
+            {sources.map((source) => (
+              <li>
+                <img src={faviconUrl(hostOf(source.siteUrl))} alt="" width="16" height="16" loading="lazy" referrerpolicy="no-referrer" />
+                <a class="name" href={href(`/source/${source.id}/`)}>
+                  {source.name}
+                </a>
+                {source.aggregator && <span class="tag">話題の記事</span>}
+                <span class="count">{getItemsBySource(source.id).length}件</span>
+                <a class="external" href={source.siteUrl} target="_blank" rel="noopener">
+                  公式サイト ↗
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
 </BaseLayout>
 
 <style>
-  section {
-    margin-bottom: 16px;
-  }
-  .prose h2 {
-    margin-top: 0;
-  }
-  ul {
+  .source-list {
+    list-style: none;
     margin: 0;
-    padding-left: 20px;
+    padding: 4px 0;
   }
-  li {
-    margin: 4px 0;
+  .source-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+  .source-list li + li {
+    border-top: 1px solid var(--border);
+  }
+  img {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+  }
+  .name {
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .name:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .tag {
+    font-size: 0.68rem;
+    padding: 0 6px;
+    border-radius: 4px;
+    background: var(--hot-soft);
+    color: var(--hot);
   }
   .count {
+    margin-left: auto;
     color: var(--muted);
-    font-size: 0.85rem;
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
   }
   .external {
-    margin-left: 8px;
-    font-size: 0.8rem;
+    color: var(--accent);
+    font-size: 0.78rem;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .external:hover {
+    text-decoration: underline;
   }
 </style>

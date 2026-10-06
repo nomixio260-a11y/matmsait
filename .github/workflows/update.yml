@@ -5,7 +5,6 @@ on:
     # 毎時7分（UTC）に収集。混雑する毎時0分を避けている
     - cron: '7 * * * *'
   push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -17,9 +16,15 @@ concurrency:
   group: update-and-deploy
   cancel-in-progress: false
 
+env:
+  ASTRO_TELEMETRY_DISABLED: 1
+
 jobs:
   build:
+    # 公開は既定ブランチだけ（schedule は常に既定ブランチで動く）
+    if: github.event_name == 'schedule' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -30,15 +35,20 @@ jobs:
 
       - run: npm ci
 
-      - run: npm test
+      - name: テスト・型チェック
+        run: |
+          npm test
+          npm run check
 
       - id: pages
         uses: actions/configure-pages@v6
 
+      - name: アクセス時刻をずらす
+        if: github.event_name == 'schedule'
+        run: sleep $((RANDOM % 120))
+
       - name: フィードを取得
         run: npm run fetch
-        env:
-          SITE_URL: ${{ steps.pages.outputs.base_url }}
 
       - name: 取得したデータをコミット
         run: |
@@ -47,11 +57,15 @@ jobs:
           git add data/items.json
           if git diff --cached --quiet; then
             echo '更新なし'
-          else
-            git commit -m 'chore: フィードを更新'
-            git pull --rebase origin "${GITHUB_REF_NAME}"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
+            exit 0
           fi
+          git commit -m 'chore: フィードを更新'
+          for attempt in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep $((attempt * 5))
+          done
+          echo 'データのコミットに失敗しました' >&2
+          exit 1
 
       - name: サイトをビルド
         run: npm run build
@@ -60,6 +74,8 @@ jobs:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
           PUBLIC_ADSENSE_CLIENT: ${{ vars.PUBLIC_ADSENSE_CLIENT }}
           PUBLIC_ADSENSE_SLOT: ${{ vars.PUBLIC_ADSENSE_SLOT }}
+          PUBLIC_GA_ID: ${{ vars.PUBLIC_GA_ID }}
+          PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}
 
       - uses: actions/upload-pages-artifact@v5
         with:

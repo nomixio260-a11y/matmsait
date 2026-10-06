@@ -3,18 +3,33 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { site } from '../config/site.ts';
 ---
 
-<BaseLayout title="お問い合わせ">
-  <div class="prose">
+<BaseLayout title="お問い合わせ" breadcrumbs={[{ name: 'お問い合わせ' }]}>
+  <article class="prose">
     <h1>お問い合わせ</h1>
-    <p>当サイトに関するお問い合わせ・掲載停止のご依頼は、以下のメールアドレスまでご連絡ください。</p>
-    <p class="email"><a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a></p>
-    <p>配信元の運営者様からの掲載停止のご依頼には、確認でき次第速やかに対応いたします。</p>
-  </div>
+    <p>当サイトに関するお問い合わせ・掲載停止のご依頼は、以下の窓口からご連絡ください。</p>
+    {
+      site.contactEmail && (
+        <p class="contact">
+          メール: <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>
+        </p>
+      )
+    }
+    {
+      site.contactUrl && (
+        <p class="contact">
+          <a href={site.contactUrl} target="_blank" rel="noopener">
+            お問い合わせフォームを開く ↗
+          </a>
+        </p>
+      )
+    }
+    <p>配信元の運営者様からの掲載停止のご依頼には、確認でき次第、速やかに対応いたします。</p>
+  </article>
 </BaseLayout>
 
 <style>
-  .email {
-    font-size: 1.1rem;
-    font-weight: 600;
+  .contact {
+    font-size: 1.05rem;
+    font-weight: 700;
   }
 </style>

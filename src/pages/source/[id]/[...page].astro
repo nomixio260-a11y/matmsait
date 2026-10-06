@@ -1,0 +1,53 @@
+---
+import type { GetStaticPaths, Page } from 'astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ItemList from '../../../components/ItemList.astro';
+import Pagination from '../../../components/Pagination.astro';
+import { site } from '../../../config/site.ts';
+import { getCategory, getItemsBySource, getSources, href } from '../../../lib/items.ts';
+import type { Item, Source } from '../../../lib/types.ts';
+
+export const getStaticPaths = (({ paginate }) =>
+  getSources().flatMap((source) =>
+    paginate(getItemsBySource(source.id), {
+      pageSize: site.pageSize,
+      params: { id: source.id },
+      props: { source },
+    }),
+  )) satisfies GetStaticPaths;
+
+interface Props {
+  page: Page<Item>;
+  source: Source;
+}
+const { page, source } = Astro.props;
+const category = getCategory(source.category);
+const suffix = page.currentPage > 1 ? `（${page.currentPage}ページ目）` : '';
+---
+
+<BaseLayout
+  title={`${source.name}の新着記事${suffix}`}
+  description={`${source.name}の新着記事の一覧です。`}
+  current={source.category}
+  noindex={page.currentPage > 1}
+  breadcrumbs={[{ name: '掲載元一覧', path: '/sources/' }, { name: source.name }]}
+>
+  <div class="page-head">
+    <h1>{source.name}{suffix}</h1>
+    <p>
+      {category && <a href={href(`/category/${category.slug}/`)}>{category.name}</a>}
+      ・{page.total}件 ・
+      <a href={source.siteUrl} target="_blank" rel="noopener">公式サイトを見る</a>
+    </p>
+  </div>
+  <div class="panel">
+    <ItemList items={page.data} showCategory={false} />
+  </div>
+  <Pagination page={page} />
+</BaseLayout>
+
+<style>
+  .page-head a {
+    color: var(--accent);
+  }
+</style>

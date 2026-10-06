@@ -3,9 +3,8 @@ import type { GetStaticPaths, Page } from 'astro';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import ItemList from '../../../components/ItemList.astro';
 import Pagination from '../../../components/Pagination.astro';
-import { categories, site } from '../../../config/site.ts';
+import { categories, site, type Category } from '../../../config/site.ts';
 import { getItemsByCategory } from '../../../lib/items.ts';
-import type { Category } from '../../../config/site.ts';
 import type { Item } from '../../../lib/types.ts';
 
 export const getStaticPaths = (({ paginate }) =>
@@ -22,12 +21,38 @@ interface Props {
   category: Category;
 }
 const { page, category } = Astro.props;
-const title = page.currentPage > 1 ? `${category.name}（${page.currentPage}ページ目）` : category.name;
+const suffix = page.currentPage > 1 ? `（${page.currentPage}ページ目）` : '';
 ---
 
-<BaseLayout title={title} description={category.description} current={category.slug}>
-  <h1>{category.name}</h1>
-  <p class="lead">{category.description}</p>
-  <ItemList items={page.data} />
+<BaseLayout
+  title={`${category.name}の新着記事${suffix}`}
+  description={`${category.description}をまとめてチェック。人気サイトの最新記事を1時間ごとに更新しています。`}
+  current={category.slug}
+  noindex={page.currentPage > 1}
+  breadcrumbs={[{ name: category.name }]}
+  sidebar={{ category: category.slug }}
+>
+  <div class="page-head">
+    <h1>
+      <span class="dot" style={`--c:${category.color}`}></span>
+      {category.name}{suffix}
+    </h1>
+    <p>{category.description}（{page.total}件）</p>
+  </div>
+  <div class="panel">
+    <ItemList items={page.data} showCategory={false} />
+  </div>
   <Pagination page={page} />
 </BaseLayout>
+
+<style>
+  h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h1 .dot {
+    width: 12px;
+    height: 12px;
+  }
+</style>

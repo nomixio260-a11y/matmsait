@@ -4,6 +4,10 @@
 # - feedUrl:   RSS / Atom フィードのURL
 # - siteUrl:   出典サイトのトップURL
 # - category:  src/config/site.ts の categories にある slug
+# 任意:
+# - aggregator: true のとき、他サイトの記事を紹介する集約元（はてブ等）として扱う。
+#               同じ記事を配信元自身のフィードでも取得できたら、配信元の情報を優先する
+# - stripTitle: タイトルから取り除く部分の正規表現
 #
 # 追加前に必ず各サイトの利用規約を確認してください（商用利用・見出し利用の可否）。
 # 例: NHK や Yahoo!ニュースの RSS は非営利目的に限られているため登録していません。
@@ -28,6 +32,7 @@
   feedUrl: https://b.hatena.ne.jp/hotentry/social.rss
   siteUrl: https://b.hatena.ne.jp/hotentry/social
   category: news
+  aggregator: true
 
 - id: toyokeizai
   name: 東洋経済オンライン
@@ -39,12 +44,14 @@
   feedUrl: https://b.hatena.ne.jp/hotentry/economics.rss
   siteUrl: https://b.hatena.ne.jp/hotentry/economics
   category: economy
+  aggregator: true
 
 - id: itmedia
   name: ITmedia
   feedUrl: https://rss.itmedia.co.jp/rss/2.0/itmedia_all.xml
   siteUrl: https://www.itmedia.co.jp/
   category: tech
+  stripTitle: '^\[ITmedia [^\]]+\]\s*'
 - id: gigazine
   name: GIGAZINE
   feedUrl: https://gigazine.net/news/rss_2.0/
@@ -75,17 +82,20 @@
   feedUrl: https://b.hatena.ne.jp/hotentry/it.rss
   siteUrl: https://b.hatena.ne.jp/hotentry/it
   category: tech
+  aggregator: true
 
 - id: hatena-entertainment
   name: はてなブックマーク（エンタメ）
   feedUrl: https://b.hatena.ne.jp/hotentry/entertainment.rss
   siteUrl: https://b.hatena.ne.jp/hotentry/entertainment
   category: entertainment
+  aggregator: true
 - id: hatena-fun
   name: はてなブックマーク（おもしろ）
   feedUrl: https://b.hatena.ne.jp/hotentry/fun.rss
   siteUrl: https://b.hatena.ne.jp/hotentry/fun
   category: entertainment
+  aggregator: true
 
 - id: 4gamer
   name: 4Gamer.net
@@ -107,6 +117,7 @@
   feedUrl: https://b.hatena.ne.jp/hotentry/game.rss
   siteUrl: https://b.hatena.ne.jp/hotentry/game
   category: game
+  aggregator: true
 
 - id: gekisaka
   name: ゲキサカ
@@ -124,8 +135,10 @@
   feedUrl: https://b.hatena.ne.jp/hotentry/life.rss
   siteUrl: https://b.hatena.ne.jp/hotentry/life
   category: life
+  aggregator: true
 - id: hatena-knowledge
   name: はてなブックマーク（学び）
   feedUrl: https://b.hatena.ne.jp/hotentry/knowledge.rss
   siteUrl: https://b.hatena.ne.jp/hotentry/knowledge
   category: life
+  aggregator: true

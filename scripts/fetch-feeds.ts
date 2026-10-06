@@ -1,42 +1,53 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import Parser from 'rss-parser';
 import { loadSources } from '../src/lib/sources.ts';
 import type { Item, Source } from '../src/lib/types.ts';
-import { itemId, makeExcerpt, normalizePublishedAt, normalizeUrl, stripHtml } from './lib/normalize.ts';
-import { mergeItems, pruneItems } from './lib/prune.ts';
+import { fetchHatenaCounts } from './lib/hatena.ts';
+import { closeConnections, decodeBody, httpGet, type HttpResponse } from './lib/http.ts';
+import { buildExcerpt, cleanTitle, itemId, normalizePublishedAt, normalizeUrl } from './lib/normalize.ts';
+import { mergeItems, pruneItems, serializeItems } from './lib/store.ts';
+import { jitter, shuffle, sleep } from './lib/timing.ts';
 
-const ITEMS_PATH = fileURLToPath(new URL('../data/items.json', import.meta.url));
-const CONCURRENCY = 4;
-const TIMEOUT_MS = 10_000;
+const ITEMS_PATH = resolve(process.cwd(), 'data/items.json');
+/** 同時にアクセスするホスト数（同じホストへは常に1件ずつ） */
+const HOST_CONCURRENCY = 4;
 const MAX_ITEMS_PER_FEED = 50;
-// HTTPヘッダーは ASCII のみ使用可能
-const USER_AGENT = `MatomeAntennaBot/1.0 (+${process.env.SITE_URL ?? 'https://github.com/'})`;
+/** はてブ数を更新する対象（公開からこの時間以内の記事） */
+const HATEBU_WINDOW_HOURS = 36;
 
 const parser = new Parser();
 
+/** 一時的なエラー（通信失敗・429・5xx）のときだけ1回だけ再試行する */
+async function getWithRetry(url: string): Promise<HttpResponse> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await httpGet(url);
+      if (attempt < 2 && (res.status === 429 || res.status >= 500)) throw new Error(`HTTP ${res.status}`);
+      return res;
+    } catch (error) {
+      if (attempt >= 2) throw error;
+      await sleep(jitter(3000, 6000));
+    }
+  }
+}
+
 async function fetchSource(source: Source, now: Date): Promise<Item[]> {
-  const res = await fetch(source.feedUrl, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
-    },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const feed = await parser.parseString(await res.text());
+  const res = await getWithRetry(source.feedUrl);
+  if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+  const feed = await parser.parseString(decodeBody(res.body, res.headers['content-type']));
+  const stripPattern = source.stripTitle ? new RegExp(source.stripTitle) : undefined;
 
   const items: Item[] = [];
   for (const entry of feed.items.slice(0, MAX_ITEMS_PER_FEED)) {
-    const url = normalizeUrl(entry.link);
-    const title = stripHtml(entry.title ?? '');
+    const url = normalizeUrl(entry.link, res.url);
+    const title = cleanTitle(entry.title ?? '', stripPattern);
     if (!url || !title) continue;
     items.push({
       id: itemId(url),
       title,
       url,
-      excerpt: makeExcerpt(entry.contentSnippet || entry.summary || entry.content || ''),
+      excerpt: buildExcerpt(title, entry.contentSnippet || entry.summary || entry.content || ''),
       sourceId: source.id,
       category: source.category,
       publishedAt: normalizePublishedAt(entry.isoDate ?? entry.pubDate, now),
@@ -45,52 +56,89 @@ async function fetchSource(source: Source, now: Date): Promise<Item[]> {
   return items;
 }
 
-/** 同時実行数を制限しながら全ソースを取得する。失敗したソースはログに残してスキップ */
+/**
+ * 全ソースを取得する。人が順番に見て回るのに近づけるため、
+ * 同じホストへは間隔をランダムに空けて1件ずつ、ホストの順番も毎回入れ替える。
+ */
 async function fetchAll(sources: Source[], now: Date): Promise<{ items: Item[]; failed: string[] }> {
-  const results: Item[][] = new Array(sources.length);
+  const byHost = new Map<string, Source[]>();
+  for (const source of sources) {
+    const host = new URL(source.feedUrl).hostname;
+    byHost.set(host, [...(byHost.get(host) ?? []), source]);
+  }
+  const queue = shuffle([...byHost.values()].map((list) => shuffle(list)));
+  const items: Item[] = [];
   const failed: string[] = [];
-  let next = 0;
 
   async function worker() {
-    while (next < sources.length) {
-      const index = next++;
-      const source = sources[index];
-      try {
-        results[index] = await fetchSource(source, now);
-        console.log(`  ok   ${source.id}: ${results[index].length} 件`);
-      } catch (error) {
-        results[index] = [];
-        failed.push(source.id);
-        console.warn(`  FAIL ${source.id}: ${error instanceof Error ? error.message : error}`);
+    for (let list = queue.shift(); list; list = queue.shift()) {
+      for (const [index, source] of list.entries()) {
+        if (index > 0) await sleep(jitter(1500, 4000));
+        try {
+          const fetched = await fetchSource(source, now);
+          items.push(...fetched);
+          console.log(`  ok   ${source.id}: ${fetched.length} 件`);
+        } catch (error) {
+          failed.push(source.id);
+          console.warn(`  FAIL ${source.id}: ${error instanceof Error ? error.message : error}`);
+        }
       }
     }
   }
 
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, sources.length) }, worker));
-  return { items: results.flat(), failed };
+  await Promise.all(Array.from({ length: Math.min(HOST_CONCURRENCY, byHost.size) }, worker));
+  return { items, failed };
+}
+
+/** 直近の記事のはてなブックマーク数を更新する。失敗しても前回の値を残して続行 */
+async function updateHatebu(items: Item[], now: Date): Promise<void> {
+  const cutoff = now.getTime() - HATEBU_WINDOW_HOURS * 60 * 60 * 1000;
+  const targets = items.filter((item) => Date.parse(item.publishedAt) >= cutoff);
+  try {
+    const counts = await fetchHatenaCounts(targets.map((item) => item.url));
+    for (const item of targets) {
+      const count = counts.get(item.url);
+      if (count === undefined) continue;
+      if (count > 0) item.hatebu = count;
+      else delete item.hatebu;
+    }
+    console.log(`はてなブックマーク数を ${targets.length} 件更新しました`);
+  } catch (error) {
+    console.warn(`はてなブックマーク数の取得に失敗: ${error instanceof Error ? error.message : error}`);
+  }
 }
 
 function readExisting(): Item[] {
   if (!existsSync(ITEMS_PATH)) return [];
-  return JSON.parse(readFileSync(ITEMS_PATH, 'utf8')) as Item[];
+  try {
+    return JSON.parse(readFileSync(ITEMS_PATH, 'utf8')) as Item[];
+  } catch (error) {
+    console.warn(`${ITEMS_PATH} を読み込めないため空から作り直します: ${error}`);
+    return [];
+  }
 }
 
 async function main() {
   const now = new Date();
   const sources = loadSources();
-  const sourceIds = new Set(sources.map((s) => s.id));
+  const sourceById = new Map(sources.map((s) => [s.id, s]));
+  const isAggregator = (id: string) => sourceById.get(id)?.aggregator === true;
   console.log(`${sources.length} 件のフィードを取得します`);
 
   const { items: fetched, failed } = await fetchAll(sources, now);
   // sources.yaml から削除されたソースの記事は落とす
-  const existing = readExisting().filter((item) => sourceIds.has(item.sourceId));
-  const merged = pruneItems(mergeItems(existing, fetched), { now });
+  const existing = readExisting().filter((item) => sourceById.has(item.sourceId));
+  const merged = pruneItems(mergeItems(existing, fetched, isAggregator), { now });
+  await updateHatebu(merged, now);
+  closeConnections();
+
   const existingIds = new Set(existing.map((item) => item.id));
   const added = merged.filter((item) => !existingIds.has(item.id)).length;
-
   mkdirSync(dirname(ITEMS_PATH), { recursive: true });
-  writeFileSync(ITEMS_PATH, JSON.stringify(merged, null, 1) + '\n');
-  console.log(`新規 ${added} 件 / 合計 ${merged.length} 件を保存しました`);
+  writeFileSync(ITEMS_PATH, serializeItems(merged));
+  console.log(
+    `新規 ${added} 件 / 合計 ${merged.length} 件を保存しました（成功 ${sources.length - failed.length} / 失敗 ${failed.length}）`,
+  );
 
   if (failed.length === sources.length) {
     console.error('すべてのフィードの取得に失敗しました');

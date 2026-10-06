@@ -1,0 +1,45 @@
+---
+import { faviconUrl, formatDateTime, formatTime, getCategory, href, siteOf } from '../lib/items.ts';
+import type { Item } from '../lib/types.ts';
+
+interface Props {
+  item: Item;
+  showCategory?: boolean;
+  /** 日付見出しの下では時刻だけ、それ以外は日付も表示する */
+  timeOnly?: boolean;
+  showExcerpt?: boolean;
+}
+const { item, showCategory = true, timeOnly = false, showExcerpt = true } = Astro.props;
+const site = siteOf(item);
+const category = showCategory ? getCategory(item.category) : undefined;
+const hatebu = item.hatebu ?? 0;
+---
+
+<li class="item">
+  <a class="item-title" href={item.url} target="_blank" rel="noopener">{item.title}</a>
+  {showExcerpt && item.excerpt && <p class="item-excerpt">{item.excerpt}</p>}
+  <div class="item-meta">
+    <span class="item-site">
+      <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+      {site.source ? <a href={href(`/source/${site.source.id}/`)}>{site.label}</a> : <span>{site.label}</span>}
+    </span>
+    {
+      category && (
+        <a class="item-cat" href={href(`/category/${category.slug}/`)}>
+          <span class="dot" style={`--c:${category.color}`} />
+          {category.name}
+        </a>
+      )
+    }
+    <time datetime={item.publishedAt} data-rel>
+      {timeOnly ? formatTime(item.publishedAt) : formatDateTime(item.publishedAt)}
+    </time>
+    {
+      hatebu >= 3 && (
+        <span class:list={['users', { hot: hatebu >= 100 }]} title="はてなブックマーク数">
+          <b>{hatebu}</b> users
+        </span>
+      )
+    }
+  </div>
+</li>

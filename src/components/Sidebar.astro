@@ -1,0 +1,121 @@
+---
+import AdSlot from './AdSlot.astro';
+import RankingList from './RankingList.astro';
+import { categories } from '../config/site.ts';
+import { countByCategory, getCategory, getRanking, href } from '../lib/items.ts';
+
+interface Props {
+  /** ランキングをこのカテゴリに絞る */
+  category?: string;
+  /** ランキングを表示しない（ページ本体にランキングがある場合） */
+  hideRanking?: boolean;
+  /** ランキングを広い画面でだけ表示する（狭い画面ではページ本体側で見せる場合） */
+  rankingWideOnly?: boolean;
+}
+const { category, hideRanking = false, rankingWideOnly = false } = Astro.props;
+const hours = category ? 48 : 24;
+const ranking = hideRanking ? [] : getRanking({ hours, category, limit: 10 });
+const categoryName = category ? getCategory(category)?.name : undefined;
+const counts = countByCategory();
+---
+
+<aside class="sidebar stack" aria-label="サイドバー">
+  {
+    ranking.length > 0 && (
+      <section class:list={['panel', { 'wide-only': rankingWideOnly }]}>
+        <div class="panel-head">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" class="flame">
+              <path
+                d="M12 2c1 3.5 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.7 1.2 2.7 2.3 3C10.6 8 11.3 5 12 2Z"
+                fill="currentColor"
+              />
+            </svg>
+            {categoryName ? `${categoryName}の人気記事` : '人気ランキング'}
+          </h2>
+          <span class="window">{hours}時間</span>
+        </div>
+        <RankingList items={ranking} />
+        <div class="panel-foot">
+          <a href={href('/ranking/')}>ランキングをもっと見る</a>
+        </div>
+      </section>
+    )
+  }
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>カテゴリ</h2>
+    </div>
+    <ul class="cat-list">
+      {
+        categories.map((c) => (
+          <li>
+            <a href={href(`/category/${c.slug}/`)} aria-current={c.slug === category ? 'page' : undefined}>
+              <span class="dot" style={`--c:${c.color}`} />
+              <span class="name">{c.name}</span>
+              <span class="count">{counts.get(c.slug) ?? 0}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <div class="sidebar-sticky">
+    <AdSlot variant="sidebar" />
+  </div>
+</aside>
+
+<style>
+  .sidebar {
+    min-width: 0;
+  }
+  .flame {
+    color: var(--hot);
+  }
+  .window {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .cat-list {
+    list-style: none;
+    margin: 0;
+    padding: 6px 0;
+  }
+  .cat-list a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 16px;
+    text-decoration: none;
+    font-size: 0.875rem;
+  }
+  .cat-list a:hover {
+    background: var(--surface-2);
+  }
+  .cat-list a[aria-current='page'] {
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .name {
+    flex: 1;
+  }
+  .count {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .sidebar-sticky {
+    position: sticky;
+    top: 62px;
+  }
+  .sidebar-sticky:empty {
+    display: none;
+  }
+  @media (max-width: 999px) {
+    .wide-only {
+      display: none;
+    }
+  }
+</style>

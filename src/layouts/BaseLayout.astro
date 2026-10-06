@@ -1,21 +1,41 @@
 ---
+import '../styles/global.css';
+import '../styles/items.css';
+import Breadcrumbs, { type Crumb } from '../components/Breadcrumbs.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import Sidebar from '../components/Sidebar.astro';
 import { site } from '../config/site.ts';
-import { adsenseClient } from '../config/ads.ts';
+import { adsenseClient, gaMeasurementId, googleSiteVerification } from '../config/services.ts';
 import { href } from '../lib/items.ts';
-import CategoryNav from '../components/CategoryNav.astro';
 
 interface Props {
   title?: string;
   description?: string;
-  /** 現在のカテゴリ（ナビのハイライト用） */
+  /** ヘッダーのタブで強調する項目（'' は総合） */
   current?: string;
   noindex?: boolean;
+  breadcrumbs?: Crumb[];
+  /** サイドバーを出すか。カテゴリを渡すとランキングをそのカテゴリに絞る */
+  sidebar?: boolean | { category?: string; hideRanking?: boolean; rankingWideOnly?: boolean };
+  /** ページ固有の構造化データ */
+  jsonLd?: Record<string, unknown>[];
 }
 
-const { title, description = site.description, current, noindex = false } = Astro.props;
-const pageTitle = title ? `${title} | ${site.name}` : site.name;
-const canonical = new URL(Astro.url.pathname, Astro.site);
-const year = new Date().getFullYear();
+const {
+  title,
+  description = site.description,
+  current,
+  noindex = false,
+  breadcrumbs,
+  sidebar = true,
+  jsonLd = [],
+} = Astro.props;
+const pageTitle = title ? `${title} | ${site.name}` : `${site.name} - ${site.tagline}`;
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+const ogImage = new URL(href('/og.png'), Astro.site).toString();
+const sidebarProps = typeof sidebar === 'object' ? sidebar : {};
+const toJson = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
 ---
 
 <!doctype html>
@@ -26,16 +46,32 @@ const year = new Date().getFullYear();
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    {noindex && <meta name="robots" content="noindex" />}
+    {noindex && <meta name="robots" content="noindex, follow" />}
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16191e" media="(prefers-color-scheme: dark)" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content="ja_JP" />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
+    <link rel="apple-touch-icon" href={href('/apple-touch-icon.png')} />
     <link rel="alternate" type="application/rss+xml" title={site.name} href={href('/rss.xml')} />
     <link rel="sitemap" href={href('/sitemap-index.xml')} />
+    <link rel="preconnect" href="https://www.google.com" />
+    {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
+    {jsonLd.map((data) => <script type="application/ld+json" set:html={toJson(data)} />)}
+    <script is:inline>
+      try {
+        var theme = localStorage.getItem('theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      } catch (e) {}
+    </script>
     {
       adsenseClient && (
         <script
@@ -46,179 +82,80 @@ const year = new Date().getFullYear();
         />
       )
     }
+    {
+      gaMeasurementId && (
+        <>
+          <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`} />
+          <script is:inline define:vars={{ gaMeasurementId }}>
+            window.dataLayer = window.dataLayer || [];
+            function gtag() {
+              dataLayer.push(arguments);
+            }
+            gtag('js', new Date());
+            gtag('config', gaMeasurementId);
+          </script>
+        </>
+      )
+    }
   </head>
   <body>
-    <header class="site-header">
-      <div class="container header-inner">
-        <a class="logo" href={href('/')}>{site.name}</a>
-        <p class="tagline">いろんなサイトの新着をまとめてチェック</p>
-      </div>
-      <CategoryNav current={current} />
-    </header>
+    <a class="skip-link" href="#main">本文へスキップ</a>
+    <Header current={current} />
+    <div class:list={['container', 'layout', { 'has-sidebar': sidebar !== false }]}>
+      <main id="main" class="main">
+        {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
+        <slot />
+      </main>
+      {sidebar !== false && <Sidebar {...sidebarProps} />}
+    </div>
+    <Footer />
 
-    <main class="container">
-      <slot />
-    </main>
+    <script>
+      // ===== 表示テーマの切り替え =====
+      const root = document.documentElement;
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+      const isDark = () => (root.dataset.theme ? root.dataset.theme === 'dark' : prefersDark.matches);
 
-    <footer class="site-footer">
-      <div class="container">
-        <nav class="footer-links" aria-label="サイト情報">
-          <a href={href('/about/')}>このサイトについて</a>
-          <a href={href('/sources/')}>掲載元一覧</a>
-          <a href={href('/privacy/')}>プライバシーポリシー</a>
-          <a href={href('/contact/')}>お問い合わせ</a>
-          <a href={href('/rss.xml')}>RSS</a>
-        </nav>
-        <p class="note">
-          掲載している記事の見出し・抜粋の著作権は各配信元に帰属します。記事本文は各リンク先でご覧ください。
-        </p>
-        <p class="copy">&copy; {year} {site.name}</p>
-      </div>
-    </footer>
+      function syncThemeButtons() {
+        for (const button of document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]')) {
+          button.setAttribute('aria-label', isDark() ? 'ライトモードに切り替え' : 'ダークモードに切り替え');
+        }
+      }
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]')) {
+        button.addEventListener('click', () => {
+          const next = isDark() ? 'light' : 'dark';
+          root.dataset.theme = next;
+          try {
+            localStorage.setItem('theme', next);
+          } catch {
+            // 保存できない環境でも切り替え自体は効く
+          }
+          syncThemeButtons();
+        });
+      }
+      prefersDark.addEventListener('change', syncThemeButtons);
+      syncThemeButtons();
+
+      // ===== 「◯分前」表示と NEW マーク（静的ページなので閲覧時に計算する） =====
+      const MINUTE = 60_000;
+      const HOUR = 60 * MINUTE;
+
+      function updateRelativeTimes() {
+        const now = Date.now();
+        for (const el of document.querySelectorAll<HTMLTimeElement>('time[data-rel]')) {
+          const time = Date.parse(el.dateTime);
+          if (Number.isNaN(time)) continue;
+          const diff = now - time;
+          if (diff < HOUR) el.textContent = diff < MINUTE ? 'たった今' : `${Math.floor(diff / MINUTE)}分前`;
+          else if (diff < 24 * HOUR) el.textContent = `${Math.floor(diff / HOUR)}時間前`;
+          el.closest('.item')?.classList.toggle('is-new', diff < HOUR);
+        }
+      }
+      updateRelativeTimes();
+      setInterval(updateRelativeTimes, MINUTE);
+
+      // ===== 選択中のタブが見えるようにスクロール =====
+      document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+    </script>
   </body>
 </html>
-
-<style is:global>
-  :root {
-    --bg: #f6f7f9;
-    --surface: #ffffff;
-    --text: #1d2129;
-    --muted: #5d6573;
-    --border: #e3e6eb;
-    --accent: #d9480f;
-    --accent-soft: #fff1e8;
-    --link-visited: #6b4fa3;
-    --radius: 10px;
-    color-scheme: light;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme='light']) {
-      --bg: #121418;
-      --surface: #1b1e24;
-      --text: #e7e9ee;
-      --muted: #9aa2b1;
-      --border: #2c313a;
-      --accent: #ff8a4c;
-      --accent-soft: #2f2118;
-      --link-visited: #b9a2e6;
-      color-scheme: dark;
-    }
-  }
-  :root[data-theme='dark'] {
-    --bg: #121418;
-    --surface: #1b1e24;
-    --text: #e7e9ee;
-    --muted: #9aa2b1;
-    --border: #2c313a;
-    --accent: #ff8a4c;
-    --accent-soft: #2f2118;
-    --link-visited: #b9a2e6;
-    color-scheme: dark;
-  }
-
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic UI', sans-serif;
-    line-height: 1.6;
-    -webkit-text-size-adjust: 100%;
-  }
-  a {
-    color: inherit;
-  }
-  .container {
-    width: 100%;
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 0 16px;
-  }
-  main.container {
-    padding-top: 20px;
-    padding-bottom: 40px;
-  }
-  h1 {
-    font-size: 1.4rem;
-    margin: 0 0 4px;
-  }
-  h2 {
-    font-size: 1.15rem;
-    margin: 0;
-  }
-  .lead {
-    color: var(--muted);
-    margin: 0 0 16px;
-    font-size: 0.9rem;
-  }
-
-  .site-header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-  .header-inner {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    padding-top: 12px;
-    padding-bottom: 4px;
-    flex-wrap: wrap;
-  }
-  .logo {
-    font-weight: 800;
-    font-size: 1.3rem;
-    text-decoration: none;
-    color: var(--accent);
-    letter-spacing: 0.02em;
-  }
-  .tagline {
-    margin: 0;
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
-
-  .site-footer {
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-    padding: 24px 0;
-    font-size: 0.85rem;
-    color: var(--muted);
-  }
-  .footer-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 20px;
-    margin-bottom: 12px;
-  }
-  .footer-links a {
-    text-decoration: none;
-  }
-  .footer-links a:hover {
-    text-decoration: underline;
-  }
-  .site-footer .note,
-  .site-footer .copy {
-    margin: 4px 0;
-  }
-
-  .prose {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-  }
-  .prose h2 {
-    margin-top: 24px;
-    margin-bottom: 8px;
-  }
-  .prose a {
-    color: var(--accent);
-  }
-</style>

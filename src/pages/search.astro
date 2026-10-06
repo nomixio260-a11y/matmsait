@@ -1,0 +1,257 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { categories } from '../config/site.ts';
+import { href } from '../lib/items.ts';
+
+const categoryData = JSON.stringify(categories.map(({ slug, name, color }) => ({ slug, name, color })));
+const base = href('');
+---
+
+<BaseLayout title="記事を検索" description="掲載している記事をキーワードで検索できます。" noindex breadcrumbs={[{ name: '検索' }]}>
+  <div class="page-head">
+    <h1>記事を検索</h1>
+    <p>直近の掲載記事の見出し・掲載元から探せます。スペースで区切ると絞り込み検索になります。</p>
+  </div>
+
+  <form id="search-form" class="search-box" role="search" aria-label="記事検索" action={href('/search/')} method="get">
+    <input id="q" type="search" name="q" placeholder="キーワードを入力" aria-label="検索キーワード" autocomplete="off" autofocus />
+    <button type="submit">検索</button>
+  </form>
+
+  <p id="search-status" class="search-status" aria-live="polite"></p>
+  <div id="results-panel" class="panel" hidden>
+    <ul id="results" class="items" data-base={base} data-categories={categoryData}></ul>
+  </div>
+</BaseLayout>
+
+<script>
+  interface Entry {
+    t: string;
+    u: string;
+    s: string;
+    h: string;
+    c: string;
+    d: string;
+    b?: number;
+  }
+  interface Indexed extends Entry {
+    key: string;
+  }
+  interface CategoryData {
+    slug: string;
+    name: string;
+    color: string;
+  }
+
+  const LIMIT = 100;
+  const form = document.querySelector<HTMLFormElement>('#search-form')!;
+  const input = document.querySelector<HTMLInputElement>('#q')!;
+  const status = document.querySelector<HTMLElement>('#search-status')!;
+  const panel = document.querySelector<HTMLElement>('#results-panel')!;
+  const list = document.querySelector<HTMLUListElement>('#results')!;
+  const base = list.dataset.base ?? '';
+  const categoryBySlug = new Map(
+    (JSON.parse(list.dataset.categories ?? '[]') as CategoryData[]).map((c) => [c.slug, c]),
+  );
+  const dateFormat = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  /** 全角英数・大文字小文字の違いを吸収する */
+  const normalize = (text: string) => text.normalize('NFKC').toLowerCase();
+
+  let indexPromise: Promise<Indexed[]> | undefined;
+  function loadIndex(): Promise<Indexed[]> {
+    indexPromise ??= fetch(`${base}/search-index.json`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<Entry[]>;
+      })
+      .then((entries) =>
+        entries.map((entry) => ({
+          ...entry,
+          key: normalize(`${entry.t} ${entry.s} ${entry.h} ${categoryBySlug.get(entry.c)?.name ?? ''}`),
+        })),
+      );
+    indexPromise.catch(() => (indexPromise = undefined));
+    return indexPromise;
+  }
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text) node.textContent = text;
+    return node;
+  }
+
+  /** 一致した部分を <mark> で囲んで表示する（記事タイトルは外部由来なので textContent で組み立てる） */
+  function appendHighlighted(target: HTMLElement, text: string, terms: string[]) {
+    const pattern = terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    if (!pattern) {
+      target.textContent = text;
+      return;
+    }
+    let last = 0;
+    for (const match of text.matchAll(new RegExp(pattern, 'gi'))) {
+      target.append(text.slice(last, match.index), el('mark', undefined, match[0]));
+      last = (match.index ?? 0) + match[0].length;
+    }
+    target.append(text.slice(last));
+  }
+
+  function renderRow(entry: Indexed, terms: string[]): HTMLLIElement {
+    const li = el('li', 'item');
+    const title = el('a', 'item-title');
+    title.href = entry.u;
+    title.target = '_blank';
+    title.rel = 'noopener';
+    appendHighlighted(title, entry.t, terms);
+
+    const meta = el('div', 'item-meta');
+    const site = el('span', 'item-site');
+    const icon = el('img');
+    icon.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(entry.h)}&sz=32`;
+    icon.alt = '';
+    icon.width = 16;
+    icon.height = 16;
+    icon.loading = 'lazy';
+    icon.referrerPolicy = 'no-referrer';
+    site.append(icon, el('span', undefined, entry.s));
+    meta.append(site);
+
+    const category = categoryBySlug.get(entry.c);
+    if (category) {
+      const link = el('a', 'item-cat');
+      link.href = `${base}/category/${category.slug}/`;
+      const dot = el('span', 'dot');
+      dot.style.setProperty('--c', category.color);
+      link.append(dot, category.name);
+      meta.append(link);
+    }
+
+    const time = el('time', undefined, dateFormat.format(new Date(entry.d)));
+    time.dateTime = entry.d;
+    meta.append(time);
+
+    const hatebu = entry.b ?? 0;
+    if (hatebu >= 3) {
+      const users = el('span', hatebu >= 100 ? 'users hot' : 'users');
+      users.title = 'はてなブックマーク数';
+      users.append(el('b', undefined, String(hatebu)), ' users');
+      meta.append(users);
+    }
+
+    li.append(title, meta);
+    return li;
+  }
+
+  let sequence = 0;
+  async function search(query: string) {
+    const current = ++sequence;
+    const words = query.trim().split(/\s+/).filter(Boolean);
+    const terms = words.map(normalize);
+    if (terms.length === 0) {
+      list.replaceChildren();
+      panel.hidden = true;
+      status.textContent = 'キーワードを入力してください。';
+      return;
+    }
+    status.textContent = '検索しています…';
+    let index: Indexed[];
+    try {
+      index = await loadIndex();
+    } catch {
+      status.textContent = '検索データを読み込めませんでした。時間をおいてもう一度お試しください。';
+      return;
+    }
+    if (current !== sequence) return;
+
+    const hits = index.filter((entry) => terms.every((term) => entry.key.includes(term)));
+    const label = words.join(' ');
+    status.textContent =
+      hits.length === 0
+        ? `「${label}」に一致する記事は見つかりませんでした。`
+        : `「${label}」の検索結果: ${hits.length}件${hits.length > LIMIT ? `（新しい順に${LIMIT}件を表示）` : ''}`;
+    list.replaceChildren(...hits.slice(0, LIMIT).map((entry) => renderRow(entry, words)));
+    panel.hidden = hits.length === 0;
+  }
+
+  function syncUrl(query: string) {
+    const url = new URL(location.href);
+    if (query.trim()) url.searchParams.set('q', query.trim());
+    else url.searchParams.delete('q');
+    history.replaceState(null, '', url);
+  }
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      syncUrl(input.value);
+      void search(input.value);
+    }, 200);
+  });
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    clearTimeout(timer);
+    syncUrl(input.value);
+    void search(input.value);
+  });
+
+  const initial = new URLSearchParams(location.search).get('q') ?? '';
+  input.value = initial;
+  void search(initial);
+</script>
+
+<style>
+  .search-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .search-box input {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 1rem;
+  }
+  .search-box input:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 0;
+  }
+  .search-box button {
+    height: 44px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .search-box button:hover {
+    background: var(--accent-strong);
+  }
+  .search-status {
+    margin: 8px 0 12px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  :global(.items mark) {
+    background: var(--accent-soft);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+</style>

@@ -1,32 +1,40 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { site } from '../config/site.ts';
-import { href } from '../lib/items.ts';
+import { getSources, href } from '../lib/items.ts';
+
+const sourceCount = getSources().length;
 ---
 
-<BaseLayout title="このサイトについて">
-  <div class="prose">
-    <h1>このサイトについて</h1>
+<BaseLayout title="このサイトについて" breadcrumbs={[{ name: 'このサイトについて' }]}>
+  <article class="prose">
+    <h1>{site.name}について</h1>
     <p>
-      {site.name}は、ニュース・テクノロジー・エンタメ・ゲームなど様々なジャンルのサイトが公開しているRSSフィードを定期的に取得し、
-      新着記事の見出しと短い抜粋をまとめて一覧できるサイトです。
+      {site.name}は、ニュース・経済・テクノロジー・エンタメ・ゲーム・スポーツ・暮らしなど、様々なジャンルの人気サイト（{sourceCount}サイト）の新着記事を
+      1時間ごとに集めて、まとめてチェックできるようにしたサイトです。気になる見出しをタップすると、各配信元の記事ページが開きます。
     </p>
 
     <h2>掲載している情報</h2>
     <ul>
-      <li>記事の見出し・冒頭の短い抜粋・配信元・公開日時のみを掲載しています。</li>
+      <li>各サイトが公開しているRSSフィードをもとに、記事の見出し・冒頭の短い抜粋・配信元・公開日時を掲載しています。</li>
       <li>記事本文や画像は転載していません。全文は各リンク先の配信元サイトでご覧ください。</li>
       <li>見出し・抜粋の著作権は各配信元に帰属します。</li>
       <li>掲載元の一覧は<a href={href('/sources/')}>掲載元一覧</a>をご覧ください。</li>
     </ul>
 
+    <h2>ランキングについて</h2>
+    <p>
+      <a href={href('/ranking/')}>人気ランキング</a>と記事に表示している「users」は、はてなブックマークのブックマーク数をもとにしています。
+      数値は1時間ごとに更新しています。
+    </p>
+
     <h2>掲載の停止について</h2>
     <p>
       配信元の運営者様で掲載の停止をご希望の場合は、<a href={href('/contact/')}>お問い合わせ</a>
-      よりご連絡ください。速やかに対応いたします。
+      よりご連絡ください。確認でき次第、速やかに対応いたします。
     </p>
 
     <h2>運営者</h2>
     <p>{site.operator}</p>
-  </div>
+  </article>
 </BaseLayout>

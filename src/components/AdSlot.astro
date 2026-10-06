@@ -1,21 +1,25 @@
 ---
-import { adsenseClient, adsenseSlot } from '../config/ads.ts';
+import { adsenseClient, adsenseSlot } from '../config/services.ts';
 
-// AdSense のパブリッシャーIDとスロットIDが両方設定されている時だけ広告ユニットを出す。
-// パブリッシャーIDのみの場合はヘッダーのタグによる自動広告に任せる。
+interface Props {
+  variant?: 'infeed' | 'sidebar';
+}
+const { variant = 'infeed' } = Astro.props;
+// パブリッシャーIDとスロットIDが両方そろったときだけ広告ユニットを出す。
+// パブリッシャーIDのみなら、ヘッダーのタグによる自動広告に任せる。
 const enabled = Boolean(adsenseClient && adsenseSlot);
 ---
 
 {
   enabled && (
-    <div class="ad-slot" aria-label="広告">
+    <div class={`ad ad-${variant}`}>
       <span class="ad-label">スポンサーリンク</span>
       <ins
         class="adsbygoogle"
         style="display:block"
         data-ad-client={adsenseClient}
         data-ad-slot={adsenseSlot}
-        data-ad-format="auto"
+        data-ad-format={variant === 'sidebar' ? 'rectangle' : 'auto'}
         data-full-width-responsive="true"
       />
       <script is:inline>(window.adsbygoogle = window.adsbygoogle || []).push({});</script>
@@ -24,14 +28,21 @@ const enabled = Boolean(adsenseClient && adsenseSlot);
 }
 
 <style>
-  .ad-slot {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
+  .ad {
+    padding: 10px 16px 14px;
+  }
+  .ad-infeed {
     min-height: 120px;
+  }
+  .ad-sidebar {
+    min-height: 260px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
   }
   .ad-label {
     display: block;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     color: var(--muted);
     margin-bottom: 4px;
   }

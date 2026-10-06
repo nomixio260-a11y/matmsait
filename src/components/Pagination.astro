@@ -5,37 +5,151 @@ interface Props {
   page: Page<unknown>;
 }
 const { page } = Astro.props;
+const { currentPage: current, lastPage: last } = page;
+const first = (page.url.first ?? page.url.current).replace(/\/?$/, '/');
+const urlFor = (n: number) => (n === 1 ? first : `${first}${n}/`);
+
+/** 1, …, 現在の前後 radius ページ, …, 最終ページ */
+function pageNumbers(radius: number): (number | '…')[] {
+  const numbers: (number | '…')[] = [];
+  for (let n = 1; n <= last; n++) {
+    if (n === 1 || n === last || Math.abs(n - current) <= radius) numbers.push(n);
+    else if (numbers.at(-1) !== '…') numbers.push('…');
+  }
+  return numbers;
+}
+// 狭い画面では前後1ページ、広い画面では前後2ページまで番号を出す
+const variants = [
+  { className: 'narrow', numbers: pageNumbers(1) },
+  { className: 'wide', numbers: pageNumbers(2) },
+];
 ---
 
 {
-  page.lastPage > 1 && (
+  last > 1 && (
     <nav class="pagination" aria-label="ページ送り">
-      {page.url.prev ? <a href={page.url.prev}>← 新しい記事</a> : <span />}
-      <span class="current">
-        {page.currentPage} / {page.lastPage}
-      </span>
-      {page.url.next ? <a href={page.url.next}>古い記事 →</a> : <span />}
+      {page.url.prev ? (
+        <a class="step" href={page.url.prev} rel="prev">
+          ←<span class="step-label">前へ</span>
+        </a>
+      ) : (
+        <span class="step disabled" aria-hidden="true">
+          ←<span class="step-label">前へ</span>
+        </span>
+      )}
+      {variants.map(({ className, numbers }) => (
+        <ol class={className}>
+          {numbers.map((n) =>
+            n === '…' ? (
+              <li class="gap" aria-hidden="true">
+                …
+              </li>
+            ) : (
+              <li>
+                <a href={urlFor(n)} aria-current={n === current ? 'page' : undefined} aria-label={`${n}ページ目`}>
+                  {n}
+                </a>
+              </li>
+            ),
+          )}
+        </ol>
+      ))}
+      {page.url.next ? (
+        <a class="step" href={page.url.next} rel="next">
+          <span class="step-label">次へ</span>→
+        </a>
+      ) : (
+        <span class="step disabled" aria-hidden="true">
+          <span class="step-label">次へ</span>→
+        </span>
+      )}
     </nav>
   )
 }
 
 <style>
   .pagination {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 6px;
     margin-top: 16px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
   }
-  .pagination a {
-    color: var(--accent);
+  ol {
+    list-style: none;
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    margin: 0;
+    padding: 0;
+  }
+  .wide {
+    display: none;
+  }
+  a,
+  .step {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 34px;
+    height: 36px;
+    padding: 0 8px;
+    border-radius: 8px;
     text-decoration: none;
-    padding: 8px 0;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
-  .pagination a:last-child {
-    text-align: right;
+  a {
+    background: var(--surface);
+    border: 1px solid var(--border);
   }
-  .current {
+  a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  a[aria-current='page'] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+    font-weight: 700;
+  }
+  .gap {
+    display: inline-grid;
+    place-items: center;
+    min-width: 16px;
     color: var(--muted);
+  }
+  /* 狭い画面では矢印だけ見せ、読み上げ用に文字は残す */
+  .step-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .disabled {
+    visibility: hidden;
+  }
+  @media (min-width: 600px) {
+    .narrow {
+      display: none;
+    }
+    .wide {
+      display: flex;
+    }
+    .step-label {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip: auto;
+    }
+    .step {
+      padding: 0 12px;
+    }
   }
 </style>

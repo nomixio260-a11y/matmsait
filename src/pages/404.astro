@@ -4,9 +4,13 @@ import { href } from '../lib/items.ts';
 ---
 
 <BaseLayout title="ページが見つかりません" noindex>
-  <div class="prose">
+  <article class="prose">
     <h1>ページが見つかりません</h1>
     <p>お探しのページは移動または削除された可能性があります。</p>
-    <p><a href={href('/')}>トップページへ戻る</a></p>
-  </div>
+    <ul>
+      <li><a href={href('/')}>トップページへ戻る</a></li>
+      <li><a href={href('/latest/')}>すべての新着記事を見る</a></li>
+      <li><a href={href('/search/')}>記事を検索する</a></li>
+    </ul>
+  </article>
 </BaseLayout>

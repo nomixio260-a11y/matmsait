@@ -1,0 +1,111 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import RankingList from '../components/RankingList.astro';
+import { categories } from '../config/site.ts';
+import { getRanking, href } from '../lib/items.ts';
+
+const daily = getRanking({ hours: 24, limit: 30 });
+const weekly = getRanking({ hours: 24 * 7, limit: 30 });
+const byCategory = categories
+  .map((category) => ({ category, items: getRanking({ hours: 48, category: category.slug, limit: 5 }) }))
+  .filter((entry) => entry.items.length > 0);
+---
+
+<BaseLayout
+  title="人気記事ランキング"
+  description="はてなブックマーク数をもとに、いま話題の記事をランキング形式でまとめています。"
+  current="ranking"
+  breadcrumbs={[{ name: 'ランキング' }]}
+  sidebar={{ hideRanking: true }}
+>
+  <div class="page-head">
+    <h1>人気記事ランキング</h1>
+    <p>掲載記事のはてなブックマーク数をもとに集計しています（1時間ごとに更新）。</p>
+  </div>
+
+  <div class="stack">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>ランキング</h2>
+        <div class="seg" role="tablist" aria-label="集計期間">
+          <button type="button" role="tab" aria-selected="true" aria-controls="rank-daily" id="tab-daily">24時間</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="rank-weekly" id="tab-weekly">1週間</button>
+        </div>
+      </div>
+      <div id="rank-daily" role="tabpanel" aria-labelledby="tab-daily">
+        {daily.length > 0 ? <RankingList items={daily} detailed /> : <p class="empty">集計中です。しばらくお待ちください。</p>}
+      </div>
+      <div id="rank-weekly" role="tabpanel" aria-labelledby="tab-weekly" hidden>
+        {weekly.length > 0 ? <RankingList items={weekly} detailed /> : <p class="empty">集計中です。しばらくお待ちください。</p>}
+      </div>
+    </section>
+
+    <div class="cat-grid">
+      {
+        byCategory.map(({ category, items }) => (
+          <section class="panel">
+            <div class="panel-head">
+              <h2>
+                <span class="dot" style={`--c:${category.color}`} />
+                {category.name}
+              </h2>
+              <a class="more" href={href(`/category/${category.slug}/`)}>
+                新着を見る →
+              </a>
+            </div>
+            <RankingList items={items} />
+          </section>
+        ))
+      }
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const tabs = document.querySelectorAll<HTMLButtonElement>('.seg [role="tab"]');
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => {
+      for (const other of tabs) {
+        const selected = other === tab;
+        other.setAttribute('aria-selected', String(selected));
+        const panel = document.getElementById(other.getAttribute('aria-controls') ?? '');
+        if (panel) panel.hidden = !selected;
+      }
+    });
+  }
+</script>
+
+<style>
+  .seg {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .seg button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .seg button[aria-selected='true'] {
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: var(--shadow);
+  }
+  .cat-grid {
+    display: grid;
+    gap: 20px;
+  }
+  @media (min-width: 720px) {
+    .cat-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

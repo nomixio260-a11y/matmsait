@@ -1,0 +1,280 @@
+/* ===== 色・寸法のトークン ===== */
+:root {
+  --bg: #f2f3f5;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --text: #15171c;
+  --text-2: #3a3f4a;
+  --muted: #5d6470;
+  --border: #e2e5ea;
+  --border-strong: #d1d5dc;
+  --accent: #c2410c;
+  --accent-strong: #9a3412;
+  --accent-soft: #fff0e6;
+  --on-accent: #ffffff;
+  --hot: #c0183f;
+  --hot-soft: #ffe8ee;
+  --on-hot: #ffffff;
+  --visited: #6b4aa6;
+  --focus: #2563eb;
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.04);
+  --radius: 12px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0d0f12;
+    --surface: #16191e;
+    --surface-2: #1c2026;
+    --text: #e8eaed;
+    --text-2: #c7cbd2;
+    --muted: #9aa2ae;
+    --border: #262b33;
+    --border-strong: #343a45;
+    --accent: #ff8a4c;
+    --accent-strong: #ffa774;
+    --accent-soft: #2b1b11;
+    --on-accent: #1a0f08;
+    --hot: #ff6b8b;
+    --hot-soft: #3a1520;
+    --on-hot: #2a0710;
+    --visited: #b9a3ea;
+    --focus: #60a5fa;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0d0f12;
+  --surface: #16191e;
+  --surface-2: #1c2026;
+  --text: #e8eaed;
+  --text-2: #c7cbd2;
+  --muted: #9aa2ae;
+  --border: #262b33;
+  --border-strong: #343a45;
+  --accent: #ff8a4c;
+  --accent-strong: #ffa774;
+  --accent-soft: #2b1b11;
+  --on-accent: #1a0f08;
+  --hot: #ff6b8b;
+  --hot-soft: #3a1520;
+  --on-hot: #2a0710;
+  --visited: #b9a3ea;
+  --focus: #60a5fa;
+  --shadow: none;
+  color-scheme: dark;
+}
+
+/* ===== ベース ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-top: 56px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    system-ui, -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic UI', Meiryo,
+    sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+img,
+svg {
+  display: block;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.35;
+}
+
+.container {
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 100;
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+/* ===== ページ骨組み ===== */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  padding-top: 16px;
+  padding-bottom: 48px;
+}
+
+@media (min-width: 1000px) {
+  .layout.has-sidebar {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 24px;
+  }
+}
+
+.main {
+  min-width: 0;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.page-head {
+  margin-bottom: 12px;
+}
+.page-head h1 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+.page-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ===== パネル（カード） ===== */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  /* clip はスクロールコンテナを作らないので、中の日付見出しを画面に対して固定できる */
+  overflow: hidden;
+  overflow: clip;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-head h2,
+.panel-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-head .more {
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.panel-head .more:hover {
+  text-decoration: underline;
+}
+
+.panel-foot {
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.panel-foot a {
+  display: block;
+  padding: 10px 16px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.panel-foot a:hover {
+  background: var(--surface-2);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c, var(--accent));
+  flex: none;
+}
+
+/* ===== 本文ページ（規約など） ===== */
+.prose {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  line-height: 1.8;
+}
+.prose h1 {
+  font-size: 1.35rem;
+  margin: 0 0 12px;
+}
+.prose h2 {
+  font-size: 1.05rem;
+  margin: 28px 0 8px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+.prose a {
+  color: var(--accent);
+}
+.prose ul {
+  padding-left: 1.4em;
+}
+
+/* ===== 空状態 ===== */
+.empty {
+  padding: 32px 16px;
+  margin: 0;
+  color: var(--muted);
+  text-align: center;
+}

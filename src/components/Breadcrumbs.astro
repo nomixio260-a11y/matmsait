@@ -1,0 +1,63 @@
+---
+import { href } from '../lib/items.ts';
+
+export interface Crumb {
+  name: string;
+  /** サイト内パス（"/" 始まり）。最後の要素は省略可 */
+  path?: string;
+}
+interface Props {
+  items: Crumb[];
+}
+const crumbs: Crumb[] = [{ name: 'ホーム', path: '/' }, ...Astro.props.items];
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: crumbs.map((crumb, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    name: crumb.name,
+    ...(crumb.path ? { item: new URL(href(crumb.path), Astro.site).toString() } : {}),
+  })),
+};
+---
+
+<nav class="crumbs" aria-label="パンくずリスト">
+  <ol>
+    {
+      crumbs.map((crumb, index) => (
+        <li>
+          {crumb.path && index < crumbs.length - 1 ? (
+            <a href={href(crumb.path)}>{crumb.name}</a>
+          ) : (
+            <span aria-current="page">{crumb.name}</span>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</nav>
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />
+
+<style>
+  .crumbs ol {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .crumbs li + li::before {
+    content: '›';
+    margin-right: 4px;
+  }
+  .crumbs a {
+    text-decoration: none;
+  }
+  .crumbs a:hover {
+    text-decoration: underline;
+  }
+</style>

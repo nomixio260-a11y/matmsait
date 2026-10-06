@@ -1,4 +1,4 @@
-import { adsenseClient } from '../config/ads.ts';
+import { adsenseClient } from '../config/services.ts';
 
 // AdSense 承認後、PUBLIC_ADSENSE_CLIENT を設定すると自動で ads.txt が出力される。
 // ※ ads.txt はドメイン直下に置く必要があるため、独自ドメインでの運用時のみ有効。

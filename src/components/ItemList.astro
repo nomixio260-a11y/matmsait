@@ -1,43 +1,62 @@
 ---
-import { site } from '../config/site.ts';
 import AdSlot from './AdSlot.astro';
-import ItemCard from './ItemCard.astro';
+import ItemRow from './ItemRow.astro';
+import { site } from '../config/site.ts';
+import { adsenseClient, adsenseSlot } from '../config/services.ts';
+import { groupByDay } from '../lib/items.ts';
 import type { Item } from '../lib/types.ts';
 
 interface Props {
   items: Item[];
+  /** 日付ごとに見出しを付ける */
+  group?: boolean;
   showCategory?: boolean;
+  showExcerpt?: boolean;
   /** 一覧の途中に広告枠を入れるか */
   ads?: boolean;
+  /** 日付見出しの見出しレベル */
+  headingLevel?: 2 | 3;
 }
-const { items, showCategory = false, ads = true } = Astro.props;
+const {
+  items,
+  group = true,
+  showCategory = true,
+  showExcerpt = true,
+  ads = true,
+  headingLevel = 2,
+} = Astro.props;
+const DayHeading = headingLevel === 3 ? 'h3' : 'h2';
+const withAds = ads && Boolean(adsenseClient && adsenseSlot);
+
+// 広告を一覧全体の通し番号で差し込むため、先に番号を振っておく
+let count = 0;
+const groups = (group ? groupByDay(items) : [{ key: 'all', label: '', items }]).map((g) => ({
+  ...g,
+  rows: g.items.map((item) => ({ item, n: ++count })),
+}));
+const showAdAfter = (n: number) => withAds && n % site.adEvery === 0 && n < items.length;
 ---
 
-<div class="item-list">
-  {
-    items.length === 0 ? (
-      <p class="empty">まだ記事がありません。</p>
-    ) : (
-      items.map((item, index) => (
-        <>
-          <ItemCard item={item} showCategory={showCategory} />
-          {ads && (index + 1) % site.adEvery === 0 && index + 1 < items.length && <AdSlot />}
-        </>
-      ))
-    )
-  }
-</div>
-
-<style>
-  .item-list {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-  .empty {
-    padding: 24px 16px;
-    margin: 0;
-    color: var(--muted);
-  }
-</style>
+{
+  items.length === 0 ? (
+    <p class="empty">まだ記事がありません。</p>
+  ) : (
+    groups.map((g) => (
+      <section class="day-group">
+        {group && <DayHeading class="day-head">{g.label}</DayHeading>}
+        <ul class="items">
+          {g.rows.map(({ item, n }) => (
+            <>
+              <ItemRow item={item} showCategory={showCategory} showExcerpt={showExcerpt} timeOnly={group} />
+              {showAdAfter(n) && (
+                <li class="item-ad">
+                  <AdSlot />
+                </li>
+              )}
+            </>
+          ))}
+        </ul>
+      </section>
+    ))
+  )
+}

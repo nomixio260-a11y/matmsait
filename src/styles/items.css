@@ -1,0 +1,250 @@
+/* 記事一覧・ランキングの行。検索ページではスクリプトで同じ構造を組み立てるため全体スタイルにしている */
+
+.day-group + .day-group {
+  border-top: 1px solid var(--border);
+}
+
+.day-head {
+  margin: 0;
+  padding: 6px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* スクロール中も日付が分かるよう、カテゴリタブのすぐ下に固定する */
+@supports (overflow: clip) {
+  .day-head {
+    position: sticky;
+    top: 45px;
+    z-index: 5;
+  }
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item,
+.rank-item {
+  position: relative;
+  padding: 10px 16px 11px;
+}
+
+.item + .item,
+.item + .item-ad,
+.item-ad + .item {
+  border-top: 1px solid var(--border);
+}
+
+.item:hover,
+.rank-item:hover {
+  background: var(--surface-2);
+}
+
+.item-title {
+  display: block;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+/* 行全体をクリックできるようにする（出典・カテゴリのリンクは上に重ねて個別に押せる） */
+.item-title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.item-title:visited {
+  color: var(--visited);
+}
+
+.item:hover .item-title,
+.rank-item:hover .item-title {
+  color: var(--accent);
+}
+
+.item.is-new .item-title::before {
+  content: 'NEW';
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--hot);
+  color: var(--on-hot);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  vertical-align: 0.15em;
+}
+
+.item-excerpt {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (min-width: 720px) {
+  .item-excerpt {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+  .detailed .item-excerpt {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+
+.item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 12px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.item-meta a {
+  position: relative;
+  z-index: 1;
+  text-decoration: none;
+}
+
+.item-meta a:hover {
+  text-decoration: underline;
+}
+
+.item-site {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.item-site img {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.item-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.item-meta time {
+  font-variant-numeric: tabular-nums;
+}
+
+.users {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--hot-soft);
+  color: var(--hot);
+  font-size: 0.7rem;
+}
+
+.users b {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.users.hot {
+  background: var(--hot);
+  color: var(--on-hot);
+}
+
+.item-ad {
+  list-style: none;
+}
+
+/* ===== ランキング ===== */
+.ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rank-item {
+  display: flex;
+  gap: 12px;
+}
+
+.rank-item + .rank-item {
+  border-top: 1px solid var(--border);
+}
+
+.rank {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-1,
+.rank-2,
+.rank-3 {
+  border: 0;
+  color: #fff;
+}
+.rank-1 {
+  background: #b45309;
+}
+.rank-2 {
+  background: #64748b;
+}
+.rank-3 {
+  background: #8b5a2b;
+}
+
+.rank-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.ranking:not(.detailed) .item-title {
+  font-size: 0.85rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.ranking:not(.detailed) .rank-item {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
