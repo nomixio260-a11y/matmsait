@@ -1,0 +1,43 @@
+---
+import { site } from '../config/site.ts';
+import AdSlot from './AdSlot.astro';
+import ItemCard from './ItemCard.astro';
+import type { Item } from '../lib/types.ts';
+
+interface Props {
+  items: Item[];
+  showCategory?: boolean;
+  /** 一覧の途中に広告枠を入れるか */
+  ads?: boolean;
+}
+const { items, showCategory = false, ads = true } = Astro.props;
+---
+
+<div class="item-list">
+  {
+    items.length === 0 ? (
+      <p class="empty">まだ記事がありません。</p>
+    ) : (
+      items.map((item, index) => (
+        <>
+          <ItemCard item={item} showCategory={showCategory} />
+          {ads && (index + 1) % site.adEvery === 0 && index + 1 < items.length && <AdSlot />}
+        </>
+      ))
+    )
+  }
+</div>
+
+<style>
+  .item-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .empty {
+    padding: 24px 16px;
+    margin: 0;
+    color: var(--muted);
+  }
+</style>

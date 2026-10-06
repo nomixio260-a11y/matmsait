@@ -1,0 +1,131 @@
+# 収集元フィード一覧
+# - id:        英数字とハイフンのみ（URLに使われます）
+# - name:      サイト上の出典表示名
+# - feedUrl:   RSS / Atom フィードのURL
+# - siteUrl:   出典サイトのトップURL
+# - category:  src/config/site.ts の categories にある slug
+#
+# 追加前に必ず各サイトの利用規約を確認してください（商用利用・見出し利用の可否）。
+# 例: NHK や Yahoo!ニュースの RSS は非営利目的に限られているため登録していません。
+
+- id: huffpost
+  name: ハフポスト日本版
+  feedUrl: https://www.huffingtonpost.jp/feeds/index.xml
+  siteUrl: https://www.huffingtonpost.jp/
+  category: news
+- id: jcast
+  name: J-CASTニュース
+  feedUrl: https://www.j-cast.com/index.xml
+  siteUrl: https://www.j-cast.com/
+  category: news
+- id: bbc-japanese
+  name: BBCニュース 日本語版
+  feedUrl: https://feeds.bbci.co.uk/japanese/rss.xml
+  siteUrl: https://www.bbc.com/japanese
+  category: news
+- id: hatena-social
+  name: はてなブックマーク（世の中）
+  feedUrl: https://b.hatena.ne.jp/hotentry/social.rss
+  siteUrl: https://b.hatena.ne.jp/hotentry/social
+  category: news
+
+- id: toyokeizai
+  name: 東洋経済オンライン
+  feedUrl: https://toyokeizai.net/list/feed/rss
+  siteUrl: https://toyokeizai.net/
+  category: economy
+- id: hatena-economics
+  name: はてなブックマーク（政治と経済）
+  feedUrl: https://b.hatena.ne.jp/hotentry/economics.rss
+  siteUrl: https://b.hatena.ne.jp/hotentry/economics
+  category: economy
+
+- id: itmedia
+  name: ITmedia
+  feedUrl: https://rss.itmedia.co.jp/rss/2.0/itmedia_all.xml
+  siteUrl: https://www.itmedia.co.jp/
+  category: tech
+- id: gigazine
+  name: GIGAZINE
+  feedUrl: https://gigazine.net/news/rss_2.0/
+  siteUrl: https://gigazine.net/
+  category: tech
+- id: publickey
+  name: Publickey
+  feedUrl: https://www.publickey1.jp/atom.xml
+  siteUrl: https://www.publickey1.jp/
+  category: tech
+- id: impress-watch
+  name: Impress Watch
+  feedUrl: https://www.watch.impress.co.jp/data/rss/1.0/ipw/feed.rdf
+  siteUrl: https://www.watch.impress.co.jp/
+  category: tech
+- id: zenn
+  name: Zenn
+  feedUrl: https://zenn.dev/feed
+  siteUrl: https://zenn.dev/
+  category: tech
+- id: qiita
+  name: Qiita
+  feedUrl: https://qiita.com/popular-items/feed
+  siteUrl: https://qiita.com/
+  category: tech
+- id: hatena-it
+  name: はてなブックマーク（テクノロジー）
+  feedUrl: https://b.hatena.ne.jp/hotentry/it.rss
+  siteUrl: https://b.hatena.ne.jp/hotentry/it
+  category: tech
+
+- id: hatena-entertainment
+  name: はてなブックマーク（エンタメ）
+  feedUrl: https://b.hatena.ne.jp/hotentry/entertainment.rss
+  siteUrl: https://b.hatena.ne.jp/hotentry/entertainment
+  category: entertainment
+- id: hatena-fun
+  name: はてなブックマーク（おもしろ）
+  feedUrl: https://b.hatena.ne.jp/hotentry/fun.rss
+  siteUrl: https://b.hatena.ne.jp/hotentry/fun
+  category: entertainment
+
+- id: 4gamer
+  name: 4Gamer.net
+  feedUrl: https://www.4gamer.net/rss/index.xml
+  siteUrl: https://www.4gamer.net/
+  category: game
+- id: automaton
+  name: AUTOMATON
+  feedUrl: https://automaton-media.com/feed/
+  siteUrl: https://automaton-media.com/
+  category: game
+- id: game-watch
+  name: GAME Watch
+  feedUrl: https://game.watch.impress.co.jp/data/rss/1.0/gmw/feed.rdf
+  siteUrl: https://game.watch.impress.co.jp/
+  category: game
+- id: hatena-game
+  name: はてなブックマーク（アニメとゲーム）
+  feedUrl: https://b.hatena.ne.jp/hotentry/game.rss
+  siteUrl: https://b.hatena.ne.jp/hotentry/game
+  category: game
+
+- id: gekisaka
+  name: ゲキサカ
+  feedUrl: https://web.gekisaka.jp/feed
+  siteUrl: https://web.gekisaka.jp/
+  category: sports
+
+- id: lifehacker
+  name: ライフハッカー・ジャパン
+  feedUrl: https://www.lifehacker.jp/feed/index.xml
+  siteUrl: https://www.lifehacker.jp/
+  category: life
+- id: hatena-life
+  name: はてなブックマーク（暮らし）
+  feedUrl: https://b.hatena.ne.jp/hotentry/life.rss
+  siteUrl: https://b.hatena.ne.jp/hotentry/life
+  category: life
+- id: hatena-knowledge
+  name: はてなブックマーク（学び）
+  feedUrl: https://b.hatena.ne.jp/hotentry/knowledge.rss
+  siteUrl: https://b.hatena.ne.jp/hotentry/knowledge
+  category: life

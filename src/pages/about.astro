@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { site } from '../config/site.ts';
+import { href } from '../lib/items.ts';
+---
+
+<BaseLayout title="このサイトについて">
+  <div class="prose">
+    <h1>このサイトについて</h1>
+    <p>
+      {site.name}は、ニュース・テクノロジー・エンタメ・ゲームなど様々なジャンルのサイトが公開しているRSSフィードを定期的に取得し、
+      新着記事の見出しと短い抜粋をまとめて一覧できるサイトです。
+    </p>
+
+    <h2>掲載している情報</h2>
+    <ul>
+      <li>記事の見出し・冒頭の短い抜粋・配信元・公開日時のみを掲載しています。</li>
+      <li>記事本文や画像は転載していません。全文は各リンク先の配信元サイトでご覧ください。</li>
+      <li>見出し・抜粋の著作権は各配信元に帰属します。</li>
+      <li>掲載元の一覧は<a href={href('/sources/')}>掲載元一覧</a>をご覧ください。</li>
+    </ul>
+
+    <h2>掲載の停止について</h2>
+    <p>
+      配信元の運営者様で掲載の停止をご希望の場合は、<a href={href('/contact/')}>お問い合わせ</a>
+      よりご連絡ください。速やかに対応いたします。
+    </p>
+
+    <h2>運営者</h2>
+    <p>{site.operator}</p>
+  </div>
+</BaseLayout>

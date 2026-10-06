@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ItemList from '../components/ItemList.astro';
+import { categories } from '../config/site.ts';
+import { getItems, getItemsByCategory, href } from '../lib/items.ts';
+
+const latest = getItems().slice(0, 40);
+const sections = categories
+  .map((category) => ({ category, items: getItemsByCategory(category.slug).slice(0, 5) }))
+  .filter((section) => section.items.length > 0);
+---
+
+<BaseLayout>
+  <section>
+    <div class="section-head">
+      <h1>新着記事</h1>
+    </div>
+    <ItemList items={latest} showCategory />
+  </section>
+
+  {
+    sections.map(({ category, items }) => (
+      <section>
+        <div class="section-head">
+          <h2>{category.name}</h2>
+          <a class="more" href={href(`/category/${category.slug}/`)}>
+            もっと見る →
+          </a>
+        </div>
+        <ItemList items={items} ads={false} />
+      </section>
+    ))
+  }
+</BaseLayout>
+
+<style>
+  section {
+    margin-bottom: 28px;
+  }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .section-head h1 {
+    margin: 0;
+  }
+  .more {
+    font-size: 0.85rem;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .more:hover {
+    text-decoration: underline;
+  }
+</style>

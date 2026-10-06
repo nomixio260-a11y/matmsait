@@ -1,0 +1,20 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { site } from '../config/site.ts';
+---
+
+<BaseLayout title="お問い合わせ">
+  <div class="prose">
+    <h1>お問い合わせ</h1>
+    <p>当サイトに関するお問い合わせ・掲載停止のご依頼は、以下のメールアドレスまでご連絡ください。</p>
+    <p class="email"><a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a></p>
+    <p>配信元の運営者様からの掲載停止のご依頼には、確認でき次第速やかに対応いたします。</p>
+  </div>
+</BaseLayout>
+
+<style>
+  .email {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+</style>

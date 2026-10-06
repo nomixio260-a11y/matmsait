@@ -1,0 +1,41 @@
+---
+import type { Page } from 'astro';
+
+interface Props {
+  page: Page<unknown>;
+}
+const { page } = Astro.props;
+---
+
+{
+  page.lastPage > 1 && (
+    <nav class="pagination" aria-label="ページ送り">
+      {page.url.prev ? <a href={page.url.prev}>← 新しい記事</a> : <span />}
+      <span class="current">
+        {page.currentPage} / {page.lastPage}
+      </span>
+      {page.url.next ? <a href={page.url.next}>古い記事 →</a> : <span />}
+    </nav>
+  )
+}
+
+<style>
+  .pagination {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    margin-top: 16px;
+    font-size: 0.9rem;
+  }
+  .pagination a {
+    color: var(--accent);
+    text-decoration: none;
+    padding: 8px 0;
+  }
+  .pagination a:last-child {
+    text-align: right;
+  }
+  .current {
+    color: var(--muted);
+  }
+</style>

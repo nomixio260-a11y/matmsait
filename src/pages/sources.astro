@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { categories } from '../config/site.ts';
+import { getItemsBySource, getSources, href } from '../lib/items.ts';
+
+const sources = getSources();
+const groups = categories
+  .map((category) => ({ category, sources: sources.filter((s) => s.category === category.slug) }))
+  .filter((group) => group.sources.length > 0);
+---
+
+<BaseLayout title="掲載元一覧" description="当サイトが新着記事を掲載しているサイトの一覧です。">
+  <h1>掲載元一覧</h1>
+  <p class="lead">当サイトは以下のサイトが公開しているRSSフィードから、見出しと抜粋を掲載しています。</p>
+  {
+    groups.map(({ category, sources }) => (
+      <section class="prose">
+        <h2>{category.name}</h2>
+        <ul>
+          {sources.map((source) => (
+            <li>
+              <a href={href(`/source/${source.id}/`)}>{source.name}</a>
+              <span class="count">（{getItemsBySource(source.id).length}件）</span>
+              <a class="external" href={source.siteUrl} target="_blank" rel="noopener">
+                公式サイト
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+</BaseLayout>
+
+<style>
+  section {
+    margin-bottom: 16px;
+  }
+  .prose h2 {
+    margin-top: 0;
+  }
+  ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+  li {
+    margin: 4px 0;
+  }
+  .count {
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .external {
+    margin-left: 8px;
+    font-size: 0.8rem;
+  }
+</style>

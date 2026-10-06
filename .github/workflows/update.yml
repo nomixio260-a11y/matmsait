@@ -1,0 +1,76 @@
+name: フィード更新とデプロイ
+
+on:
+  schedule:
+    # 毎時7分（UTC）に収集。混雑する毎時0分を避けている
+    - cron: '7 * * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: update-and-deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - id: pages
+        uses: actions/configure-pages@v6
+
+      - name: フィードを取得
+        run: npm run fetch
+        env:
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
+
+      - name: 取得したデータをコミット
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/items.json
+          if git diff --cached --quiet; then
+            echo '更新なし'
+          else
+            git commit -m 'chore: フィードを更新'
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: サイトをビルド
+        run: npm run build
+        env:
+          SITE_URL: ${{ steps.pages.outputs.origin }}
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          PUBLIC_ADSENSE_CLIENT: ${{ vars.PUBLIC_ADSENSE_CLIENT }}
+          PUBLIC_ADSENSE_SLOT: ${{ vars.PUBLIC_ADSENSE_SLOT }}
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

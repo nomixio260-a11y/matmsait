@@ -1,0 +1,33 @@
+---
+import type { GetStaticPaths, Page } from 'astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ItemList from '../../../components/ItemList.astro';
+import Pagination from '../../../components/Pagination.astro';
+import { categories, site } from '../../../config/site.ts';
+import { getItemsByCategory } from '../../../lib/items.ts';
+import type { Category } from '../../../config/site.ts';
+import type { Item } from '../../../lib/types.ts';
+
+export const getStaticPaths = (({ paginate }) =>
+  categories.flatMap((category) =>
+    paginate(getItemsByCategory(category.slug), {
+      pageSize: site.pageSize,
+      params: { slug: category.slug },
+      props: { category },
+    }),
+  )) satisfies GetStaticPaths;
+
+interface Props {
+  page: Page<Item>;
+  category: Category;
+}
+const { page, category } = Astro.props;
+const title = page.currentPage > 1 ? `${category.name}（${page.currentPage}ページ目）` : category.name;
+---
+
+<BaseLayout title={title} description={category.description} current={category.slug}>
+  <h1>{category.name}</h1>
+  <p class="lead">{category.description}</p>
+  <ItemList items={page.data} />
+  <Pagination page={page} />
+</BaseLayout>
