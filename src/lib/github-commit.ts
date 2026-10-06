@@ -48,6 +48,22 @@ function describe(status: number, body: string, permission: Permission = 'Conten
 
 const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
 
+/**
+ * ブラウザから送ってよいヘッダー。GitHub API の CORS（プリフライトの Access-Control-Allow-Headers）が
+ * 許可しているものと、許可なしで送れる Accept だけ。これ以外を送ると、ブラウザが通信をすべて止めてしまう
+ * https://docs.github.com/en/rest/using-the-rest-api/using-cors-and-jsonp-to-make-cross-origin-requests
+ */
+export const CORS_ALLOWED_HEADERS = [
+  'accept',
+  'authorization',
+  'content-type',
+  'if-match',
+  'if-modified-since',
+  'if-none-match',
+  'if-unmodified-since',
+  'x-requested-with',
+];
+
 export function createGitHubClient(token: string, { owner, repo }: Repository, fetchImpl: typeof fetch = fetch) {
   const base = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
@@ -56,16 +72,23 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
     init: RequestInit & { accept?: string; permission?: Permission } = {},
   ): Promise<Response> {
     const { accept, headers, permission, ...rest } = init;
-    const res = await fetchImpl(`${base}${path}`, {
-      ...rest,
-      headers: {
-        Accept: accept ?? 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        ...(rest.body ? { 'Content-Type': 'application/json' } : {}),
-        ...headers,
-      },
-    });
+    let res: Response;
+    try {
+      res = await fetchImpl(`${base}${path}`, {
+        ...rest,
+        // 管理画面はブラウザから直接 GitHub API を呼ぶので、GitHub の CORS が許可しているヘッダーだけを送る
+        // （X-GitHub-Api-Version などを付けるとブラウザに通信を止められる。CORS_ALLOWED_HEADERS を参照）
+        headers: {
+          Accept: accept ?? 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          ...(rest.body ? { 'Content-Type': 'application/json' } : {}),
+          ...headers,
+        },
+      });
+    } catch {
+      // 通信そのものの失敗（オフライン、ブラウザによるブロックなど）。fetch は「Failed to fetch」としか言わないので言い換える
+      throw new GitHubError('GitHub に接続できませんでした。インターネット接続を確認して、もう一度お試しください', 0);
+    }
     if (!res.ok) throw new GitHubError(describe(res.status, await res.text(), permission), res.status);
     return res;
   }

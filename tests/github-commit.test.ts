@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createGitHubClient, GitHubError } from '../src/lib/github-commit.ts';
+import { CORS_ALLOWED_HEADERS, createGitHubClient, GitHubError } from '../src/lib/github-commit.ts';
 
 interface Call {
   method: string;
@@ -139,6 +139,32 @@ describe('createGitHubClient', () => {
     const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
     await expect(client.dispatchWorkflow('update.yml', 'main')).rejects.toThrow('Actions の Read and write');
     await expect(client.readFile('a.json', 'main')).rejects.toThrow('Contents の Read and write');
+  });
+
+  it('ブラウザから送るヘッダーは、GitHub の CORS が許可しているものだけ（管理画面が動かなくなるのを防ぐ）', async () => {
+    const sent = new Set<string>();
+    const fetchImpl = (async (_input: RequestInfo | URL, init: RequestInit = {}) => {
+      for (const name of Object.keys(init.headers as Record<string, string>)) sent.add(name.toLowerCase());
+      if (init.method === 'POST' && String(_input).endsWith('/dispatches')) return new Response(null, { status: 204 });
+      if (String(_input).includes('/runs')) return new Response('{"workflow_runs":[]}', { status: 200 });
+      if (String(_input).includes('/contents/')) return new Response('[]', { status: 200 });
+      return new Response('{"default_branch":"main","object":{"sha":"h"},"tree":{"sha":"t"},"sha":"s"}', { status: 200 });
+    }) as typeof fetch;
+    const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
+    await client.repository();
+    await client.readFile('data/a.json', 'main');
+    await client.listWorkflowRuns('update.yml', 3, 'main');
+    await client.dispatchWorkflow('update.yml', 'main');
+    await client.commitFiles('main', 'm', async () => [{ path: 'a.json', content: '[]' }]);
+    expect([...sent].filter((name) => !CORS_ALLOWED_HEADERS.includes(name))).toEqual([]);
+  });
+
+  it('通信そのものに失敗したら、分かりやすいメッセージにする', async () => {
+    const fetchImpl = (async () => {
+      throw new TypeError('Failed to fetch');
+    }) as typeof fetch;
+    const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
+    await expect(client.repository()).rejects.toThrow('GitHub に接続できませんでした');
   });
 
   it('認証エラーは分かりやすいメッセージにする', async () => {
