@@ -76,11 +76,19 @@ import { href } from '../../lib/items.ts';
     </section>
 
     <section class="card" aria-labelledby="social-title" id="social">
-      <div class="card-head"><h2 id="social-title">SNS に投稿する（下書き）</h2></div>
+      <div class="card-head">
+        <h2 id="social-title">SNS（Bluesky）の自動投稿</h2>
+        <a href="https://bsky.app/profile/topiatsume.bsky.social" target="_blank" rel="noopener">アカウント →</a>
+      </div>
       <div class="card-body">
         <p class="note">
-          X の API での自動投稿は投稿ごとに料金がかかるため、ここから X の投稿画面を開いて手で投稿できます（無料）。文面はサイトの更新のたびに、急上昇・いま話題・今日の重要ニュース・AIニュースから作り直します。Bluesky・Mastodon・Misskey は認証情報を登録すれば、上限つきで自動投稿します。
+          毎時の更新のあとに、Bluesky（@topiatsume.bsky.social）へ自動で投稿します（朝の今日の重要ニュース・昼の AI ニュース・夜の今日のまとめ・日曜の今週のランキングと、急上昇・いま話題・10秒でわかるニュース。深夜0〜7時は投稿しない・急上昇などは1時間に1件まで・1日12件まで）。GitHub の Secrets に <code>BLUESKY_APP_PASSWORD</code>（Bluesky のアプリパスワード）が登録されていると動きます（別のアカウントで投稿するときは <code>BLUESKY_IDENTIFIER</code> も登録）。
         </p>
+        <h3 class="sub-title">最近の投稿</h3>
+        <ul class="draft-list" id="social-log">
+          <li class="pick-meta">読み込んでいます…</li>
+        </ul>
+        <h3 class="sub-title">次に投稿されうる内容（手で追加の投稿をするときの下書き）</h3>
         <ul class="draft-list" id="social-drafts">
           <li class="pick-meta">読み込んでいます…</li>
         </ul>
@@ -119,6 +127,10 @@ import { href } from '../../lib/items.ts';
     display: block;
     color: var(--accent);
     font-size: 0.9rem;
+  }
+  .sub-title {
+    margin: 16px 0 0;
+    font-size: 0.85rem;
   }
   .shortcuts span {
     display: block;

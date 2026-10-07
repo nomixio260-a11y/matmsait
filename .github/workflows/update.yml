@@ -271,20 +271,13 @@ jobs:
         env:
           SITE_BASE_URL: ${{ needs.build.outputs.base_url }}
           DATA_CHANGED: ${{ needs.build.outputs.changed }}
-          X_API_KEY: ${{ secrets.X_API_KEY }}
-          X_API_SECRET: ${{ secrets.X_API_SECRET }}
-          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
-          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
-          BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER }}
+          # Bluesky のアカウント（ハンドルは公開の情報なので既定値を置く。パスワードは Secrets の BLUESKY_APP_PASSWORD だけ）
+          BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER || vars.BLUESKY_IDENTIFIER || 'topiatsume.bsky.social' }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
           MASTODON_URL: ${{ secrets.MASTODON_URL }}
           MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
           MISSKEY_URL: ${{ secrets.MISSKEY_URL }}
           MISSKEY_TOKEN: ${{ secrets.MISSKEY_TOKEN }}
-          # X は投稿ごとに料金がかかるため、既定では夜のまとめを1日1件だけ（変えるときはリポジトリの Variables で）
-          X_DAILY_LIMIT: ${{ vars.X_DAILY_LIMIT }}
-          X_MONTHLY_LIMIT: ${{ vars.X_MONTHLY_LIMIT }}
-          X_POST_TYPES: ${{ vars.X_POST_TYPES }}
 
       - name: 投稿の記録をコミット
         run: |

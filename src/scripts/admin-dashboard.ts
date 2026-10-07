@@ -32,13 +32,60 @@ interface DashboardData extends AdminDataCommon {
   notice?: Notice | null;
   picks?: (EditorPick & { article?: { title: string } })[];
   social?: SocialDraft[];
+  /** 自動投稿の記録（新しい順） */
+  socialLog?: { key: string; at: string; platforms?: string[] }[];
 }
 
-/** SNS の投稿の下書き（X・Bluesky の投稿画面を開くリンクと、コピーのボタン） */
+const POST_KINDS: Record<string, string> = {
+  digest: '今日のまとめ',
+  morning: '今日の重要ニュース',
+  ai: 'AIニュース',
+  weekly: '今週のランキング',
+  rising: '急上昇',
+  hot: 'いま話題',
+  summary: '10秒でわかるニュース',
+};
+
+/** 自動投稿の記録（いつ・何を・どのサービスに。リンクはサイトのページ） */
+function renderSocialLog(log: NonNullable<DashboardData['socialLog']>): void {
+  const list = $('social-log');
+  if (log.length === 0) {
+    list.replaceChildren(el('li', 'pick-meta', 'まだ投稿していません（Secrets を登録すると、次の更新から投稿が始まります。深夜0〜7時は投稿しません）。'));
+    return;
+  }
+  list.replaceChildren(
+    ...log.slice(0, 15).map((entry) => {
+      const [kind, id] = entry.key.split(':');
+      const li = el('li', 'draft');
+      const head = el('div', 'draft-head');
+      head.append(el('span', 'badge', POST_KINDS[kind] ?? kind), ` ${dateFormat.format(new Date(entry.at))}`);
+      if (entry.platforms?.length) head.append(el('span', 'pick-meta', `（${entry.platforms.join('・')}）`));
+      li.append(head);
+      const path =
+        kind === 'rising' || kind === 'hot'
+          ? `/topic/${id}/`
+          : kind === 'digest'
+            ? `/daily/${id}/`
+            : kind === 'ai'
+              ? '/tag/ai/'
+              : kind === 'summary'
+                ? `/summary/${id}/`
+                : '/ranking/';
+      const link = el('a', 'pick-meta', `${base}${path}`);
+      link.href = `${base}${path}`;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      li.append(link);
+      return li;
+    }),
+  );
+}
+
+/** SNS の投稿の下書き（Bluesky の投稿画面を開くリンクと、コピーのボタン） */
 function renderDrafts(drafts: SocialDraft[]): void {
   const list = $('social-drafts');
   if (drafts.length === 0) {
-    list.replaceChildren(el('li', 'pick-meta', 'いまは投稿に向いた話題がありません（急上昇・多くのメディアが報じた話題が出ると、ここに下書きができます）。'));
+    list.replaceChildren(el('li', 'pick-meta', 'いまは投稿に向いた話題がありません（急上昇・多くのメディアが報じた話題が出ると、ここに候補が出ます）。'));
     return;
   }
   list.replaceChildren(
@@ -66,11 +113,7 @@ function renderDrafts(drafts: SocialDraft[]): void {
         }
         setTimeout(() => (copy.textContent = 'コピー'), 2000);
       });
-      actions.append(
-        open('X で投稿', `https://x.com/intent/post?text=${encodeURIComponent(draft.text)}`),
-        open('Bluesky で投稿', `https://bsky.app/intent/compose?text=${encodeURIComponent(draft.text)}`),
-        copy,
-      );
+      actions.append(open('Bluesky で投稿', `https://bsky.app/intent/compose?text=${encodeURIComponent(draft.text)}`), copy);
       li.append(head, text, actions);
       return li;
     }),
@@ -238,6 +281,7 @@ async function main(): Promise<void> {
   const todos = dataTodos(data, now);
   renderTodos(todos);
   renderDrafts(data.social ?? []);
+  renderSocialLog(data.socialLog ?? []);
 
   // 数字（記事・要約は管理画面用データから、アクセスと通知はサーバーから）
   const stats = $('stats');

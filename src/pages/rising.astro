@@ -1,6 +1,7 @@
 ---
 /** 急上昇: 直近の数時間に、新しく報じるメディアが増えている話題。報じられ始めたばかりの話題も載せる */
 import BaseLayout from '../layouts/BaseLayout.astro';
+import FollowCta from '../components/FollowCta.astro';
 import ShareButtons from '../components/ShareButtons.astro';
 import TopicList from '../components/TopicList.astro';
 import TrendWords from '../components/TrendWords.astro';
@@ -59,6 +60,7 @@ const jsonLd =
 
   <div class="stack">
     <ShareButtons url={url} text={`いま急上昇中のニュース｜${site.name}`} />
+    <FollowCta text="急上昇のニュースを、Bluesky のタイムラインでいち早くお届けします。" />
     <section class="panel" aria-labelledby="rising-title">
       <div class="panel-head">
         <h2 id="rising-title">

@@ -40,6 +40,18 @@ describe('buildSnapshot', () => {
     expect(snapshot.items.map((i) => i.id)).toEqual(['summarized', 'plain']);
   });
 
+  it('同じ話題の記事は1件だけ（要約のある記事を優先）載せ、空いた枠には別の話題の記事を入れる', () => {
+    const items = [
+      ...Array.from({ length: 45 }, (_, n) => item(`same${n}`, { coverage: 5 })),
+      ...Array.from({ length: 3 }, (_, n) => item(`other${n}`, { coverage: 2 })),
+      item('single'),
+    ];
+    const storyOf = (id: string) => (id.startsWith('same') ? 'story' : id.startsWith('other') ? id : undefined);
+    const snapshot = buildSnapshot('2026-10-06', items, undefined, now, { storyOf, hasSummary: (id) => id === 'same7' });
+    expect(snapshot.items.map((i) => i.id)).toEqual(['same7', 'other0', 'other1', 'other2', 'single']);
+    expect(snapshot.total).toBe(49);
+  });
+
   it('前回のスナップショットの記事も残し、話題度と件数は大きい方を採る。以前の版のはてブ数は外す', () => {
     const legacy = { ...item('old'), hatebu: 50 } as Item;
     const previous = buildSnapshot('2026-10-06', [item('a', { coverage: 3 })], undefined, now);
@@ -67,7 +79,7 @@ describe('updateDailySnapshots', () => {
     expect(updateDailySnapshots(items, dir, new Date(now.getTime() + 60_000))).toEqual([]);
   });
 
-  it('別々の掲載元が報じた同じ話題には報じた掲載元の数を付け、keep で外した記事は前回の分からも消す', () => {
+  it('別々の掲載元が報じた同じ話題には報じた掲載元の数を付けて1件だけ載せ、keep で外した記事は前回の分からも消す', () => {
     const dir = mkdtempSync(join(tmpdir(), 'daily-'));
     const noise = Array.from({ length: 30 }, (_, n) => item(`n${n}`, { title: `関係のない見出し${n}番目のニュース`, sourceId: `s${n % 5}` }));
     const story = [
@@ -77,11 +89,8 @@ describe('updateDailySnapshots', () => {
     updateDailySnapshots([...story, item('gone', { sourceId: 'removed' }), ...noise], dir, now);
     updateDailySnapshots([...story, ...noise], dir, now, { keep: (i) => i.sourceId !== 'removed' });
     const saved = JSON.parse(readFileSync(join(dir, '2026-10-06.json'), 'utf8'));
-    expect(saved.items.slice(0, 2).map((i: Item) => [i.id, i.coverage]).sort()).toEqual([
-      ['a', 2],
-      ['b', 2],
-    ]);
-    expect(saved.items.some((i: Item) => i.id === 'gone')).toBe(false);
+    expect(saved.items.filter((i: Item) => i.coverage).map((i: Item) => [i.id, i.coverage])).toEqual([['a', 2]]);
+    expect(saved.items.some((i: Item) => i.id === 'b' || i.id === 'gone')).toBe(false);
   });
 
   it('保存形式はそのまま JSON として読める', () => {

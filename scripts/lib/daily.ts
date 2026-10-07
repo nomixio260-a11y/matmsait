@@ -13,6 +13,8 @@ const PER_CATEGORY = 5;
 export interface SnapshotOptions {
   /** AI 要約のある記事か（同じ話題度なら要約のある記事を先に並べる） */
   hasSummary?: (id: string) => boolean;
+  /** 記事が入る話題（同じ出来事を報じた記事のまとまり）の目印。同じ話題の記事は1件だけ載せる */
+  storyOf?: (id: string) => string | undefined;
 }
 
 /** 以前の版が保存していた項目（はてなブックマーク数）を外す */
@@ -25,6 +27,7 @@ function withoutLegacyFields(item: Item & { hatebu?: number }): Item {
 /**
  * その日の記事から「話題の記事」を選んだスナップショットを作る。
  * 多くの掲載元が報じた話題（coverage）→ AI 要約のある記事 → 新しい記事 の順に選び、カテゴリごとにも数件ずつ入れる。
+ * 同じ話題の記事は、この順でいちばん上の1件だけを載せる（同じ出来事が何件も並ばないように）。
  * 前回のスナップショットも候補に含めるので、古い記事が items.json から消えても内容は保たれる。
  */
 export function buildSnapshot(
@@ -32,7 +35,7 @@ export function buildSnapshot(
   dayItems: Item[],
   previous: DailySnapshot | undefined,
   now: Date,
-  { hasSummary = () => false }: SnapshotOptions = {},
+  { hasSummary = () => false, storyOf = () => undefined }: SnapshotOptions = {},
 ): DailySnapshot {
   const byId = new Map<string, Item>();
   for (const raw of [...(previous?.items ?? []), ...dayItems]) {
@@ -46,7 +49,14 @@ export function buildSnapshot(
     Number(hasSummary(b.id)) - Number(hasSummary(a.id)) ||
     b.publishedAt.localeCompare(a.publishedAt) ||
     a.id.localeCompare(b.id);
-  const candidates = [...byId.values()].sort(byInterest);
+  const stories = new Set<string>();
+  const candidates = [...byId.values()].sort(byInterest).filter((item) => {
+    const story = storyOf(item.id);
+    if (story === undefined) return true;
+    if (stories.has(story)) return false;
+    stories.add(story);
+    return true;
+  });
 
   const selected = new Map(candidates.slice(0, TOP_ITEMS).map((item) => [item.id, item]));
   const perCategory = new Map<string, number>();
@@ -115,10 +125,14 @@ export function updateDailySnapshots(
   // 話題度は、まとめる日の前後の記事も含めて数える
   const recent = items.filter((item) => Date.parse(item.publishedAt) >= now.getTime() - (days + 2) * DAY);
   const coverage = new Map<string, number>();
-  for (const cluster of clusterTopics(recent)) {
-    if (cluster.coverage < 2) continue;
-    for (const item of cluster.items) coverage.set(item.id, cluster.coverage);
-  }
+  const story = new Map<string, string>();
+  clusterTopics(recent).forEach((cluster, index) => {
+    if (cluster.coverage < 2) return;
+    for (const item of cluster.items) {
+      coverage.set(item.id, cluster.coverage);
+      story.set(item.id, String(index));
+    }
+  });
   const byDate = new Map<string, Item[]>();
   for (const item of items) {
     const date = jstDateKey(item.publishedAt);
@@ -136,7 +150,7 @@ export function updateDailySnapshots(
     const path = join(dir, `${date}.json`);
     const previous = readSnapshot(path);
     const kept = previous ? { ...previous, items: previous.items.filter(keep) } : undefined;
-    const next = buildSnapshot(date, dayItems, kept, now, { hasSummary });
+    const next = buildSnapshot(date, dayItems, kept, now, { hasSummary, storyOf: (id) => story.get(id) });
     if (previous && sameContent(previous, next)) continue;
     writeFileSync(path, serializeSnapshot(next));
     changed.push(date);

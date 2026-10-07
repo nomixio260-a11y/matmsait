@@ -42,13 +42,14 @@
 
 ### 自動で動いているもの
 
-- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「概要」の「今すぐ更新」/ Actions の Run workflow）で、テスト → 公開先の確認（Cloudflare の Secrets があれば Cloudflare Pages、なければ GitHub Pages）→ フィード取得 → 本文の自動取得 → よく読まれている記事の取得 → データをコミット → ビルド → Cloudflare Pages へ公開 → **フォロー中の新着の通知**（`POST /api/push/check`）→ GitHub Pages をページごとの転送ページに → IndexNow・WebSub へ通知（新しく報じられた話題のページ・タグのページも）→ SNS 投稿（設定時のみ。朝7〜10時の今日の重要ニュース・昼12〜14時の AI ニュース・21時以降の今日のまとめ・急上昇（3時間で2社以上・計3社以上）・いま話題（4社以上・スコア50以上）。深夜0〜7時は投稿しない・24時間に8件まで・急上昇といま話題は90分あける・リンクは話題のページ。X は API が有料のため既定では夜のまとめを1日1件だけ（Variables の `X_DAILY_LIMIT`・`X_MONTHLY_LIMIT`・`X_POST_TYPES` で変更））。2026-10-07 に運営者が Secrets を登録し、run #51 から pages.dev に公開されている。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
+- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「概要」の「今すぐ更新」/ Actions の Run workflow）で、テスト → 公開先の確認（Cloudflare の Secrets があれば Cloudflare Pages、なければ GitHub Pages）→ フィード取得 → 本文の自動取得 → よく読まれている記事の取得 → データをコミット → ビルド → Cloudflare Pages へ公開 → **フォロー中の新着の通知**（`POST /api/push/check`）→ GitHub Pages をページごとの転送ページに → IndexNow・WebSub へ通知（新しく報じられた話題のページ・タグのページも）→ **Bluesky への自動投稿**（Secrets の `BLUESKY_APP_PASSWORD` があるときだけ。下の「SNS（Bluesky）」）。2026-10-07 に運営者が Secrets を登録し、run #51 から pages.dev に公開されている。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
 - **自動更新タイマー**（`timer.yml`）: 前回の `update.yml` の実行から60分（変数 `UPDATE_INTERVAL_MINUTES` で変更可）たつまで待ち、`update.yml` を実行して自分自身を次に予約する。GitHub の定期実行（schedule）は一度も動かなかったため、こちらで定期更新する。公開リポジトリでだけ動く（非公開にすると自動で止まる）。
 - 収集元は `sources.yaml` の66件（ニュース・経済・テクノロジー・サイエンス・エンタメ・ゲーム・アニメ・スポーツ・乗り物・ライフの9カテゴリ）。どれも利用規約で商用サイトからの利用が禁じられていないことを確認済みで、確認結果（登録を見送ったサイトと理由も）は `docs/SOURCES.md` にある。はてなブックマーク（収集元・ブックマーク数）は商用で使えないため使っていない。
 - **本文の自動取得**（`scripts/fetch-texts.ts`、`update.yml` の「AI が開けない記事の本文を取得」）: 管理画面が `data/text-requests.json` に書いた依頼（AI が開けなかった記事）について、フィードと同じブラウザ相当の通信（ボットの名前は名乗らない）で記事のページを取得し、本文を運営者の公開鍵（`data/text-keys.json`）で暗号化して `data/texts.json` に置く。robots.txt（クローラー全般と AI のクローラーの拒否）・noai・アクセスの拒否を守り、1回15件まで。依頼がなければ何もしない。
 - **フォロー・通知**（2026-10-07 追加）: 読者がジャンル・掲載元・キーワードをフォローすると「フォロー中」（`/following/`）に新着をまとめ（ブラウザだけに保存）、通知をオンにした人には、毎時の公開のあとに Durable Object が `updates.json` のはじめて見た記事をフォローと照らし合わせてプッシュ通知を送る（1日1回の朝のまとめ・夜は送らない設定も）。いま話題のニュース（4社以上）と、管理画面からの運営のお知らせも送れる。VAPID の鍵は Durable Object が作って保存（秘密の設定は不要）。表示しない設定（ミュート）・既読・表示の設定（`/settings/`）もブラウザだけに保存。
 - **アクセス解析**（Cloudflare。2026-10-07 から pages.dev で動作中）: サイトのページが見たページ・開いた記事・検索・保存・閲覧時間などを同じドメインの `/api/collect` に送り（`src/scripts/analytics.ts`）、Pages の Functions（`functions/api/[[path]].ts`、中身は `analytics/src/front.ts`）が Worker `topiatsume-analytics` の Durable Object（SQLite）に渡して数える。管理画面の「アクセス解析」（`/admin/analytics/`）で見る。`update.yml` が毎回よく読まれている記事を `/api/popular` から `data/popular.json` に取り込む（`scripts/popular.ts`。Cloudflare に公開していないときは何もしない）。GitHub Pages で公開している間はアクセス解析なし。
 - **話題エンジン**（2026-10-07 追加。`src/lib/topic-core.ts`・`src/lib/topics.ts`）: 同じ出来事を報じた記事のまとまり（`src/lib/related.ts` の `clusterTopics`。直近8日の記事）ごとに、報じたメディアの数（「N社が報道」）・**話題度スコア**（0〜100。報道1件ごとに1を足し12時間ごとに半分に減らす＋報じたメディアの分野の広がり＋サイトで読まれた人数。熱さ4で63点）・直近1/3/24時間に新しく報じたメディアの数・初報（いちばん早く報じたメディア）を計算する。ここから「🔥いま話題」（スコアの順）・「🚀急上昇」（3時間に新しく報じたメディアの多い順。少なければ6・12時間に広げる）・「報じられ始めた話題」（最初の報道から6時間）・「📰今日の重要ニュース」（24時間の報道の数と分野の広がり。分野ごとに件数の上限）・「🔎注目ワード」（24時間の見出しに急に増えた言葉。候補は AI 要約のキーワードとタグの言葉）・「📊メディア別」（話題の数と初報の数）を作る。2つ以上のメディアが報じた話題には**話題のページ**（`/topic/<最初の記事のID>/`。各メディアの報道を報じた順に比較・初報・報道の広がりのグラフ・AI 要約の10秒/30秒/2分・関連する話題）があり、記事の「N社が報道」から開ける。検索エンジンに出すのは3社以上か AI 要約のある話題だけ（ほかは noindex）。
+- **SNS（Bluesky）**（2026-10-07 追加。`scripts/lib/social.ts`・`scripts/notify.ts`・`src/lib/social-source.ts`）: 公式アカウント **@topiatsume.bsky.social**（https://bsky.app/profile/topiatsume.bsky.social ）に、毎時の公開のあと自動で投稿する。決まった時間の投稿は、朝（7〜10時台）の今日の重要ニュース（`/ranking/#today`）・昼（12〜14時台）の AI ニュース（`/tag/ai/`）・夜（21時以降）の今日の話題ニュース（日別まとめ）・日曜の夕方（18〜20時台）の今週の話題ニュース TOP5（`/ranking/#week`）。話題が出たときの投稿は、急上昇（3時間で2社以上・計3社以上）・いま話題（4社以上・スコア50以上・12時間以内に報道があったもの）・10秒でわかるニュース（48時間以内の AI 要約の1文目。報じたメディアの多い話題から）で、リンクは話題のページ。深夜0〜7時は投稿しない・24時間に12件まで・急上昇などは前の投稿から1時間あけて1回1件・種類ごとに1日の上限（急上昇4・いま話題4・10秒3）・同じ話題は二度投稿しない（`SOCIAL_LIMITS`）。本文のリンクは短く表示して流入元の印（`utm_source=bluesky&utm_medium=social&utm_campaign=<種類>`。アクセス解析では「SNS」に数える）を付けたリンクにし、`#ニュース` とタグごとのハッシュタグ（`src/config/tags.ts` の `hashtags`）、リンクカード（`public/og.png`）を付ける。投稿の記録は `data/social.json`（`notify` ジョブがコミット）で、管理画面の「概要」の「SNS（Bluesky）の自動投稿」に最近の投稿と、次に投稿されうる内容の下書きが出る。フォロー・いいね・返信の自動化はしない。サイトのフッター・サイドバー・トップ（急上昇の下）・急上昇・話題のページに「Bluesky でフォロー」の案内（`src/components/FollowCta.astro`）。X は API が有料なので使わない。Mastodon・Misskey は Secrets を登録すれば同じ内容を投稿する。
 - **タグ**（`src/config/tags.ts`）: AI・Apple・Google・Microsoft・任天堂・PlayStation・MLB・セキュリティ・半導体・EV・災害・政治・株価の13個。見出しと AI 要約のキーワードを正規表現で当てはめ（タグごとにジャンルを絞って誤りを減らす）、`/tag/<slug>/`（AI は「AIニュースランキング」）と `/tags/` にまとめる。記事が8件未満のタグのページは noindex。
 - よく読まれている記事: アクセス解析の読まれた人数による「よく読まれている記事」（`/popular/`・トップ・サイドバー・「人気N位」）と、管理画面の「よく読まれている順」。話題度スコアにも少し足す。
 - 記事は直近30日・最大12000件を `data/items.json` に保存（更新の多いサイトで上限が埋まっても、各掲載元の新しい20件は残す）。一覧ページは25ページ（1000件）まで、検索は新しい6000件まで。
@@ -64,7 +65,7 @@
 | Cloudflare（公開先・アクセス解析・通知） | 運営者がアカウントと API トークンを作成し、GitHub の Secrets（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）を登録済み（2026-10-07。登録後の update.yml run #51 で pages.dev への公開と GitHub Pages の転送ページを確認）。Worker `topiatsume-analytics` と Pages のプロジェクト `topiatsume` を使う。ダッシュボードで作られた Worker `matmsait`（Hello World のひな形）は使っていない |
 | 管理画面のログイン（新しい URL） | 運営者が pages.dev の管理画面で初回設定済み（2026-10-07。本文の自動取得の鍵を新しく登録した push で確認） |
 | お知らせ・ピックアップ・通知 | 機能は公開済み。お知らせ（`data/notice.json`）とピックアップ（`data/picks.json`）は、運営者が管理画面から保存すると作られる（まだない） |
-| SNS（X・Bluesky・Mastodon・Misskey） | 未設定。X の API は2026年2月から無料枠がなく、URL つきの投稿は1件0.2ドル（公式の料金表）なので、無料で使うなら管理画面の「概要」の「SNS に投稿する（下書き）」から X の投稿画面を開いて手で投稿する。Bluesky・Mastodon・Misskey は無料で自動投稿できる（Secrets を登録すると動く） |
+| SNS（Bluesky） | アカウント `@topiatsume.bsky.social`（運営者が用意）。プロフィール（名前・説明・アイコン・バナー・サイトの URL）・「自動で投稿するアカウント」（bot）のラベル・固定の紹介の投稿は 2026-10-07 に設定済みで、同日に本番と同じ処理で2件（今日のまとめ・いま話題）を投稿して確かめた。**毎時の自動投稿には、GitHub の Secrets に `BLUESKY_APP_PASSWORD` の登録が必要（未登録）**（ハンドルは既定値が入るので `BLUESKY_IDENTIFIER` は不要）。X は使わない（API に無料枠がなく、URL つきの投稿は1件0.2ドル）。Mastodon・Misskey は未設定（任意） |
 | AdSense・Google アナリティクス・Search Console | 未設定（変数を設定すると有効になる。Google アナリティクスは上のアクセス解析と併用できる。Search Console は `PUBLIC_GOOGLE_SITE_VERIFICATION` を設定するか DNS で確認し、サイトマップに `https://topiatsume.pages.dev/sitemap.xml` を登録する） |
 | Cloudflare Web Analytics | 未設定（任意。Pages のプロジェクトの「Metrics」から無料で有効にできる。自前のアクセス解析と併用できる） |
 | 独自ドメイン | なし（収益化の段階で取得を推奨） |
@@ -80,7 +81,9 @@
 | `.github/workflows/timer.yml`, `scripts/timer.ts`, `scripts/lib/timer.ts` | 自動更新タイマー |
 | `scripts/lib/store.ts` | 記事のマージ・重複（同じ URL・同じ見出し）のまとめ・保存 |
 | `scripts/summaries.ts` | 要約のプロンプト作成・取り込み（コマンドライン） |
-| `scripts/notify.ts`, `scripts/lib/social.ts` | 公開後の通知（IndexNow・WebSub）と SNS 投稿（投稿の種類・時間帯・上限・サービスごとの上限。話題はサイトのビルドと同じ計算なので話題のページの URL と一致する） |
+| `scripts/notify.ts`, `scripts/lib/social.ts`, `src/lib/social-source.ts` | 公開後の通知（IndexNow・WebSub）と SNS（Bluesky）の自動投稿（投稿の種類・時間帯・上限（`SOCIAL_LIMITS`）・本文とリンク（流入元の印・短い表示・ハッシュタグ・リンクカード）・投稿の材料（いま話題・急上昇・今日の重要・AI・今週・AI 要約）。話題はサイトのビルドと同じ計算なので話題のページの URL と一致する） |
+| `src/components/FollowCta.astro`, `src/config/site.ts` の `socialAccounts` | 「Bluesky でフォロー」の案内（トップ・急上昇・話題のページ）と、フッター・サイドバー・構造化データ（`sameAs`）の SNS のリンク |
+| `scripts/lib/daily.ts` | 日別まとめ（`data/daily`）の作成。多くのメディアが報じた話題の順に選び、同じ話題の記事は1件だけ載せる |
 | `src/lib/summary-core.ts` | 要約のプロンプト・回答の読み取りと検証・要約ファイルの読み書き（管理画面と共通） |
 | `src/lib/blocklist-core.ts` | 記事の非表示（NGワード・サイト・個別） |
 | `src/lib/related.ts` | 見出しの似ている記事（同じ話題）を探す・話題ごとにまとめて話題度を数える（`clusterTopics`） |
@@ -117,7 +120,7 @@
 | `data/summaries/YYYY-MM.json` | AI 要約（記事の公開月ごと） |
 | `data/daily/YYYY-MM-DD.json` | 日別まとめ |
 | `data/blocklist.json` | 記事の非表示の設定（管理画面から保存すると作られる） |
-| `data/social.json` | SNS 投稿の記録 |
+| `data/social.json` | SNS 投稿の記録（同じ話題を二度投稿しないため。`notify` ジョブがコミットし、管理画面の「概要」に出る） |
 | `data/feeds.json` | 収集元ごとの取得の状態（ETag・Last-Modified・最後に取得できた日時・連続失敗の回数と最後のエラー） |
 
 ### 確認のしかた
@@ -132,7 +135,7 @@ SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npx astro preview
 - 管理画面の動作（ログインを含む）は、Playwright で GitHub API をモックして確かめている（実際の GitHub には書き込まない）。ログインの確認には、Playwright の時計の早送り（`clock.fastForward`）で自動ログアウトや待ち時間を再現する。
 - Cloudflare での公開と同じ組み合わせは、`cd analytics && npm install && npx wrangler dev --var GITHUB_API:<GitHub API のまね>` で解析の Worker を動かし、`SITE_URL=https://topiatsume.pages.dev BASE_PATH=/ PUBLIC_ANALYTICS_URL=/api npm run build` でビルドしてから、ルートで `analytics/node_modules/.bin/wrangler pages dev --port 8788` を動かして確かめる（http://127.0.0.1:8788。`dist`＋`/api`＋Durable Object。`npx tsc --noEmit`（analytics/）で Worker と Functions の型チェック）。Worker だけなら `PUBLIC_ANALYTICS_URL=http://127.0.0.1:8787` でビルドする。集計とデータの保存の中身は `tests/analytics.test.ts`（node:sqlite で SQL も実行）で確かめている。Playwright で数えさせるときは `navigator.webdriver` を false にする（自動操作のブラウザは数えないため）。
 - 通知は、`wrangler dev` に `--var PUSH_TEST_HOSTS:127.0.0.1:9999 --var SITE_URL:http://127.0.0.1:8788` を付けると、偽の届け先（127.0.0.1:9999 で受け取りを記録する小さなサーバー）へ送れる。Playwright で `PushManager.prototype.subscribe` を偽の購読（鍵はテスト側で作る）に差し替え、届いた通知をテスト側で復号して中身を確かめる。サービスワーカーの通知の表示は、フル版の Chromium（`chromium.launch({ channel: 'chromium' })`。ヘッドレス専用版は通知を出せない）と CDP の `ServiceWorker.deliverPushMessage` で確かめる。暗号化は `tests/webpush.test.ts` が RFC 8291 の例と比べている。
-- 話題のページ・トップの各セクション・急上昇・タグ・オフライン（サービスワーカー）は、ビルドしたサイトを Playwright で開いて確かめる（スマホの幅で CLS も測る。オフラインは `context.setOffline(true)`）。SNS の投稿内容は `NOTIFY_DRY_RUN=1 SITE_BASE_URL=https://topiatsume.pages.dev npm run notify` で送らずに確認できる。
+- 話題のページ・トップの各セクション・急上昇・タグ・オフライン（サービスワーカー）は、ビルドしたサイトを Playwright で開いて確かめる（スマホの幅で CLS も測る。オフラインは `context.setOffline(true)`）。SNS の投稿内容は `NOTIFY_DRY_RUN=1 NOTIFY_SKIP_PING=1 SITE_BASE_URL=https://topiatsume.pages.dev npm run notify` で送らずに確認できる（`NOTIFY_SKIP_PING=1` は検索エンジン・フィードへの通知を省く）。投稿した中身（リンクの位置・流入元の印・タグ・リンクカード）は、Bluesky の公開 API（`https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=topiatsume.bsky.social`）で確かめられる。
 - テストのために `data/` に作ったファイル（要約・非表示の設定・お知らせ・ピックアップなど）は**コミットしない**。
 
 ---
@@ -146,7 +149,7 @@ SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npx astro preview
 5. 収集元の利用条件は `docs/SOURCES.md` のとおり確認したが、最終確認は運営者が行う（規約は変わるので年1回程度見直す）。4Gamer.net と鉄道ファン（railf.jp）は「利用したら一報を」と歓迎しているので、収益化のときに連絡するとよい（任意）。
 6. 話題度（「N社が報道」）は見出しの似かたで同じ出来事をまとめているので、言い回しが大きく違う報道はまとまらないことがある（逆に別の出来事をまとめてしまう誤りは、本番のデータでは見つかっていない）。調整するときは `src/lib/related.ts` の `clusterTopics` の既定値（`minScore` など）を変え、テストと本番のデータで確かめる。
 7. 海外ニュースは、商用サイトで使えるフィードがほとんど見つからなかったため「海外」カテゴリは作っていない（BBC・CNN・AFPBB・聯合ニュースなどは NG）。使えるサイトが見つかったら `src/config/site.ts` にカテゴリを足す。
-8. SNS 自動投稿は未設定。無料で始めるなら Bluesky（アプリパスワード）・Mastodon・Misskey の Secrets を登録する（投稿内容は `NOTIFY_DRY_RUN=1` で確認済み）。X は API が有料（URL つき1件0.2ドル）なので、管理画面の下書きから手で投稿するのがおすすめ。自動投稿するなら上限の Variables を決めてから Secrets を登録する（既定は夜のまとめだけ1日1件・月31件まで）。
+8. **運営者の作業: GitHub の Secrets に `BLUESKY_APP_PASSWORD` を登録する**（https://github.com/nomixio260-a11y/matmsait/settings/secrets/actions/new 。Name に `BLUESKY_APP_PASSWORD`、Secret に Bluesky のアプリパスワード）。こちらの環境からは Secrets を登録できなかった（GitHub の Secrets の API が使えない）ので、登録するまで毎時の自動投稿は動かない。アプリパスワードはチャットに貼られたので、Bluesky の「設定 → プライバシーとセキュリティ → アプリパスワード」で新しく発行したものを登録し、貼ったものは削除するのが安全（どちらでも投稿は動く）。登録後は管理画面の「概要」の「最近の投稿」に記録が増えることを確かめる。効果はアクセス解析の流入元（SNS）で見て、フォロワーや流入が伸びなければ投稿の時間帯・種類・上限（`scripts/lib/social.ts` の `SOCIAL_LIMITS`）を見直す。フォロー・いいね・返信の自動化は、スパム扱いやアカウント停止のおそれがあるので行わない。
 9. 管理画面で編集できる要約は新しい300件まで。それより古い要約は `data/summaries/YYYY-MM.json` を直接編集する。
 10. 本文の自動取得で取得できるかはサイトしだい（アクセスを拒否するサイト・本文が動画だけのページ・JavaScript で本文を表示するページは取れない。2026-10-07 からはボットの名前を名乗らずブラウザ相当の通信で取るが、robots.txt と拒否は守り、ボット対策のすり抜けはしない）。取得できない記事は、本文を貼り付けるか同じ話題の別の記事に切り替える。取得結果で断られることが多い掲載元があれば、`summary: false` にするかを考える。
 11. AI が開けない記事の記録（どのサイトがどれだけ開けなかったか）は運営者のブラウザにだけ残る（localStorage、14日間）。別の端末では記録がない状態から始まる。どのサイトを AI が開けないかが分かってきたら、`docs/SOURCES.md` に書き残しておくとよい。
@@ -162,6 +165,22 @@ SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npx astro preview
 ---
 
 ## 開発の記録（新しい順）
+
+### 2026-10-07 SNS を Bluesky の完全自動投稿に（X を外す・プロフィールの設定・週のまとめ・10秒でわかるニュース・流入の計測・フォローの案内）と、日別まとめの同じ話題の重複の解消
+
+- 依頼・目的: 運営者から「X は使えないので Bluesky で自動投稿する。アカウント @topiatsume.bsky.social を使い、プロフィールやアイコンも好きにしてよい。完全自動でマーケティングするように」。アプリパスワードはチャットで受け取った（リポジトリ・ドキュメント・ファイルには書いていない）。
+- やったこと:
+  - **Bluesky のアカウントの設定**（API で実施。リポジトリの変更ではない）: 表示名「トピあつめ｜いま話題のニュース」、説明（何が届くか・自動投稿のアカウントであること・サイトの URL）、サイトの URL、アイコン（サイトのアイコンと同じ図柄。丸く切り抜かれても欠けない大きさ）、バナー（「いま何が話題か、一瞬でわかる。」と、いま話題・急上昇・AIニュース・各社の報道を比較）、**「自動で投稿するアカウント」（bot）のラベル**（自己申告のラベル `bot`。Bluesky のアプリで名前の横にロボットの印が出る）、固定の紹介の投稿（サイトへのリンクカードつき）。
+  - **自動投稿の作り直し**（`scripts/lib/social.ts`）: X の投稿の処理と X 用の Variables・Secrets を削除（API に無料枠がなく、URL つきの投稿は1件0.2ドルのため）。Bluesky を中心に、投稿の種類を「朝の今日の重要ニュース・昼の AI ニュース・夜の今日の話題ニュース・**日曜の今週の話題ニュース TOP5**（新規）・急上昇・いま話題・**10秒でわかるニュース**（新規。AI 要約の1文目と話題のページ）」にした。上限は1日12件・急上昇などは1時間あけて1回1件・種類ごとに1日の上限・深夜は投稿しない・同じ話題は二度投稿しない（10秒でわかるニュースで投稿した話題も含む）。
+  - **本文とリンク**: 本文の URL は短い表示（例: `topiatsume.pages.dev/topic/077d…`）にして、そこに流入元の印（`utm_source=bluesky&utm_medium=social&utm_campaign=<種類>`）付きのリンクを付ける（Bluesky の文字数300の節約と、アクセス解析で SNS からの流入を数えるため）。`#ニュース` とタグごとのハッシュタグ（`src/config/tags.ts` に `hashtags` を追加。例: AI は `#AI #生成AI`、MLB は `#MLB #大谷翔平`）をタグとして付け、リンクカードにはサイトの共有画像（`public/og.png`）を付ける（1回の実行で1度だけアップロードして使い回す）。投稿の材料は `src/lib/social-source.ts` にまとめ、管理画面の下書きと同じ計算にした。
+  - **共有画像とキャッチコピー**: `public/og.png` とヘッダーのキャッチコピー（`src/config/site.ts` の `tagline`）を、バナーと同じ「いま何が話題か、一瞬でわかる。」にそろえた（リンクカード・シェア・プロフィール・サイトで同じ言葉が出るように）。
+  - **サイトからのフォローの案内**: `src/config/site.ts` の `socialAccounts` に Bluesky を登録（フッター・サイドバーのリンクと、トップページの構造化データ `sameAs`）。「Bluesky でフォロー」の案内（`src/components/FollowCta.astro`）をトップ（急上昇の下）・急上昇・話題のページに置いた（リンクに `rel="me"`）。ランキングのページは `#week` で開くと「1週間」のタブを出す（週のまとめの投稿のリンク先）。
+  - **管理画面**: 「概要」のカードを「SNS（Bluesky）の自動投稿」にし、最近の投稿（種類・日時・サービス・サイトのページ）と、次に投稿されうる内容の下書き（Bluesky の投稿画面を開く・コピー）を出す。
+  - **日別まとめの重複の解消**（`scripts/lib/daily.ts`）: 日別まとめの「多くのメディアが報じたニュース」に同じ話題の記事が何件も並んでいた（10/7 は INZONE の記事が5件など。夜のまとめの投稿も同じ）。日別まとめを作るときに、話題のまとまり（`clusterTopics`）ごとに1件（話題度・AI 要約・新しさの順でいちばん上の記事）だけを載せ、空いた枠に別の話題を入れるようにした。見出しの似かただけで重複を除く案も試したが、本番のデータで別々の出来事（別の日の「高市総理ビデオメッセージ」・別の会社の不正アクセス）をまとめてしまったので採らなかった。直近3日分は毎時作り直すので次の更新で直る（それより前の 10/4 は1件だけ重複が残る）。
+  - 公開後の通知に `NOTIFY_SKIP_PING=1`（検索エンジンへの通知を省いて SNS の投稿だけ行う）を追加。
+- 主な変更ファイル: `scripts/lib/social.ts`・`scripts/notify.ts`・`src/lib/social-source.ts`（新規）・`.github/workflows/update.yml`（SNS）、`src/config/site.ts`・`src/config/tags.ts`、`src/components/FollowCta.astro`（新規）・`src/pages/index.astro`・`rising.astro`・`topic/[id].astro`・`ranking.astro`、`src/pages/admin/data.json.ts`・`admin/index.astro`・`src/scripts/admin-dashboard.ts`（管理画面）、`scripts/lib/daily.ts`（日別まとめ）、`public/og.png`、`data/social.json`（実際の投稿の記録）、テスト（`tests/social.test.ts` を書き直し、`tests/daily.test.ts` を更新）、`README.md`
+- 確認したこと: `npm test`（32ファイル・282件）・`npm run check`・`npx tsc --noEmit`（analytics/）・`npm run build`（452ページ）。日別まとめは本番の記事データの写しで作り直し、10/5〜10/7 の上位が別々の話題になること（10/7 は68件→69件で、INZONE などが1件ずつ）を確かめた。ビルドしたサイトを Playwright で開き、フォローの案内（トップ・急上昇・話題のページ、ライト・ダーク × 1280px・390px）・リンク先と `rel`・フッターのリンク・`/ranking/#week` で1週間のタブ・構造化データの `sameAs` を確かめ、axe で違反なし・横のはみ出しなし（ボタンの青は白い文字とのコントラストが足りなかったので濃くした）。手元の Cloudflare と同じ構成で、管理画面の最近の投稿（新しい順・話題のページへのリンク）と下書き（Bluesky の投稿画面のリンクに文面が入る・X のリンクはない）を確かめた。**本番と同じ処理（`scripts/notify.ts`）で Bluesky に実際に2件（10/7 の今日の話題ニュース・いま話題の「ファイティングゴルフ」）を投稿**し、公開 API で、短い表示のリンクに流入元の印つきの URL が付くこと（UTF-8 のバイト位置が合っていること）・ハッシュタグ・リンクカード（画像つき）・bot のラベル・言語（ja）を確かめ、プロフィールの画面も確かめた。投稿の記録は `data/social.json` に入れた（Secrets を登録したあとに同じ投稿をしないため）。
+- 残った課題・注意点: 「未解決の課題」の8（Secrets の `BLUESKY_APP_PASSWORD` の登録。登録するまで毎時の自動投稿は動かない）。フォロー・いいね・返信の自動化はしていない（スパム扱いやアカウント停止のおそれ）。
 
 ### 2026-10-07 「いま何が話題か一瞬で分かる」サイトへ: 話題度スコア・急上昇・話題のページ（各社の比較）・トップの作り直し・タグ・10秒/30秒/2分・SEO・SNS・WAU/MAU・PWA
 

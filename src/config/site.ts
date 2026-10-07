@@ -15,7 +15,7 @@ export interface SocialAccount {
 
 export const site = {
   name: 'トピあつめ',
-  tagline: '話題の新着ニュースをまとめてチェック',
+  tagline: 'いま何が話題か、一瞬でわかる。',
   /** トップページのタイトル（「サイト名｜〇〇」の〇〇）。検索されやすい言葉を入れる */
   seoTitle: '話題のニュースまとめ・ニュースランキング',
   description:
@@ -44,7 +44,7 @@ export const site = {
    */
   indexNowKey: '16d5d3b0031cd65aad70f62e2dc855f7',
   /** 運営している SNS アカウント。設定するとフッターとサイドバーに「フォロー」リンクを表示する */
-  socialAccounts: [] as SocialAccount[],
+  socialAccounts: [{ name: 'Bluesky', url: 'https://bsky.app/profile/topiatsume.bsky.social' }] as SocialAccount[],
 };
 
 export const categories: Category[] = [

@@ -118,6 +118,11 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
   </div>
 </BaseLayout>
 
+<script>
+  // SNS の「今週のランキング」から来たとき（#week）は、1週間のタブを開く
+  if (location.hash === '#week') document.getElementById('tab-weekly')?.click();
+</script>
+
 <style>
   .links {
     display: flex;

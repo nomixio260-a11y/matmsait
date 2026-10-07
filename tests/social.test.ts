@@ -1,19 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
   SOCIAL_LIMITS,
+  blueskyRichText,
+  displayUrl,
+  fitsBluesky,
   graphemeLength,
   hotPost,
   mastodonLength,
-  oauthSignature,
   planPosts,
   platformAllows,
-  platformLimit,
   recordPost,
-  richTextFacets,
   risingPost,
-  xLength,
+  summaryPost,
+  withUtm,
   type PlanContext,
   type SocialState,
+  type SocialSummary,
   type SocialTopic,
 } from '../scripts/lib/social.ts';
 import type { DailySnapshot, Item } from '../src/lib/types.ts';
@@ -35,6 +37,10 @@ function topic(id: string, extra: Partial<SocialTopic> = {}): SocialTopic {
   return { id, title: `話題${id}の見出し`, coverage: 3, score: 40, gained: 0, latestAt: '2026-10-06T10:00:00.000Z', ...extra };
 }
 
+function summary(id: string, extra: Partial<SocialSummary> = {}): SocialSummary {
+  return { id, title: `要約${id}の見出し`, lead: `${id}は新製品を発表した。`, path: `/summary/${id}/`, ...extra };
+}
+
 function context(now: Date, extra: Partial<PlanContext> = {}): PlanContext {
   return {
     now,
@@ -43,6 +49,8 @@ function context(now: Date, extra: Partial<PlanContext> = {}): PlanContext {
     rising: [],
     important: [],
     ai: [],
+    weekly: [],
+    summaries: [],
     pageUrl: (path) => `https://example.com/site${path}`,
     siteName: 'テスト',
     ...extra,
@@ -50,51 +58,50 @@ function context(now: Date, extra: Partial<PlanContext> = {}): PlanContext {
 }
 
 const empty: SocialState = { posted: [] };
+/** 2026-10-06 は火曜日。日本時間の時刻で作る */
+const at = (jst: string, date = '2026-10-06') => new Date(`${date}T${jst}:00+09:00`);
 
 describe('文字数の数え方', () => {
-  it('X は日本語を2、URLを23として数える', () => {
-    expect(xLength('abc')).toBe(3);
-    expect(xLength('あいう')).toBe(6);
-    expect(xLength('見て https://example.com/very/long/path?with=query')).toBe(4 + 1 + 23);
-  });
-
   it('Bluesky は書記素、Mastodon は URL を23文字として数える', () => {
     expect(graphemeLength('👨‍👩‍👧あ')).toBe(2);
     expect(mastodonLength('a https://example.com/long/url')).toBe(2 + 23);
   });
 });
 
-describe('oauthSignature', () => {
-  it('X 公式ドキュメントの例と同じ署名になる', () => {
-    const signature = oauthSignature(
-      'POST',
-      'https://api.twitter.com/1.1/statuses/update.json',
-      {
-        status: 'Hello Ladies + Gentlemen, a signed OAuth request!',
-        include_entities: 'true',
-        oauth_consumer_key: 'xvz1evFS4wEEPTGEFPHBog',
-        oauth_nonce: 'kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg',
-        oauth_signature_method: 'HMAC-SHA1',
-        oauth_timestamp: '1318622958',
-        oauth_token: '370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb',
-        oauth_version: '1.0',
-      },
-      'kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw',
-      'LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE',
+describe('リンク（流入元つき）と Bluesky の本文', () => {
+  it('utm を付ける（# は残す）・表示用の短いリンク', () => {
+    expect(withUtm('https://example.com/ranking/#today', 'bluesky', 'morning')).toBe(
+      'https://example.com/ranking/?utm_source=bluesky&utm_medium=social&utm_campaign=morning#today',
     );
-    expect(signature).toBe('hCtSmYh+iHYCEqBWrE7C7hYmtUk=');
+    expect(displayUrl('https://topiatsume.pages.dev/topic/0123456789abcdef/')).toBe('topiatsume.pages.dev/topic/0123…');
+    expect(displayUrl('https://topiatsume.pages.dev/')).toBe('topiatsume.pages.dev');
   });
-});
 
-describe('richTextFacets', () => {
-  it('URL とハッシュタグの位置を UTF-8 のバイト単位で返す', () => {
-    const text = '話題 https://example.com/a\n#ニュース';
-    const facets = richTextFacets(text);
-    const bytes = new TextEncoder().encode(text);
-    const slice = (f: (typeof facets)[number]) =>
-      new TextDecoder().decode(bytes.slice(f.index.byteStart, f.index.byteEnd));
-    expect(facets.map(slice)).toEqual(['https://example.com/a', '#ニュース']);
-    expect(facets[1].features[0]).toEqual({ $type: 'app.bsky.richtext.facet#tag', tag: 'ニュース' });
+  it('URL を短い表示にして、そこに流入元つきのリンクを付ける。ハッシュタグもタグにする（位置は UTF-8 のバイト単位）', () => {
+    const rich = blueskyRichText('話題 ▶ https://topiatsume.pages.dev/rising/\n#ニュース #AI', 'rising');
+    expect(rich.text).toBe('話題 ▶ topiatsume.pages.dev/rising\n#ニュース #AI');
+    const bytes = new TextEncoder().encode(rich.text);
+    const slice = (f: (typeof rich.facets)[number]) => new TextDecoder().decode(bytes.slice(f.index.byteStart, f.index.byteEnd));
+    expect(rich.facets.map(slice)).toEqual(['topiatsume.pages.dev/rising', '#ニュース', '#AI']);
+    expect(rich.facets[0].features[0]).toEqual({
+      $type: 'app.bsky.richtext.facet#link',
+      uri: 'https://topiatsume.pages.dev/rising/?utm_source=bluesky&utm_medium=social&utm_campaign=rising',
+    });
+    expect(rich.facets[1].features[0]).toEqual({ $type: 'app.bsky.richtext.facet#tag', tag: 'ニュース' });
+  });
+
+  it('文字数の上限に収まるように見出しを縮める（Bluesky は短くしたリンクで数える）', () => {
+    const long = topic('long', { coverage: 5, gained: 3, title: 'と'.repeat(400), hashtags: ['AI', '生成AI'] });
+    for (const post of [hotPost(long, context(new Date())), risingPost(long, context(new Date()))]) {
+      const text = post.compose(fitsBluesky);
+      expect(graphemeLength(blueskyRichText(text, post.kind).text)).toBeLessThanOrEqual(300);
+      expect(text).toContain('https://example.com/site/topic/long/');
+      expect(text).toContain('#ニュース #AI #生成AI');
+    }
+    const ten = summaryPost(summary('abc', { lead: 'あ'.repeat(500), hashtags: ['MLB'] }), context(new Date())).compose(fitsBluesky);
+    expect(fitsBluesky(ten)).toBe(true);
+    expect(ten).toContain('⏱ 10秒でわかるニュース');
+    expect(ten).toContain('#ニュース #MLB');
   });
 });
 
@@ -106,7 +113,6 @@ describe('planPosts', () => {
     counts: { news: 10 },
     items: [item('a', { coverage: 4 }), item('b', { coverage: 3 }), item('c')],
   };
-  const at = (jst: string) => new Date(`2026-10-06T${jst}:00+09:00`);
 
   it('21時（日本時間）以降に1日1回だけ日別まとめを投稿する', () => {
     expect(planPosts(empty, context(at('20:30'), { snapshots: [snapshot] }))).toEqual([]);
@@ -134,8 +140,18 @@ describe('planPosts', () => {
     const [noon] = planPosts(empty, context(at('12:30'), { important, ai }));
     expect(noon.key).toBe('ai:2026-10-06');
     expect(noon.compose(() => true)).toContain('/tag/ai/');
+    expect(noon.compose(() => true)).toContain('#AI #生成AI');
     // 件数が足りなければ投稿しない
     expect(planPosts(empty, context(at('12:30'), { ai: [topic('a1')] }))).toEqual([]);
+  });
+
+  it('日曜の夕方に今週のランキングを投稿する（ほかの曜日はしない）', () => {
+    const weekly = [topic('w1', { coverage: 9 }), topic('w2', { coverage: 7 }), topic('w3', { coverage: 5 })];
+    const sunday = at('19:00', '2026-10-11');
+    const [post] = planPosts(empty, context(sunday, { weekly }));
+    expect(post.key).toBe('weekly:2026-10-11');
+    expect(post.compose(() => true)).toContain('/ranking/#week');
+    expect(planPosts(empty, context(at('19:00'), { weekly }))).toEqual([]);
   });
 
   it('急上昇（3時間で2社以上・計3社以上）を話題のページへのリンクで投稿し、同じ話題は二度投稿しない', () => {
@@ -144,70 +160,60 @@ describe('planPosts', () => {
     expect(post.key).toBe('rising:up');
     expect(post.compose(() => true)).toContain('https://example.com/site/topic/up/');
     const state = recordPost(empty, post, at('11:00'));
-    // 間隔をあける（90分）
+    // 間隔をあける（60分）
     const hot = [topic('hot', { coverage: 5, score: 70, latestAt: at('10:30').toISOString() })];
-    expect(planPosts(state, context(at('12:00'), { rising, hot }))).toEqual([]);
-    expect(planPosts(state, context(at('12:40'), { rising, hot })).map((entry) => entry.key)).toEqual(['hot:hot']);
+    expect(planPosts(state, context(at('11:40'), { rising, hot }))).toEqual([]);
+    expect(planPosts(state, context(at('12:05'), { rising, hot })).map((entry) => entry.key)).toEqual(['hot:hot']);
     // 急上昇で投稿した話題は、いま話題としても投稿しない
-    expect(planPosts(state, context(at('12:40'), { hot: [topic('up', { coverage: 6, score: 80, latestAt: at('12:00').toISOString() })] }))).toEqual([]);
+    expect(planPosts(state, context(at('12:05'), { hot: [topic('up', { coverage: 6, score: 80, latestAt: at('12:00').toISOString() })] }))).toEqual([]);
+  });
+
+  it('急上昇・いま話題がなければ、10秒でわかるニュース（AI 要約）を投稿する。同じ話題を投稿済みなら投稿しない', () => {
+    const state = recordPost(empty, risingPost(topic('t1', { gained: 2 }), context(at('09:00'))), at('09:00'));
+    const summaries = [summary('s1', { topicId: 't1' }), summary('s2', { path: '/topic/t2/', topicId: 't2' })];
+    const [post] = planPosts(state, context(at('10:30'), { summaries }));
+    expect(post.key).toBe('summary:s2');
+    expect(post.compose(() => true)).toContain('https://example.com/site/topic/t2/');
+    expect(post.link.title).toBe('要約s2の見出し【AI要約】');
+    // 10秒でわかるニュースで投稿した話題は、あとで急上昇・いま話題になっても投稿しない
+    const after = recordPost(state, post, at('10:30'));
+    const hot = [topic('t2', { coverage: 6, score: 80, latestAt: at('11:00').toISOString() })];
+    expect(planPosts(after, context(at('11:40'), { summaries, hot, rising: [topic('t2', { gained: 3, coverage: 6 })] }))).toEqual([]);
   });
 
   it('いま話題は、報じたメディアが多くスコアの高い新しい話題だけ', () => {
-    const now = at('15:00');
     const hot = [
       topic('few', { coverage: 3, score: 90, latestAt: at('14:00').toISOString() }),
       topic('low', { coverage: 6, score: 30, latestAt: at('14:00').toISOString() }),
       topic('old', { coverage: 9, score: 90, latestAt: at('01:00').toISOString() }),
     ];
-    expect(planPosts(empty, context(now, { hot }))).toEqual([]);
+    expect(planPosts(empty, context(at('15:00'), { hot }))).toEqual([]);
   });
 
-  it('1日の投稿数の上限を守る', () => {
+  it('1日の投稿数と、種類ごとの上限を守る', () => {
     const now = at('16:00');
-    const posted = Array.from({ length: SOCIAL_LIMITS.maxPerDay }, (_, n) => ({ key: `digest:x${n}`, at: at('10:00').toISOString() }));
-    expect(planPosts({ posted }, context(now, { rising: [topic('up', { gained: 3, coverage: 4 })] }))).toEqual([]);
-    const rising = Array.from({ length: SOCIAL_LIMITS.maxRisingPerDay }, (_, n) => ({ key: `rising:r${n}`, at: at('08:00').toISOString() }));
-    expect(planPosts({ posted: rising }, context(now, { rising: [topic('up', { gained: 3, coverage: 4 })] }))).toEqual([]);
-  });
-
-  it('文字数の上限に収まるようにタイトルを縮める', () => {
-    const long = topic('long', { coverage: 5, gained: 3, title: 'と'.repeat(200) });
-    for (const post of [hotPost(long, context(new Date())), risingPost(long, context(new Date()))]) {
-      const text = post.compose((t) => xLength(t) <= 280);
-      expect(xLength(text)).toBeLessThanOrEqual(280);
-      expect(text).toContain('https://example.com/site/topic/long/');
-    }
+    const rising = [topic('up', { gained: 3, coverage: 4 })];
+    const full = Array.from({ length: SOCIAL_LIMITS.maxPerDay }, (_, n) => ({ key: `digest:x${n}`, at: at('10:00').toISOString() }));
+    expect(planPosts({ posted: full }, context(now, { rising }))).toEqual([]);
+    const risingDone = Array.from({ length: SOCIAL_LIMITS.maxRisingPerDay }, (_, n) => ({ key: `rising:r${n}`, at: at('08:00').toISOString() }));
+    // 急上昇が上限なら、次の種類（10秒でわかるニュース）に回る
+    expect(planPosts({ posted: risingDone }, context(now, { rising, summaries: [summary('s')] })).map((post) => post.key)).toEqual(['summary:s']);
   });
 });
 
 describe('サービスごとの上限', () => {
   const now = new Date('2026-10-06T12:00:00.000Z');
-  const post = (key: string) => ({ key, compose: () => '', link: { url: '', title: '', description: '' } });
 
-  it('X は投稿に料金がかかるので、既定では夜のまとめを1日1件だけ', () => {
-    const limit = platformLimit('X', {});
-    expect(limit).toEqual({ daily: 1, monthly: 31, types: ['digest'] });
-    expect(platformAllows('X', post('digest:2026-10-06'), empty, now, limit)).toBe(true);
-    expect(platformAllows('X', post('rising:abc'), empty, now, limit)).toBe(false);
-    const state: SocialState = { posted: [{ key: 'digest:2026-10-05', at: '2026-10-06T00:00:00.000Z', platforms: ['X', 'Bluesky'] }] };
-    expect(platformAllows('X', post('digest:2026-10-06'), state, now, limit)).toBe(false);
-    expect(platformAllows('Bluesky', post('rising:abc'), state, now, platformLimit('Bluesky', {}))).toBe(true);
-  });
-
-  it('X の上限と種類は環境変数で変えられる', () => {
-    expect(platformLimit('X', { X_DAILY_LIMIT: '3', X_MONTHLY_LIMIT: '60', X_POST_TYPES: 'digest, rising' })).toEqual({
-      daily: 3,
-      monthly: 60,
-      types: ['digest', 'rising'],
-    });
-    expect(platformLimit('X', { X_POST_TYPES: 'all', X_DAILY_LIMIT: 'abc' })).toEqual({ daily: 1, monthly: 31, types: undefined });
-    const monthly = { daily: 5, monthly: 2 };
+  it('24時間・30日の上限を、投稿できたサービスごとに数える', () => {
     const state: SocialState = {
       posted: [
-        { key: 'a', at: '2026-09-20T00:00:00.000Z', platforms: ['X'] },
-        { key: 'b', at: '2026-09-25T00:00:00.000Z', platforms: ['X'] },
+        { key: 'a', at: '2026-10-06T00:00:00.000Z', platforms: ['Bluesky'] },
+        { key: 'b', at: '2026-09-20T00:00:00.000Z', platforms: ['Bluesky'] },
       ],
     };
-    expect(platformAllows('X', post('hot:x'), state, now, monthly)).toBe(false);
+    expect(platformAllows('Bluesky', state, now)).toBe(true);
+    expect(platformAllows('Bluesky', state, now, { daily: 1, monthly: 10 })).toBe(false);
+    expect(platformAllows('Bluesky', state, now, { daily: 5, monthly: 2 })).toBe(false);
+    expect(platformAllows('Mastodon', state, now, { daily: 1, monthly: 1 })).toBe(true);
   });
 });

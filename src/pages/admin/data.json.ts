@@ -1,25 +1,28 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { APIContext } from 'astro';
-import { aiPost, digestPost, hotPost, morningPost, risingPost, xLength, type PlanContext, type SocialTopic } from '../../../scripts/lib/social.ts';
+import {
+  aiPost,
+  digestPost,
+  fitsBluesky,
+  hotPost,
+  morningPost,
+  risingPost,
+  summaryPost,
+  weeklyPost,
+  type PlanContext,
+  type SocialState,
+} from '../../../scripts/lib/social.ts';
 import { getDailySnapshots } from '../../lib/daily.ts';
 import { jstDateKey } from '../../lib/dates.ts';
-import { growthWithin } from '../../lib/topic-core.ts';
+import { socialSources } from '../../lib/social-source.ts';
 import { categories, site } from '../../config/site.ts';
 import { getBlocklist } from '../../lib/blocklist.ts';
 import { blockReason } from '../../lib/blocklist-core.ts';
 import { allowsSummary, builtAt, getAllItems, getItems, getSources, href, siteOf } from '../../lib/items.ts';
 import { getAllSummaries, getSummaries, getSummary } from '../../lib/summaries.ts';
 import { TEXT_KEYS_PATH, parseJsonList, pickKeys } from '../../lib/article-texts.ts';
-import {
-  coverageOf,
-  getHotTopics,
-  getImportantTopics,
-  getRisingTopics,
-  getTagTopics,
-  topicOf,
-  type TopicView,
-} from '../../lib/topics.ts';
+import { coverageOf, topicOf } from '../../lib/topics.ts';
 import type { Item } from '../../lib/types.ts';
 import { NOTICE_PATH, PICKS_PATH, parseNotice, parsePicks } from '../../lib/editorial-core.ts';
 
@@ -144,42 +147,36 @@ function picks() {
 }
 
 /**
- * SNS に手で投稿するための下書き。X の API は投稿ごとに料金がかかるため、管理画面から X の投稿画面を開いて運営者が投稿する（無料）。
- * 文面は自動投稿（scripts/lib/social.ts）と同じ作り方で、X の文字数（280）に収める
+ * SNS（Bluesky）の自動投稿の候補。自動投稿と同じ作り方で、Bluesky の文字数（300）に収める。
+ * 自動投稿は毎時の更新のあとに時間帯と上限を見て行うので、ここは「次に投稿されうるもの」と、手で追加の投稿をしたいときの下書き
  */
 function socialDrafts(siteUrl: URL | undefined) {
   const now = builtAt;
   const pageUrl = (path: string) => new URL(href(path), siteUrl ?? 'https://example.com').toString();
-  const toSocial = (view: TopicView, gained = growthWithin(view.reports, now.getTime(), 3)): SocialTopic => ({
-    id: view.id,
-    title: view.lead.title,
-    coverage: view.coverage,
-    score: view.score,
-    gained,
-    latestAt: view.latestAt,
-  });
-  const rising = getRisingTopics({ limit: 5, minTopics: 1 });
-  const context: PlanContext = {
-    now,
-    snapshots: getDailySnapshots(),
-    hot: getHotTopics({ hours: 12, limit: 3 }).map((view) => toSocial(view)),
-    rising: rising.topics.filter((entry) => entry.gained >= 2).map((entry) => toSocial(entry.topic, entry.gained)),
-    important: getImportantTopics({ hours: 24, limit: 5, perCategory: 1 }).map((view) => toSocial(view)),
-    ai: getTagTopics('ai', { hours: 24, limit: 5 }).map((view) => toSocial(view)),
-    pageUrl,
-    siteName: site.name,
-  };
+  const sources = socialSources(now);
+  const context: PlanContext = { now, snapshots: getDailySnapshots(), ...sources, pageUrl, siteName: site.name };
   const today = jstDateKey(now);
   const snapshot = context.snapshots.find((entry) => entry.date === today);
-  const fits = (text: string) => xLength(text) <= 280;
   const drafts = [
-    ...context.rising.slice(0, 2).map((topic) => ({ kind: '急上昇', post: risingPost(topic, context) })),
+    ...context.rising.filter((topic) => topic.gained >= 2).slice(0, 2).map((topic) => ({ kind: '急上昇', post: risingPost(topic, context) })),
     ...context.hot.slice(0, 2).map((topic) => ({ kind: 'いま話題', post: hotPost(topic, context) })),
+    ...context.summaries.slice(0, 1).map((summary) => ({ kind: '10秒でわかるニュース', post: summaryPost(summary, context) })),
     { kind: '今日の重要ニュース', post: morningPost(context.important, today, context) },
     { kind: 'AIニュース', post: aiPost(context.ai, today, context) },
+    { kind: '今週のランキング', post: weeklyPost(context.weekly, today, context) },
     { kind: '今日のまとめ', post: snapshot ? digestPost(snapshot, context) : undefined },
   ];
-  return drafts.flatMap(({ kind, post }) => (post ? [{ kind, key: post.key, text: post.compose(fits), url: post.link.url }] : []));
+  return drafts.flatMap(({ kind, post }) => (post ? [{ kind, key: post.key, text: post.compose(fitsBluesky), url: post.link.url }] : []));
+}
+
+/** 自動投稿の記録（data/social.json。新しい順に30件） */
+function socialLog() {
+  try {
+    const state = JSON.parse(readData('data/social.json') ?? '{"posted":[]}') as SocialState;
+    return (Array.isArray(state.posted) ? state.posted : []).slice(-30).reverse();
+  } catch {
+    return [];
+  }
 }
 
 /** 管理画面用のデータ（要約待ちの記事、保存済みの要約、非表示の設定、収集元の状況、お知らせ・ピックアップ、SNS の下書き） */
@@ -205,6 +202,7 @@ export function GET({ site: siteUrl }: APIContext) {
     notice: parseNotice(readData(NOTICE_PATH)) ?? null,
     picks: picks(),
     social: socialDrafts(siteUrl),
+    socialLog: socialLog(),
     blocklist: getBlocklist(),
     hidden: hiddenArticles(),
     sources: sourceStats(),

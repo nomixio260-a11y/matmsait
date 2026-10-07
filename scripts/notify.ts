@@ -5,6 +5,7 @@
 //   SITE_BASE_URL   公開サイトのベースURL（例: https://example.github.io/matmsait）
 //   DATA_CHANGED    "false" なら記事が増えていないので、新しい要約ページだけを IndexNow に送る
 //   NOTIFY_DRY_RUN  "1" なら送信せずに内容だけ表示する
+//   NOTIFY_SKIP_PING "1" なら検索エンジン・フィードへの通知をせず、SNS の投稿だけ行う（手で投稿を確かめるとき）
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { categories, site } from '../src/config/site.ts';
@@ -12,28 +13,11 @@ import { tags } from '../src/config/tags.ts';
 import { dailyPath, getDailySnapshots } from '../src/lib/daily.ts';
 import { jstDateKey } from '../src/lib/dates.ts';
 import { getSummaries, summaryPath } from '../src/lib/summaries.ts';
-import {
-  getHotTopics,
-  getImportantTopics,
-  getRisingTopics,
-  getTagTopics,
-  getTopicViews,
-  tagPath,
-  topicPath,
-  type TopicView,
-} from '../src/lib/topics.ts';
+import { socialSources } from '../src/lib/social-source.ts';
+import { getTopicViews, tagPath, topicPath } from '../src/lib/topics.ts';
 import { growthWithin } from '../src/lib/topic-core.ts';
 import { indexNowPayload, publishWebSub, submitIndexNow } from './lib/ping.ts';
-import {
-  configuredPlatforms,
-  planPosts,
-  platformAllows,
-  platformLimit,
-  previewPlatforms,
-  recordPost,
-  type SocialState,
-  type SocialTopic,
-} from './lib/social.ts';
+import { configuredPlatforms, planPosts, platformAllows, previewPlatforms, recordPost, type SocialState } from './lib/social.ts';
 
 const SOCIAL_STATE_PATH = resolve(process.cwd(), 'data/social.json');
 const DAY = 24 * 60 * 60 * 1000;
@@ -112,30 +96,19 @@ async function notifySearchEngines(baseUrl: string, now: Date, dataChanged: bool
 }
 
 async function postToSocial(baseUrl: string, now: Date) {
-  const platforms = configuredPlatforms(process.env);
+  // リンクカードの画像（サイトの OGP 画像）
+  const ogPath = resolve(process.cwd(), 'public/og.png');
+  const platforms = configuredPlatforms(process.env, { thumb: existsSync(ogPath) ? new Uint8Array(readFileSync(ogPath)) : undefined });
   if (platforms.length === 0 && !dryRun) {
-    console.log('SNS の認証情報が未設定のため、自動投稿は行いません');
+    console.log('SNS（Bluesky など）の認証情報が未設定のため、自動投稿は行いません');
     return;
   }
   let state = readState();
   // 話題はサイトのビルドと同じ計算（同じ記事データから作るので、話題のページの URL と一致する）
-  const toSocial = (view: TopicView, gained = growthWithin(view.reports, now.getTime(), 3)): SocialTopic => ({
-    id: view.id,
-    title: view.lead.title,
-    coverage: view.coverage,
-    score: view.score,
-    gained,
-    latestAt: view.latestAt,
-  });
-  const rising = getRisingTopics({ limit: 10, minTopics: 1 });
   const posts = planPosts(state, {
     now,
     snapshots: getDailySnapshots(),
-    hot: getHotTopics({ hours: 12, limit: 10 }).map((view) => toSocial(view)),
-    // 急上昇は3時間に新しく報じたメディアの数で決める（広げた時間では投稿しない）
-    rising: rising.hours === 3 ? rising.topics.map((entry) => toSocial(entry.topic, entry.gained)) : [],
-    important: getImportantTopics({ hours: 24, limit: 5, perCategory: 1 }).map((view) => toSocial(view)),
-    ai: getTagTopics('ai', { hours: 24, limit: 5 }).map((view) => toSocial(view)),
+    ...socialSources(now),
     pageUrl: (path) => `${baseUrl}${path}`,
     siteName: site.name,
   });
@@ -147,15 +120,14 @@ async function postToSocial(baseUrl: string, now: Date) {
   for (const post of posts) {
     if (dryRun) {
       for (const platform of platforms.length > 0 ? platforms : previewPlatforms) {
-        const allowed = platformAllows(platform.name, post, state, now, platformLimit(platform.name, process.env));
-        console.log(`--- ${platform.name} に投稿する内容（${post.key}${allowed ? '' : '・上限か種類の設定で投稿しない'}）---\n${post.compose(platform.fits)}\n`);
+        console.log(`--- ${platform.name} に投稿する内容（${post.key}）---\n${post.compose(platform.fits)}\n`);
       }
       continue;
     }
-    // サービスごとの上限（X は投稿に料金がかかるので既定では夜のまとめだけ）
-    const targets = platforms.filter((platform) => platformAllows(platform.name, post, state, now, platformLimit(platform.name, process.env)));
+    // サービスごとの上限（24時間・30日）
+    const targets = platforms.filter((platform) => platformAllows(platform.name, state, now));
     if (targets.length === 0) {
-      console.log(`上限か種類の設定により、どのサービスにも投稿しません（${post.key}）`);
+      console.log(`上限により、どのサービスにも投稿しません（${post.key}）`);
       continue;
     }
     const results = await Promise.allSettled(targets.map((platform) => platform.send(post.compose(platform.fits), post)));
@@ -179,7 +151,7 @@ async function main() {
     return;
   }
   const now = new Date();
-  await notifySearchEngines(baseUrl, now, process.env.DATA_CHANGED !== 'false');
+  if (process.env.NOTIFY_SKIP_PING !== '1') await notifySearchEngines(baseUrl, now, process.env.DATA_CHANGED !== 'false');
   await postToSocial(baseUrl, now);
 }
 

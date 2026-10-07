@@ -62,13 +62,14 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 | 独自コンテンツ | AI 要約ページ（要約・要点・背景・キーワード、同じ話題を報じたほかのメディア、関連する要約）、話題のニュース、日別まとめ、カテゴリページの説明と話題、編集方針（`/editorial/`） |
 | IndexNow | デプロイのたびに Bing・Yandex・Naver などへ更新したURLを自動送信（鍵は `src/config/site.ts` の `indexNowKey`） |
 | RSS / WebSub | 全体・カテゴリ別・日別まとめ・AI要約（`/summaries/rss.xml`）の RSS を配信し、更新のたびに WebSub ハブへ通知（Feedly などへすぐ届く） |
-| SNS 自動投稿 | 認証情報を設定すると、Bluesky・Mastodon・Misskey（・X）に、朝（7〜10時）の「今日の重要ニュース」、昼（12〜14時）の「AI ニュース」、夜（21時以降）の「今日の話題ニュース」、「急上昇」（3時間で2社以上・計3社以上）、「いま話題」（4社以上・話題度50以上）を投稿。リンクは話題のページ。深夜（0〜7時）は投稿しない・24時間に8件まで・急上昇といま話題は90分あける・同じ話題は二度投稿しない（`scripts/lib/social.ts`） |
+| SNS 自動投稿 | 公式アカウント **Bluesky [@topiatsume.bsky.social](https://bsky.app/profile/topiatsume.bsky.social)** に、毎時の公開のあと自動で投稿（Secrets の `BLUESKY_APP_PASSWORD` を登録すると動く。Mastodon・Misskey も Secrets を登録すれば同じ内容を投稿）。決まった時間の投稿: 朝（7〜10時台）「今日の重要ニュース」・昼（12〜14時台）「AI ニュース」・夜（21時以降）「今日の話題ニュース」・日曜の夕方（18〜20時台）「今週の話題ニュース TOP5」。話題が出たときの投稿: 「急上昇」（3時間で2社以上・計3社以上）・「いま話題」（4社以上・話題度50以上）・「10秒でわかるニュース」（AI 要約の1文目）。リンクは話題のページ・ランキングなど**サイトのページ**で、流入元が分かる印（`utm_source=bluesky`）付き。Bluesky ではリンクを短く表示し、ハッシュタグ（`#ニュース` とタグごとの `#AI`・`#MLB` など）とリンクカード（サイトの画像）を付ける。スパム対策: 深夜（0〜7時）は投稿しない・1日12件まで・急上昇などは1時間に1件まで（種類ごとに1日の上限）・同じ話題は二度投稿しない・フォローやいいね・返信の自動化はしない（`scripts/lib/social.ts`） |
 | シェアボタン | 要約ページ・日別まとめ・ランキングに X・LINE・はてブ・Bluesky・Facebook のシェアボタン（各サービスの共有ページへのリンクだけで、API は使わない） |
 | 再訪のしかけ | 「あとで読む」（記事をブラウザに保存、`/saved/`）、前回の訪問のあとに届いた記事に印を付ける、AI 要約の RSS。どれもブラウザ内だけで動き、サーバーには何も送らない |
 | ホーム画面に追加 | Web アプリマニフェスト（PWA）とアイコン、サービスワーカー（オフラインのとき前に見たページを表示、`/_astro/` のファイルを使い回す）、2回目以降の訪問で「ホーム画面に追加」を小さく案内（`src/scripts/pwa.ts`） |
 
 デプロイ後の通知と投稿は `scripts/notify.ts`（ワークフローの `notify` ジョブ）が行います。
-`SITE_BASE_URL=<公開URL> NOTIFY_DRY_RUN=1 npm run notify` で、送信せずに内容だけ確認できます。
+`SITE_BASE_URL=<公開URL> NOTIFY_DRY_RUN=1 npm run notify` で、送信せずに内容だけ確認できます（`NOTIFY_SKIP_PING=1` を付けると検索エンジン・フィードへの通知を省き、SNS の投稿だけを行います）。
+投稿した記録は `data/social.json` に残り（同じ話題を二度投稿しないため）、管理画面の「概要」で見られます。
 
 ### 運営者が行う必要があること
 
@@ -78,18 +79,18 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
    3. GitHub の Settings → Secrets and variables → Actions → **Variables** に `PUBLIC_GOOGLE_SITE_VERIFICATION` として登録し、Actions から再実行
    4. Search Console で「確認」→「サイトマップ」に `sitemap.xml` を送信（`sitemap-index.xml` でも同じ）
 2. **Bing Web マスターツール**（任意）: Search Console から設定をインポートするか、`PUBLIC_BING_SITE_VERIFICATION` を登録
-3. **SNS アカウント**（任意）: 下表の **Secrets** を登録すると自動投稿が始まります。自動投稿であることをプロフィールに明記してください（X は「自動化されたアカウント」ラベルの設定を推奨）。
-   アカウントを作ったら `src/config/site.ts` の `socialAccounts` に追加すると、サイトに「フォロー」リンクが出ます。
-   - **無料で始めるなら Bluesky・Mastodon・Misskey**（API は無料）。
-   - **X の API は有料**です（2026年2月から無料枠がなく、URL つきの投稿は1件0.2ドル。最新の料金は X の Developer Console で確認）。そのため X には既定で夜のまとめを1日1件・月31件までしか投稿しません。変えるときは **Variables** に `X_DAILY_LIMIT`（1日の上限）・`X_MONTHLY_LIMIT`（30日の上限）・`X_POST_TYPES`（`digest,morning,ai,rising,hot` から選んでカンマ区切り。`all` ですべて）を登録します。
-   - **X に無料で投稿するには**、管理画面の「概要」の「SNS に投稿する（下書き）」で「X で投稿」を押すと、文面とリンクが入った X の投稿画面が開きます（運営者のアカウントで手で投稿）。
+3. **SNS（Bluesky）の自動投稿を動かす**: GitHub の Settings → Secrets and variables → Actions → **Secrets** に `BLUESKY_APP_PASSWORD`（Bluesky の「設定 → プライバシーとセキュリティ → アプリパスワード」で発行したもの）を登録すると、次の毎時の更新から投稿が始まります。
+   - アカウント（`@topiatsume.bsky.social`）は既定で入っているので、ハンドルの登録は不要です（別のアカウントで投稿するときだけ `BLUESKY_IDENTIFIER` を登録）。
+   - プロフィール（名前・説明・アイコン・バナー・サイトの URL）と「自動で投稿するアカウント」（bot）のラベル、固定の紹介の投稿は設定済みです。
+   - サイトのフッター・サイドバー・トップ・急上昇・話題のページに「Bluesky でフォロー」の案内が出ます（`src/config/site.ts` の `socialAccounts`。構造化データの `sameAs` にも入る）。
+   - X は使いません（API に無料枠がなく、URL つきの投稿は1件0.2ドルのため）。管理画面の「概要」の下書きから、Bluesky の投稿画面を開いて手で追加の投稿もできます。
 
 | Secret | 内容 |
 | --- | --- |
-| `X_API_KEY` / `X_API_SECRET` / `X_ACCESS_TOKEN` / `X_ACCESS_TOKEN_SECRET` | X Developer Portal のアプリの API Key・Secret と、投稿用アカウントの Access Token・Secret（Read and Write 権限） |
-| `BLUESKY_IDENTIFIER` / `BLUESKY_APP_PASSWORD` | Bluesky のハンドル（例: `example.bsky.social`）と、設定画面で発行したアプリパスワード |
-| `MASTODON_URL` / `MASTODON_TOKEN` | インスタンスのURL（例: `https://mastodon.social`）と、`write:statuses` 権限のアクセストークン |
-| `MISSKEY_URL` / `MISSKEY_TOKEN` | インスタンスのURL（例: `https://misskey.io`）と、「ノートを作成・削除する」権限のアクセストークン |
+| `BLUESKY_APP_PASSWORD` | Bluesky のアプリパスワード（必須。アカウントのパスワードではなく、アプリパスワードを使う） |
+| `BLUESKY_IDENTIFIER` | 投稿するアカウントのハンドル（任意。既定は `topiatsume.bsky.social`） |
+| `MASTODON_URL` / `MASTODON_TOKEN` | （任意）インスタンスのURL（例: `https://mastodon.social`）と、`write:statuses` 権限のアクセストークン |
+| `MISSKEY_URL` / `MISSKEY_TOKEN` | （任意）インスタンスのURL（例: `https://misskey.io`）と、「ノートを作成・削除する」権限のアクセストークン |
 
 ※ 検索結果に表示されるまでには通常数日〜数週間かかり、順位は保証されません。見出しを集めただけのページは評価されにくいため、独自ドメインの取得や独自コンテンツの追加が効果的です。
 
@@ -99,7 +100,7 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 
 | ページ | できること |
 | --- | --- |
-| **概要**（`/admin/`） | やること（更新が止まっている・直近の更新の失敗・取得できていない収集元・3社以上が報じたのに要約がない話題・ピックアップやお知らせの状況・通知の確認が止まっている）、きょうの数字（いま見ている人・訪問者・閲覧数・記事のクリック・この週と月の訪問者（WAU・MAU）・掲載中の記事・AI要約・通知の登録者・収集元）、サイトの更新（自動更新タイマーの状況・最近の実行・「今すぐ更新」・GitHub との接続の確認）、よく使う操作、SNS の下書き（急上昇・いま話題・今日の重要ニュース・AI ニュース・今日のまとめ。X・Bluesky の投稿画面を開く・コピー） |
+| **概要**（`/admin/`） | やること（更新が止まっている・直近の更新の失敗・取得できていない収集元・3社以上が報じたのに要約がない話題・ピックアップやお知らせの状況・通知の確認が止まっている）、きょうの数字（いま見ている人・訪問者・閲覧数・記事のクリック・この週と月の訪問者（WAU・MAU）・掲載中の記事・AI要約・通知の登録者・収集元）、サイトの更新（自動更新タイマーの状況・最近の実行・「今すぐ更新」・GitHub との接続の確認）、よく使う操作、SNS（Bluesky）の自動投稿（最近の投稿の記録と、次に投稿されうる内容の下書き。Bluesky の投稿画面を開く・コピー） |
 | **AI要約・記事**（`/admin/summaries/`） | 下の「AI要約」の手順、保存済みの要約の手直し・削除、記事の非表示（NGワード・サイト・個別）、収集元の状況 |
 | **ピックアップ・お知らせ**（`/admin/content/`） | 編集部のピックアップ（記事を探して選び、ひとことと期限（1〜14日）を付けて、トップページの上のほうに出す。10件まで。並べ替え・期限の変更・外す）と、お知らせ（サイトの上部に出す120文字までのお知らせ。リンク・「お知らせ／重要」・掲載期間つき。通知でも送れる）。保存すると `data/picks.json`・`data/notice.json` に書き込み、サイトの更新のあとに反映されます |
 | **通知**（`/admin/notify/`） | 通知の登録者数と受け取り方の内訳、よくフォローされているジャンル・掲載元・キーワード（キーワードは2人以上のものだけ）、運営からのお知らせを送る（全員・ジャンルをフォローしている人。5分に1回まで）、送った記録 |
@@ -351,7 +352,7 @@ AdSense の審査（`pages.dev` のような共用のドメインでは申し込
 | 保存期間・件数 | `scripts/lib/store.ts` の `maxAgeDays` / `MAX_ITEMS` / `minPerSource` |
 | 一覧のページ数・検索の対象件数 | `src/config/site.ts` の `maxListPages` / `searchLimit` |
 | SNS 共有用の画像 | `public/og.png`（1200×630）。サイト名を変えたら差し替えてください |
-| SNS 自動投稿の条件 | `scripts/lib/social.ts` の `DIGEST_HOUR` / `HOT_THRESHOLD` / `MAX_HOT_PER_DAY` |
+| SNS 自動投稿の条件（時間帯・1日の件数・間隔・急上昇などの基準） | `scripts/lib/social.ts` の `SOCIAL_LIMITS`。投稿するアカウントの表示は `src/config/site.ts` の `socialAccounts` |
 | 載せない記事（NGワード・サイト・個別） | 管理画面の「記事の非表示」、または `data/blocklist.json` |
 | 自動更新の間隔 | リポジトリの変数 `UPDATE_INTERVAL_MINUTES`（15〜360分、既定60分） |
 | AI要約のプロンプト・検証ルール | `src/lib/summary-core.ts`（`buildSummaryPrompt` / `validateEntries`） |

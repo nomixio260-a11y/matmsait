@@ -5,6 +5,7 @@
  */
 import type { GetStaticPaths } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import FollowCta from '../../components/FollowCta.astro';
 import ItemList from '../../components/ItemList.astro';
 import ShareButtons from '../../components/ShareButtons.astro';
 import SummaryLevels from '../../components/SummaryLevels.astro';
@@ -262,6 +263,7 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
     </section>
 
     <ShareButtons url={url} text={`${lead.title}（${view.coverage}社が報道）｜${site.name}`} />
+    <FollowCta text="話題になり始めたニュースを、Bluesky でいち早くお届けします。" />
 
     {
       related.length > 0 && (
