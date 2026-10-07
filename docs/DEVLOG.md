@@ -152,6 +152,7 @@ npx astro preview # ビルド結果の確認（Astro 7 の preview は常駐す�
   - 手元で `wrangler dev`（解析の Worker）＋ `wrangler pages dev`（`dist`＋Functions）を動かし、curl で /api（同じドメインの記録・ほかのサイトの拒否・運営者の確認）・応答ヘッダー・以前の URL の 301 を、Playwright でサイトの計測の E2E（訪問者2人・来た回数2・クリック3 など前回と同じ項目）・管理画面のアクセス解析の E2E（axe を含む）・ログインの E2E（ルートに置いた URL で）を確認した。
   - 本番（https://topiatsume.pages.dev/）: ページの表示と正規の URL・robots.txt とサイトマップが新しい URL、`/api/popular` が JSON、ボットの記録は 204（Durable Object まで届く）、ほかのサイトからは 403、運営者用の API はトークンなしでも不正なトークンでも 401、管理画面と全体の応答ヘッダー、`/matmsait/category/tech/` → `/category/tech/` の 301、workers.dev では Worker を呼べない（404）。実際のブラウザで1回開き、`/api/collect` が 200（いま1人）を返すことを確かめた（この1回分の閲覧が記録に残っている）。
 - 残った課題・注意点: GitHub の Secrets が登録されるまで、毎時の更新は GitHub Pages に公開され、pages.dev は今回公開した内容のまま（「未解決の課題」1）。チャットに貼られたトークンは作り直してから登録すること。新しい URL の管理画面では初回設定がもう一度必要。
+- 公開後の確認: push による実行（update.yml run #50）が成功し、Secrets がないので「Cloudflare Pages に公開」「転送ページ」は飛ばされ、GitHub Pages にこれまでどおりのサイトが公開された（正規の URL は github.io のまま）。同時に動いた analytics.yml（run #2）も Secrets がないので何もせずに成功。pages.dev は今回手で公開したサイトが表示されている。
 
 ### 2026-10-07 本文の自動取得で名乗るのをやめた・アクセス解析（いま見ている人数・よく読まれている記事など）
 
