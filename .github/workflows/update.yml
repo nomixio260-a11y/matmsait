@@ -28,6 +28,8 @@ jobs:
     outputs:
       changed: ${{ steps.commit.outputs.changed }}
       base_url: ${{ steps.target.outputs.base_url }}
+      cloudflare: ${{ steps.target.outputs.cloudflare }}
+      built_at: ${{ steps.built.outputs.at }}
     steps:
       - uses: actions/checkout@v7
 
@@ -159,6 +161,11 @@ jobs:
           PUBLIC_BING_SITE_VERIFICATION: ${{ vars.PUBLIC_BING_SITE_VERIFICATION }}
           PUBLIC_ANALYTICS_URL: ${{ steps.target.outputs.analytics || vars.PUBLIC_ANALYTICS_URL }}
 
+      # ビルドした日時（GitHub Pages に公開するとき、公開が終わったかを notify が確かめるのに使う）
+      - name: ビルドした日時
+        id: built
+        run: echo "at=$(jq -r '.generatedAt' dist/admin/data.json)" >> "$GITHUB_OUTPUT"
+
       - name: Cloudflare Pages に公開
         if: steps.target.outputs.cloudflare == 'true'
         env:
@@ -246,14 +253,35 @@ jobs:
 
   # 公開後に検索エンジン（IndexNow）・フィード購読者（WebSub）へ更新を知らせ、SNS に自動投稿する
   notify:
-    needs: [build, deploy]
+    # Cloudflare に公開しているときは build の中で公開が終わっているので、GitHub Pages（転送ページ）の公開（deploy。
+    # 数分かかることがある）を待たずに知らせる・投稿する（管理画面の「今すぐ投稿」を早くするため）。
+    # GitHub Pages に公開しているときは、下の「GitHub Pages の公開を待つ」で公開を確かめてから知らせる
+    needs: build
     # 同じまとめを二重に投稿しないよう、通知・SNS 投稿も1つずつ
     concurrency:
       group: notify
       cancel-in-progress: false
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # GitHub Pages に公開しているときは、公開を最大10分待つ
+    timeout-minutes: 20
     steps:
+      - name: GitHub Pages の公開を待つ
+        if: needs.build.outputs.cloudflare != 'true'
+        env:
+          SITE_BASE_URL: ${{ needs.build.outputs.base_url }}
+          BUILT_AT: ${{ needs.build.outputs.built_at }}
+        run: |
+          # 公開したサイトの管理画面用データの作成日時が、今回のビルドの日時になるまで待つ（最大10分）
+          for _ in $(seq 1 60); do
+            live=$(curl -fsS --max-time 10 "$SITE_BASE_URL/admin/data.json" 2>/dev/null | jq -r '.generatedAt // empty' || true)
+            if [ -n "$live" ] && [ -n "$BUILT_AT" ] && { [ "$live" = "$BUILT_AT" ] || [ "$live" \> "$BUILT_AT" ]; }; then
+              echo "公開を確認しました（$live）"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo '::warning::GitHub Pages の公開を10分以内に確かめられませんでした。このまま知らせます'
+
       - uses: actions/checkout@v7
         with:
           # build ジョブがコミットした最新のデータを使う
