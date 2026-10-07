@@ -1,6 +1,6 @@
 ---
 /**
- * AI 要約を「10秒で読む・30秒で読む・2分で理解」の3つの長さで見せる。
+ * AI 要約を「10秒で把握・30秒で理解・2分で深掘り」の3つの長さで見せる。
  * 10秒: 要約の1文目（プロンプトで「誰が・何を・どうした」を1文目に書くよう指示している）
  * 30秒: 要約と要点
  * 2分: 要約・要点に、背景・用語、ほかのメディアの要約にしかない要点、報道の広がり、キーワードを足す
@@ -46,9 +46,9 @@ const first = topic?.reports[0];
 const spreadHours = topic ? Math.max(0, Math.round((Date.parse(topic.latestAt) - Date.parse(topic.firstAt)) / 3_600_000)) : 0;
 const firstName = first ? (getSource(first.item.sourceId)?.name ?? siteOf(first.item).label) : '';
 const tabs = [
-  { key: '10', label: '10秒で読む' },
-  { key: '30', label: '30秒で読む' },
-  { key: '120', label: '2分で理解' },
+  { key: '10', label: '10秒で把握' },
+  { key: '30', label: '30秒で理解' },
+  { key: '120', label: '2分で深掘り' },
 ] as const;
 ---
 

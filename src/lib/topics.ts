@@ -4,25 +4,34 @@
  */
 import { categories } from '../config/site.ts';
 import { tags as tagDefinitions, type TagDefinition } from '../config/tags.ts';
-import { builtAt, getItems, getSource } from './items.ts';
+import { builtAt, formatDateTime, getItems, getSource, siteOf } from './items.ts';
 import { getPopular } from './popular.ts';
 import { buildRelatedIndex, clusterTopics, type RelatedIndex, type TopicCluster } from './related.ts';
 import { getSummaries, getSummary } from './summaries.ts';
 import { tagsOf } from './tag-core.ts';
 import {
   HOUR,
+  LIFECYCLE_LABELS,
   analyzeTopic,
+  durationText,
+  genreSpread,
   genreTemperature,
+  heatSeries,
+  lifecycleOf,
   momentumOf,
   newTopics,
   rankHot,
   rankImportant,
   rankRising,
   scoreBreakdown,
+  spreadSteps,
   trendingWords,
   whyTrending,
   type GenreHeat,
+  type HeatPoint,
+  type Lifecycle,
   type Momentum,
+  type SpreadStep,
   type RisingResult,
   type ScoreBreakdown,
   type TopicStats,
@@ -200,18 +209,108 @@ export function getImportantTopics({ hours = 24, limit = 10, perCategory = 3 }: 
   return rankImportant(getTopicViews(), builtAt.getTime() - hours * HOUR, { limit, perCategory });
 }
 
-/** 関連する話題（同じタグの話題・見出しの似た話題・同じジャンルの話題の順） */
-export function relatedTopics(view: TopicView, limit = 6): TopicView[] {
+/** 関連するトピック（見出しの似たトピック・同じテーマ（タグ）のトピック・同じジャンルのトピックの順。similar・sameGenre で選べる） */
+export function relatedTopics(
+  view: TopicView,
+  limit = 6,
+  { similar = true, sameGenre = true }: { similar?: boolean; sameGenre?: boolean } = {},
+): TopicView[] {
   const picked = new Map<string, TopicView>();
   const add = (candidate: TopicView | undefined) => {
     if (candidate && candidate.id !== view.id && !picked.has(candidate.id) && picked.size < limit) picked.set(candidate.id, candidate);
   };
   const ranked = rankHot(getTopicViews());
   const slugs = new Set(view.tags.map((tag) => tag.slug));
-  for (const candidate of ranked) if (candidate.tags.some((tag) => slugs.has(tag.slug))) add(candidate);
-  for (const item of getRelatedIndex().related(view.lead, 10)) add(topicViewOf(item.id));
-  for (const candidate of ranked) if (candidate.categories[0] === view.categories[0]) add(candidate);
+  // 見出しの似ているトピック（同じ出来事の前後の動き）→ 同じテーマ → 同じジャンルの順
+  if (similar) {
+    for (const item of getRelatedIndex().related(view.lead, 10)) add(topicViewOf(item.id));
+    for (const candidate of ranked) if (candidate.tags.some((tag) => slugs.has(tag.slug))) add(candidate);
+  }
+  if (sameGenre) for (const candidate of ranked) if (candidate.categories[0] === view.categories[0]) add(candidate);
   return [...picked.values()];
+}
+
+// ===== トピックのページ（推移・段階・広がり・概要・前後のニュース） =====
+
+/** 話題度の推移（最初の報道から今まで。読まれた数は含めない） */
+export function topicHeatSeries(view: TopicView): HeatPoint[] {
+  return heatSeries(view.reports, builtAt.getTime());
+}
+
+/** いまの段階（発生・拡大・ピーク・減少） */
+export function topicLifecycle(view: TopicView): Lifecycle {
+  return lifecycleOf(view.reports, builtAt.getTime());
+}
+
+/** 報道の広がりの節目（1媒体 → 2媒体 → 3媒体 → 5媒体 …） */
+export function topicSpreadSteps(view: TopicView): SpreadStep[] {
+  return spreadSteps(view.reports);
+}
+
+/** ジャンルが加わった順（表示名と色つき） */
+export function topicGenreSpread(view: TopicView): { category: string; name: string; color: string; time: number }[] {
+  return genreSpread(view.reports).map(({ category, time }) => {
+    const definition = categories.find((entry) => entry.slug === category);
+    return { category, name: definition?.name ?? category, color: definition?.color ?? 'var(--muted)', time };
+  });
+}
+
+/** 媒体の名前を並べる（多いときは「ほかN媒体」） */
+function siteNames(items: readonly Item[], max = 4): string {
+  const names = items.map((item) => siteOf(item).label);
+  return names.length > max ? `${names.slice(0, max).join('・')}ほか${names.length - max}媒体` : names.join('・');
+}
+
+/**
+ * トピックの概要（数字から機械的に作る2〜3文）。検索エンジンにも読まれる、トピあつめ独自の説明。
+ * 「いつ・どこが最初に報じ、どれくらいの時間でどこまで広がったか・いまどの段階か」を書き、ニュースの中身の評価はしない
+ */
+export function topicOverview(view: TopicView): string[] {
+  const first = view.reports[0];
+  const last = view.reports[view.reports.length - 1];
+  const sentences: string[] = [];
+  if (!first || !last) return sentences;
+  const firstSite = siteOf(first.item).label;
+  const followers = view.reports.slice(1).map((report) => report.item);
+  const spread = last.time - first.time;
+  sentences.push(
+    followers.length > 0
+      ? `${formatDateTime(new Date(first.time))}に${firstSite}が最初に報じ（最初に確認できた報道）、その後${spread < HOUR ? '1時間以内' : `${durationText(spread)}のうち`}に${siteNames(followers)}が報じて、計${view.coverage}媒体になりました。`
+      : `${formatDateTime(new Date(first.time))}に${firstSite}が報じました。`,
+  );
+  const genres = topicGenreSpread(view);
+  if (genres.length >= 2) sentences.push(`報道は${genres.map((genre) => `「${genre.name}」`).join('')}の${genres.length}ジャンルの媒体に広がっています。`);
+  const life = topicLifecycle(view);
+  const now = builtAt.getTime();
+  const sinceLast = now - last.time;
+  const stage = LIFECYCLE_LABELS[life.stage];
+  sentences.push(
+    life.stage === 'growing'
+      ? `いまは「${stage}」の段階です（直近3時間に新しく報じた媒体があります）。`
+      : life.stage === 'emerging'
+        ? `いまは「${stage}」の段階です（報じられ始めたばかりです）。`
+        : `いまは「${stage}」の段階です（最後の報道から${durationText(sinceLast)}、新しい報道はありません）。`,
+  );
+  return sentences;
+}
+
+/** 見出しの似ている前後のニュース（このトピックの記事は除き、新しい順） */
+export function topicNeighbors(view: TopicView, limit = 6): Item[] {
+  const own = new Set(view.items.map((item) => item.id));
+  const seenTopics = new Set<string>([view.id]);
+  const result: Item[] = [];
+  for (const item of getRelatedIndex().related(view.lead, 30)) {
+    if (own.has(item.id)) continue;
+    // 同じトピックの記事は1件だけ（ほかの記事は「N媒体が報道」からトピックのページで見られる）
+    const other = topicViewOf(item.id);
+    if (other) {
+      if (seenTopics.has(other.id)) continue;
+      seenTopics.add(other.id);
+    }
+    result.push(item);
+    if (result.length >= limit) break;
+  }
+  return result.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 }
 
 // ===== タグ =====

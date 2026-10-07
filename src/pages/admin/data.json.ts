@@ -22,7 +22,10 @@ import { blockReason } from '../../lib/blocklist-core.ts';
 import { allowsSummary, builtAt, getAllItems, getItems, getSources, href, siteOf } from '../../lib/items.ts';
 import { getAllSummaries, getSummaries, getSummary } from '../../lib/summaries.ts';
 import { TEXT_KEYS_PATH, parseJsonList, pickKeys } from '../../lib/article-texts.ts';
-import { coverageOf, topicOf } from '../../lib/topics.ts';
+import { coverageOf, getHotTopics, topicOf } from '../../lib/topics.ts';
+import { getAllTopicNotes } from '../../lib/topic-notes.ts';
+import { matchTopicNote } from '../../lib/topic-notes-core.ts';
+import { isHidden } from '../../lib/blocklist.ts';
 import type { Item } from '../../lib/types.ts';
 import { NOTICE_PATH, PICKS_PATH, parseNotice, parsePicks } from '../../lib/editorial-core.ts';
 
@@ -169,6 +172,49 @@ function socialDrafts(siteUrl: URL | undefined) {
   return drafts.flatMap(({ kind, post }) => (post ? [{ kind, key: post.key, text: post.compose(fitsBluesky), url: post.link.url }] : []));
 }
 
+/** AI 整理の候補にするトピックの数（話題度の高い順） */
+const NOTE_TOPICS = 80;
+
+/**
+ * AI 整理（トピック整理）の候補: 72時間に報じられた、2つ以上の媒体のトピック（話題度の順）。
+ * プロンプトに入れるのは、要約を禁じていない掲載元の、非表示でない記事だけ（2件未満のトピックは整理できないので除く）
+ */
+function noteTopics() {
+  const notes = getAllTopicNotes();
+  return getHotTopics({ hours: 72, limit: NOTE_TOPICS * 2 })
+    .map((view) => {
+      const usable = view.reports.map((report) => report.item).filter((item) => allowsSummary(item) && !isHidden(item));
+      const note = matchTopicNote(
+        notes,
+        view.items.map((item) => item.id),
+      );
+      return {
+        id: view.id,
+        title: view.lead.title,
+        firstAt: view.firstAt,
+        latestAt: view.latestAt,
+        coverage: view.coverage,
+        score: view.score,
+        category: view.categories[0] ?? view.lead.category,
+        // 媒体ごとの最初の記事（報じた順）
+        articles: usable.map((item) => ({
+          id: item.id,
+          title: item.title,
+          url: item.url,
+          site: siteOf(item).label,
+          excerpt: item.excerpt,
+          publishedAt: item.publishedAt,
+        })),
+        // 要約を禁じている掲載元など、プロンプトに入れない媒体の数
+        excluded: view.reports.length - usable.length,
+        allItems: view.items.map((item) => item.id),
+        ...(note ? { noted: { topic: note.topic, notedAt: note.notedAt, firstAt: note.firstAt, newer: view.items.filter((item) => !note.items.includes(item.id)).length } } : {}),
+      };
+    })
+    .filter((topic) => topic.articles.length >= 2)
+    .slice(0, NOTE_TOPICS);
+}
+
 /** 自動投稿の記録（data/social.json。新しい順に30件） */
 function socialLog() {
   try {
@@ -202,6 +248,8 @@ export function GET({ site: siteUrl }: APIContext) {
     notice: parseNotice(readData(NOTICE_PATH)) ?? null,
     picks: picks(),
     social: socialDrafts(siteUrl),
+    // AI 整理（トピック整理）の候補
+    topics: noteTopics(),
     socialLog: socialLog(),
     blocklist: getBlocklist(),
     hidden: hiddenArticles(),

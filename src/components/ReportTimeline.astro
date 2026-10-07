@@ -1,0 +1,238 @@
+---
+/**
+ * 報道タイムライン: トピックのすべての記事を報じた順に並べる（初報＝最初に確認できた報道・初報からの時間・続報）。
+ * 長いトピックは最初の数件だけを見せ、残りは押すと開く
+ */
+import { faviconUrl, formatDateTime, href, siteOf } from '../lib/items.ts';
+import { getSummary, summaryPath } from '../lib/summaries.ts';
+import type { TopicView } from '../lib/topics.ts';
+import type { Item } from '../lib/types.ts';
+
+interface Props {
+  view: TopicView;
+  /** はじめに見せる件数（残りは折りたたむ） */
+  visible?: number;
+}
+const { view, visible = 6 } = Astro.props;
+const timeline = [...view.items].sort((a, b) => a.publishedAt.localeCompare(b.publishedAt) || a.id.localeCompare(b.id));
+const reportIds = new Set(view.reports.map((report) => report.item.id));
+const t0 = Date.parse(timeline[0]?.publishedAt ?? view.firstAt);
+// 残りが1〜2件なら折りたたまない
+const shown = timeline.length - visible <= 2 ? timeline : timeline.slice(0, visible);
+const rest = timeline.slice(shown.length);
+
+/** 初報からの経過時間（「35分後」「2時間15分後」「1日3時間後」） */
+function offsetText(ms: number): string {
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 1) return '同じ時刻';
+  if (minutes < 60) return `${minutes}分後`;
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+  if (hours < 24) return restMinutes > 0 ? `${hours}時間${restMinutes}分後` : `${hours}時間後`;
+  const days = Math.floor(hours / 24);
+  return hours % 24 > 0 ? `${days}日${hours % 24}時間後` : `${days}日後`;
+}
+
+const entry = (item: Item, index: number) => ({
+  item,
+  site: siteOf(item),
+  summary: getSummary(item.id),
+  first: index === 0,
+  followUp: !reportIds.has(item.id),
+  offset: offsetText(Date.parse(item.publishedAt) - t0),
+});
+const shownEntries = shown.map((item, index) => entry(item, index));
+const restEntries = rest.map((item, index) => entry(item, shown.length + index));
+---
+
+<ol class="report-list">
+  {
+    shownEntries.map(({ item, site, summary, first, followUp, offset }) => (
+      <li class:list={['report', { 'is-first': first }]}>
+        <div class="report-head">
+          <time datetime={item.publishedAt}>{formatDateTime(item.publishedAt)}</time>
+          {first ? (
+            <span class="report-tag first" title="トピあつめで最初に確認できた報道（最初に報じた媒体が正しいとは限りません）">
+              初報
+            </span>
+          ) : (
+            <span class="report-offset">初報から{offset}</span>
+          )}
+          {followUp && <span class="report-tag">続報</span>}
+        </div>
+        <a class="report-title" href={item.url} target="_blank" rel="noopener" data-aid={item.id} data-src={item.sourceId} data-cat={item.category}>
+          {item.title}
+        </a>
+        {item.excerpt && <p class="report-excerpt">{item.excerpt}</p>}
+        <div class="report-meta">
+          <span class="item-site">
+            <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+            {site.source ? <a href={href(`/source/${site.source.id}/`)}>{site.label}</a> : site.label}
+          </span>
+          {summary && (
+            <a class="report-summary" href={href(summaryPath(item.id))}>
+              AI要約を読む
+            </a>
+          )}
+        </div>
+      </li>
+    ))
+  }
+</ol>
+{
+  restEntries.length > 0 && (
+    <details class="report-more">
+      <summary>残りの{restEntries.length}件の報道を見る</summary>
+      <ol class="report-list">
+        {restEntries.map(({ item, site, summary, followUp, offset }) => (
+          <li class="report">
+            <div class="report-head">
+              <time datetime={item.publishedAt}>{formatDateTime(item.publishedAt)}</time>
+              <span class="report-offset">初報から{offset}</span>
+              {followUp && <span class="report-tag">続報</span>}
+            </div>
+            <a class="report-title" href={item.url} target="_blank" rel="noopener" data-aid={item.id} data-src={item.sourceId} data-cat={item.category}>
+              {item.title}
+            </a>
+            <div class="report-meta">
+              <span class="item-site">
+                <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                {site.source ? <a href={href(`/source/${site.source.id}/`)}>{site.label}</a> : site.label}
+              </span>
+              {summary && (
+                <a class="report-summary" href={href(summaryPath(item.id))}>
+                  AI要約を読む
+                </a>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </details>
+  )
+}
+
+<style>
+  .report-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .report {
+    position: relative;
+    padding: 12px 16px 12px 34px;
+  }
+  .report + .report {
+    border-top: 1px solid var(--border);
+  }
+  /* 報じた順の線 */
+  .report::before {
+    content: '';
+    position: absolute;
+    left: 17px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .report::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 16px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--border-strong);
+  }
+  .report.is-first::after {
+    border-color: var(--heat);
+    background: var(--heat);
+  }
+  .report-list > .report:first-child::before {
+    top: 18px;
+  }
+  .report-list > .report:last-child::before {
+    bottom: calc(100% - 22px);
+  }
+  .report-more .report-list > .report:first-child::before {
+    top: 0;
+  }
+  .report-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    font-size: var(--fs-caption);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .report-head time {
+    color: var(--text-2);
+    font-weight: 700;
+  }
+  .report-tag {
+    padding: 0 6px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
+    font-weight: 700;
+    font-size: 0.6875rem;
+  }
+  .report-tag.first {
+    background: var(--heat-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--heat) 35%, transparent);
+    color: var(--heat);
+  }
+  .report-title {
+    display: block;
+    margin-top: 2px;
+    color: var(--text);
+    font-size: var(--fs-body);
+    font-weight: 700;
+    line-height: 1.55;
+    text-decoration: none;
+  }
+  .report-title:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .report-title:visited {
+    color: var(--visited);
+  }
+  .report-excerpt {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: var(--fs-small);
+    line-height: 1.6;
+  }
+  .report-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 12px;
+    margin-top: 4px;
+    font-size: var(--fs-caption);
+  }
+  .report-meta a {
+    color: var(--text-2);
+  }
+  .report-summary {
+    color: var(--accent) !important;
+    font-weight: 700;
+  }
+  .report-more {
+    border-top: 1px solid var(--border);
+  }
+  .report-more > summary {
+    padding: 12px 16px;
+    color: var(--accent);
+    font-size: var(--fs-small);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .report-more[open] > summary {
+    border-bottom: 1px solid var(--border);
+  }
+</style>

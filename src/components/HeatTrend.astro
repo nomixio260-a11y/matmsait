@@ -1,0 +1,212 @@
+---
+/**
+ * 話題度の推移といまの段階（発生 → 拡大 → ピーク → 減少）。
+ * 推移は、その時点までの報道だけで計算した話題度（0〜100。目盛りはどのトピックでも同じ）
+ */
+import { formatDateTime } from '../lib/items.ts';
+import { LIFECYCLE_LABELS, type LifecycleStage } from '../lib/topic-core.ts';
+import { topicHeatSeries, topicLifecycle, type TopicView } from '../lib/topics.ts';
+
+interface Props {
+  view: TopicView;
+}
+const { view } = Astro.props;
+const series = topicHeatSeries(view);
+const life = topicLifecycle(view);
+const stages: LifecycleStage[] = ['emerging', 'growing', 'peak', 'declining'];
+const current = stages.indexOf(life.stage);
+const stageNotes: Record<LifecycleStage, string> = {
+  emerging: '報じられ始めたばかり',
+  growing: '報じる媒体が増えている',
+  peak: '新しい報道は止まったが、話題度は高いまま',
+  declining: '話題度が下がってきている',
+};
+
+const chart = (() => {
+  const width = 320;
+  const height = 110;
+  const padX = 22;
+  const padTop = 10;
+  const padBottom = 18;
+  const start = series[0]?.time ?? 0;
+  const end = series.at(-1)?.time ?? start + 1;
+  const span = Math.max(end - start, 1);
+  const x = (time: number) => padX + ((time - start) / span) * (width - padX - 10);
+  const y = (score: number) => height - padBottom - (score / 100) * (height - padTop - padBottom);
+  const points = series.map((point) => `${x(point.time).toFixed(1)},${y(point.score).toFixed(1)}`);
+  const line = `M ${points.join(' L ')}`;
+  const area = `${line} L ${x(end).toFixed(1)},${y(0).toFixed(1)} L ${x(start).toFixed(1)},${y(0).toFixed(1)} Z`;
+  return { width, height, padX, line, area, x, y, start, end };
+})();
+const peakPoint = { x: chart.x(life.peakAt), y: chart.y(life.peakScore) };
+---
+
+<div class="trend">
+  <ol class="life" aria-label="トピックの段階">
+    {
+      stages.map((stage, index) => (
+        <li class:list={['life-step', { 'is-done': index < current, 'is-current': index === current }]} aria-current={index === current ? 'step' : undefined}>
+          <span class="life-dot" aria-hidden="true" />
+          {LIFECYCLE_LABELS[stage]}
+        </li>
+      ))
+    }
+  </ol>
+  <p class="life-text">
+    いまは<b>「{LIFECYCLE_LABELS[life.stage]}」</b>の段階です（{stageNotes[life.stage]}）。最も高かったのは{formatDateTime(new Date(life.peakAt))}ごろの話題度<b
+      class="num">{life.peakScore}</b
+    >で、いまは<b class="num">{life.current}</b>です。
+  </p>
+  {
+    series.length >= 2 && (
+      <svg
+        class="trend-chart"
+        viewBox={`0 0 ${chart.width} ${chart.height}`}
+        role="img"
+        aria-label={`話題度の推移。${formatDateTime(new Date(chart.start))}の最初の報道から、${formatDateTime(new Date(life.peakAt))}ごろに${life.peakScore}まで上がり、いまは${life.current}です`}
+      >
+        <line x1={chart.padX} x2={chart.width - 10} y1={chart.y(50)} y2={chart.y(50)} class="grid" />
+        <line x1={chart.padX} x2={chart.width - 10} y1={chart.y(0)} y2={chart.y(0)} class="axis" />
+        <text x={chart.padX - 4} y={chart.y(50) + 3} class="label end">50</text>
+        <text x={chart.padX - 4} y={chart.y(100) + 7} class="label end">100</text>
+        <path d={chart.area} class="area" />
+        <path d={chart.line} class="line" />
+        <circle cx={peakPoint.x.toFixed(1)} cy={peakPoint.y.toFixed(1)} r="3.4" class="peak" />
+        <text x={chart.padX} y={chart.height - 4} class="label">{formatDateTime(new Date(chart.start))}</text>
+        <text x={chart.width - 10} y={chart.height - 4} class="label end">いま</text>
+      </svg>
+    )
+  }
+  <details class="trend-help">
+    <summary>段階の決め方</summary>
+    <ul>
+      <li><b>発生</b>: 最初の報道から3時間以内で、新しく報じた媒体がまだ2つ以下</li>
+      <li><b>拡大</b>: 直近3時間に新しく報じた媒体があり、話題度が3時間前より下がっていない</li>
+      <li><b>ピーク</b>: 新しい報道は止まったが、話題度が最も高かったときの75%以上</li>
+      <li><b>減少</b>: 話題度が最も高かったときの75%より下がった</li>
+    </ul>
+    <p>推移の話題度は、その時点までの報道だけで計算しています（トピあつめで読まれた数は含めません）。</p>
+  </details>
+</div>
+
+<style>
+  .trend {
+    padding: 12px 16px 14px;
+  }
+  .life {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    counter-reset: life;
+  }
+  .life-step {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    font-weight: 700;
+    text-align: center;
+  }
+  /* 段階をつなぐ線 */
+  .life-step + .life-step::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 50%;
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+  }
+  .life-step.is-done::before,
+  .life-step.is-current::before {
+    background: color-mix(in srgb, var(--heat) 45%, var(--border));
+  }
+  .life-dot {
+    position: relative;
+    z-index: 1;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--border-strong);
+    background: var(--surface);
+  }
+  .life-step.is-done .life-dot {
+    border-color: color-mix(in srgb, var(--heat) 55%, var(--border));
+    background: color-mix(in srgb, var(--heat) 25%, var(--surface));
+  }
+  .life-step.is-current {
+    color: var(--heat);
+  }
+  .life-step.is-current .life-dot {
+    border-color: var(--heat);
+    background: var(--heat);
+    box-shadow: 0 0 0 4px var(--heat-soft);
+  }
+  .life-text {
+    margin: 12px 0 0;
+    color: var(--text-2);
+    font-size: var(--fs-small);
+    line-height: 1.7;
+  }
+  .life-text b {
+    color: var(--text);
+  }
+  .trend-chart {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    height: auto;
+    margin: 10px auto 0;
+  }
+  .trend-chart .area {
+    fill: var(--heat-soft);
+  }
+  .trend-chart .line {
+    fill: none;
+    stroke: var(--heat);
+    stroke-width: 2.2;
+    stroke-linejoin: round;
+  }
+  .trend-chart .peak {
+    fill: var(--surface);
+    stroke: var(--heat);
+    stroke-width: 2;
+  }
+  .trend-chart .grid {
+    stroke: var(--border);
+    stroke-dasharray: 3 3;
+  }
+  .trend-chart .axis {
+    stroke: var(--border-strong);
+  }
+  .trend-chart .label {
+    fill: var(--muted);
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+  }
+  .trend-chart .label.end {
+    text-anchor: end;
+  }
+  .trend-help {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    line-height: 1.7;
+  }
+  .trend-help summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .trend-help ul {
+    margin: 6px 0;
+    padding-left: 1.2em;
+  }
+  .trend-help p {
+    margin: 0;
+  }
+</style>

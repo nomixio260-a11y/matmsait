@@ -1,21 +1,44 @@
 ---
 /**
- * 話題のページ: 同じ出来事を報じた複数のメディアの記事を、報じた順に並べて比べられるようにする。
- * 話題度スコア・報じたメディアの数・初報・報道の広がり（グラフ）・AI 要約（10秒/30秒/2分）・関連する話題を載せる
+ * トピックのページ: 同じ出来事を報じた複数の媒体の記事を、ひとつのトピックとして理解できるようにする。
+ * 何が起きたか（概要・10秒/30秒/2分）→ なぜ話題か → 各媒体はどう報じたか（AI 整理、なければ見出しの比較）→
+ * いつ・どこが報じたか（タイムライン）→ どう広がったか → 話題度の推移といまの段階 → 関連するトピック・前後のニュース。
+ * 数字と文はどれも報道の状況から機械的に作り、ニュースの価値や正しさは判断しない
  */
 import type { GetStaticPaths } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import FollowCta from '../../components/FollowCta.astro';
+import HeadlineCompare from '../../components/HeadlineCompare.astro';
+import HeatTrend from '../../components/HeatTrend.astro';
+import Icon from '../../components/Icon.astro';
 import ItemList from '../../components/ItemList.astro';
+import ReportTimeline from '../../components/ReportTimeline.astro';
 import ShareButtons from '../../components/ShareButtons.astro';
+import SpreadSteps from '../../components/SpreadSteps.astro';
 import SummaryLevels from '../../components/SummaryLevels.astro';
 import TopicList from '../../components/TopicList.astro';
+import TopicNotes from '../../components/TopicNotes.astro';
 import { site } from '../../config/site.ts';
 import { builtAt, faviconUrl, formatDateTime, getCategory, getItemsByCategory, href, siteOf } from '../../lib/items.ts';
+import { mainTitle } from '../../lib/related.ts';
 import { clampDescription } from '../../lib/seo.ts';
 import { firstSentence } from '../../lib/summary-view.ts';
-import { getSummary, summaryPath } from '../../lib/summaries.ts';
-import { getTopicViews, relatedTopics, tagPath, topicPath, type TopicView } from '../../lib/topics.ts';
+import { LIFECYCLE_LABELS } from '../../lib/topic-core.ts';
+import { topicNoteFor } from '../../lib/topic-notes.ts';
+import {
+  getTopicViews,
+  momentumText,
+  relatedTopics,
+  tagPath,
+  topicLifecycle,
+  topicMomentum,
+  topicNeighbors,
+  topicOverview,
+  topicPath,
+  topicScoreBreakdown,
+  topicWhy,
+  type TopicView,
+} from '../../lib/topics.ts';
 
 export const getStaticPaths = (() => getTopicViews().map((view) => ({ params: { id: view.id }, props: { view } }))) satisfies GetStaticPaths;
 
@@ -29,57 +52,40 @@ const summary = view.summaries[0];
 const url = new URL(href(topicPath(view.id)), Astro.site).toString();
 const first = view.reports[0];
 const firstSite = siteOf(first.item);
-const reportIds = new Set(view.reports.map((report) => report.item.id));
-// すべての記事を報じた順に（同じメディアの2本目以降は「続報」）
-const timeline = [...view.items].sort((a, b) => a.publishedAt.localeCompare(b.publishedAt) || a.id.localeCompare(b.id));
-const t0 = first.time;
+const now = builtAt.getTime();
+const life = topicLifecycle(view);
+const overview = topicOverview(view);
+const why = topicWhy(view);
+const breakdown = topicScoreBreakdown(view);
+const pace = momentumText(topicMomentum(view, 3));
+const notes = topicNoteFor(view.items);
+const rising = view.growth.h3 >= 2;
+const isNew = now - first.time < 6 * 60 * 60 * 1000;
+const isLive = Date.parse(view.latestAt) > now - 24 * 60 * 60 * 1000;
+const decimal = (value: number) => (Math.round(value * 10) / 10).toString();
+const genreNames = view.categories.map((slug) => getCategory(slug)?.name ?? slug);
 
-/** 初報からの経過時間（「35分後」「2時間15分後」「1日3時間後」） */
-function offsetText(ms: number): string {
-  const minutes = Math.round(ms / 60_000);
-  if (minutes < 60) return `${minutes}分後`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  if (hours < 24) return rest > 0 ? `${hours}時間${rest}分後` : `${hours}時間後`;
-  const days = Math.floor(hours / 24);
-  return hours % 24 > 0 ? `${days}日${hours % 24}時間後` : `${days}日後`;
-}
-
-// 報道の広がりのグラフ（報じたメディアの数の累計。階段状の線）
-const chart = (() => {
-  const width = 320;
-  const height = 96;
-  const padX = 12;
-  const padTop = 14;
-  const padBottom = 18;
-  const last = Math.max(view.reports.at(-1)?.time ?? t0, t0 + 60 * 60 * 1000);
-  const span = last - t0;
-  const x = (time: number) => padX + ((time - t0) / span) * (width - padX * 2);
-  const y = (count: number) => height - padBottom - (count / view.coverage) * (height - padTop - padBottom);
-  let path = `M ${x(t0).toFixed(1)} ${y(0).toFixed(1)}`;
-  const dots = view.reports.map((report, index) => {
-    const px = x(report.time);
-    path += ` H ${px.toFixed(1)} V ${y(index + 1).toFixed(1)}`;
-    return { x: px, y: y(index + 1) };
-  });
-  path += ` H ${(width - padX).toFixed(1)}`;
-  return { width, height, path, dots, baseline: y(0), startLabel: formatDateTime(new Date(t0)), endLabel: formatDateTime(new Date(last)) };
-})();
-
-const related = relatedTopics(view, 6);
-const relatedIds = new Set([...view.items.map((item) => item.id), ...related.flatMap((topic) => topic.items.map((item) => item.id))]);
+// 関連するトピック（見出しの似ているもの・同じテーマ）。なければ同じジャンルの話題のトピックを、見出しを分けて出す
+const related = relatedTopics(view, 6, { sameGenre: false });
+const genreTopics = related.length < 3 && category ? relatedTopics(view, 5 - related.length, { similar: false }).filter((topic) => !related.includes(topic)) : [];
+const neighbors = topicNeighbors(view, 6);
+const shownIds = new Set([
+  ...view.items.map((item) => item.id),
+  ...[...related, ...genreTopics].flatMap((topic) => topic.items.map((item) => item.id)),
+  ...neighbors.map((item) => item.id),
+]);
 const latestInCategory = category
   ? getItemsByCategory(category.slug)
-      .filter((item) => !relatedIds.has(item.id))
+      .filter((item) => !shownIds.has(item.id))
       .slice(0, 5)
   : [];
 
-const shortTitle = Array.from(lead.title).length > 30 ? `${Array.from(lead.title).slice(0, 29).join('')}…` : lead.title;
-const title = `${lead.title}｜${view.coverage}媒体の報道を比較`;
-const description = clampDescription(
-  `${view.coverage}のメディアが報じたニュース。初報は${firstSite.label}（${formatDateTime(first.item.publishedAt)}）。` +
-    (summary ? firstSentence(summary.summary) : '各メディアの見出しを報じた順に並べて比べられます。'),
-);
+// 題名は見出しの要点（サイト名などを除いて40字まで）と「N媒体の報道を比較」（検索結果で、比べられるページだと分かるように）
+const headline = mainTitle(lead.title);
+const shortHeadline = Array.from(headline).length > 40 ? `${Array.from(headline).slice(0, 39).join('')}…` : headline;
+const breadcrumb = Array.from(headline).length > 30 ? `${Array.from(headline).slice(0, 29).join('')}…` : headline;
+const title = `${shortHeadline}｜${view.coverage}媒体の報道を比較`;
+const description = clampDescription(`${summary ? `${firstSentence(summary.summary)}` : ''}${overview.join('')}`);
 const home = new URL(href('/'), Astro.site).toString();
 const jsonLd = [
   {
@@ -96,17 +102,14 @@ const jsonLd = [
     ...(view.tags.length > 0 ? { keywords: view.tags.map((tag) => tag.name).join(', ') } : {}),
     mainEntity: {
       '@type': 'ItemList',
-      numberOfItems: timeline.length,
-      itemListElement: timeline.slice(0, 20).map((item, index) => ({
-        '@type': 'ListItem',
-        position: index + 1,
-        url: item.url,
-        name: item.title,
-      })),
+      numberOfItems: view.items.length,
+      itemListElement: [...view.items]
+        .sort((a, b) => a.publishedAt.localeCompare(b.publishedAt))
+        .slice(0, 20)
+        .map((item, index) => ({ '@type': 'ListItem', position: index + 1, url: item.url, name: item.title })),
     },
   },
 ];
-const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 1000;
 ---
 
 <BaseLayout
@@ -118,7 +121,8 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
   ogType="article"
   published={view.firstAt}
   modified={view.latestAt}
-  breadcrumbs={[{ name: '話題のトピック', path: '/ranking/' }, { name: shortTitle }]}
+  breadcrumbs={[{ name: '話題のトピック', path: '/ranking/' }, { name: breadcrumb }]}
+  sidebar={{ rankingWideOnly: true }}
 >
   <article
     class="stack topic-page"
@@ -129,7 +133,7 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
     data-title={lead.title}
     data-url={lead.url}
   >
-    <header class="article-head">
+    <header class="topic-head">
       <p class="kicker">
         {
           category && (
@@ -139,46 +143,88 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
             </a>
           )
         }
-        <span>{view.coverage}媒体が報道</span>
-        <span>
+        <span class:list={['state', 'state-stage', `stage-${life.stage}`]} title="トピックの段階（発生・拡大・ピーク・減少）">{LIFECYCLE_LABELS[life.stage]}</span>
+        {
+          rising && (
+            <span class="state state-rise">
+              <Icon name="rise" size={12} />
+              急上昇中
+            </span>
+          )
+        }
+        {isNew && <span class="state state-new">NEW</span>}
+        <span class="updated">
           最終更新 <time datetime={view.latestAt}>{formatDateTime(view.latestAt)}</time>
         </span>
       </p>
       <h1>{lead.title}</h1>
+      <p class="overview">{overview.join('')}</p>
+
       <dl class="scorecard">
-        <div class="score-cell">
-          <dt>話題度</dt>
+        <div class="cell cell-heat">
+          <dt>
+            <Icon name="heat" />
+            話題度<small>今どれくらい話題か</small>
+          </dt>
           <dd>
-            <b class="score-num">{view.score}</b><span class="score-max">/100</span>
-            <span class="heat-meter" style={`--s:${view.score}`} aria-hidden="true"></span>
+            <span class="value">
+              <b class="num score-num">{view.score}</b><span class="score-max">/100</span>
+              <span class="meter" style={`--s:${view.score}`} aria-hidden="true"></span>
+            </span>
+            <details class="breakdown">
+              <summary>なぜこの話題度？</summary>
+              <ul>
+                <li>報道 {breakdown.reports}件（新しさで重みづけすると {decimal(breakdown.weighted)}件。12時間ごとに半分）</li>
+                {breakdown.genres > 1 && <li>ジャンルの広がり ×{decimal(breakdown.spread)}（{breakdown.genres}ジャンル）</li>}
+                {breakdown.readsBonus > 0 && <li>トピあつめで読まれた数 +{decimal(breakdown.readsBonus)}</li>}
+              </ul>
+              <a href={href('/about/#score')}>計算のしかた</a>
+            </details>
           </dd>
         </div>
-        <div>
-          <dt>報じたメディア</dt>
+        <div class="cell">
+          <dt>
+            <Icon name="media" />
+            報じた媒体
+          </dt>
           <dd>
-            <b>{view.coverage}</b>社
-            <span class="cov-dots" style={`--n:${Math.min(view.coverage, 10)}`} aria-hidden="true"></span>
+            <span class="value">
+              <b class="num">{view.coverage}</b>媒体
+            </span>
+            <span class="cell-note">{genreNames.length > 1 ? `${genreNames.length}ジャンル（${genreNames.slice(0, 3).join('・')}）` : genreNames[0]}</span>
           </dd>
         </div>
-        <div>
-          <dt>初報</dt>
+        <div class="cell cell-rise">
+          <dt>
+            <Icon name="rise" />
+            急上昇<small>広がる速さ</small>
+          </dt>
           <dd>
-            <span class="first-source">{firstSite.label}</span>
-            <time datetime={first.item.publishedAt}>{formatDateTime(first.item.publishedAt)}</time>
+            <span class="value">
+              <b class="num">{view.growth.h3 > 0 ? `+${view.growth.h3}` : '0'}</b>媒体<span class="unit">／3時間</span>
+            </span>
+            <span class="cell-note">{view.growth.h3 > 0 ? `${pace.spread}${pace.pace ? `・${pace.pace}` : ''}` : '直近3時間に新しく報じた媒体はありません'}</span>
           </dd>
         </div>
-        <div>
-          <dt>新しく報じたメディア</dt>
-          <dd class="growth-cells">
-            <span>1時間 <b>+{view.growth.h1}</b></span>
-            <span>3時間 <b>+{view.growth.h3}</b></span>
-            <span>24時間 <b>+{view.growth.h24}</b></span>
+        <div class="cell">
+          <dt>
+            <Icon name="first" />
+            初報<small>最初に確認できた報道</small>
+          </dt>
+          <dd>
+            <span class="value first-source">
+              <img src={faviconUrl(firstSite.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+              {firstSite.label}
+            </span>
+            <span class="cell-note">
+              <time datetime={first.item.publishedAt}>{formatDateTime(first.item.publishedAt)}</time>
+            </span>
           </dd>
         </div>
       </dl>
       {
         view.tags.length > 0 && (
-          <ul class="tag-chips" aria-label="タグ">
+          <ul class="tag-chips" aria-label="テーマ">
             {view.tags.map((tag) => (
               <li>
                 <a href={href(tagPath(tag.slug))}>#{tag.name}</a>
@@ -189,92 +235,113 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
       }
     </header>
 
+    <section class="panel" aria-labelledby="why-title">
+      <div class="panel-head">
+        <h2 id="why-title">
+          <Icon name="why" class="h-icon" />
+          なぜ話題？
+        </h2>
+      </div>
+      <p class="why-text">{why}</p>
+    </section>
+
     {summary && <SummaryLevels record={summary} others={view.summaries.slice(1)} topic={view} linkSummary initial="10" />}
 
-    <section class="panel" aria-labelledby="compare-title">
+    <section class="panel" aria-labelledby="views-title">
       <div class="panel-head">
-        <h2 id="compare-title">各メディアの報道を比べる</h2>
-        <span class="note">報じた順</span>
+        <h2 id="views-title">
+          <Icon name="compare" class="h-icon" />
+          各メディアの視点
+        </h2>
+        <span class="note">{notes ? 'AIによる整理' : '見出しの比較'}</span>
       </div>
-      <ol class="report-list">
-        {
-          timeline.map((item, index) => {
-            const itemSite = siteOf(item);
-            const itemSummary = getSummary(item.id);
-            const firstOfSource = reportIds.has(item.id);
-            return (
-              <li class="report">
-                <div class="report-head">
-                  <time datetime={item.publishedAt}>{formatDateTime(item.publishedAt)}</time>
-                  {index === 0 ? (
-                    <span class="report-tag first">初報</span>
-                  ) : (
-                    <span class="report-offset">初報から{offsetText(Date.parse(item.publishedAt) - t0)}</span>
-                  )}
-                  {!firstOfSource && <span class="report-tag">続報</span>}
-                </div>
-                <a class="report-title" href={item.url} target="_blank" rel="noopener" data-aid={item.id} data-src={item.sourceId} data-cat={item.category}>
-                  {item.title}
-                </a>
-                {item.excerpt && <p class="report-excerpt">{item.excerpt}</p>}
-                <div class="report-meta">
-                  <span class="item-site">
-                    <img src={faviconUrl(itemSite.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
-                    {itemSite.source ? <a href={href(`/source/${itemSite.source.id}/`)}>{itemSite.label}</a> : itemSite.label}
-                  </span>
-                  {itemSummary && (
-                    <a class="report-summary" href={href(summaryPath(item.id))}>
-                      AI要約を読む
-                    </a>
-                  )}
-                </div>
-              </li>
-            );
-          })
-        }
-      </ol>
+      {
+        notes ? (
+          <>
+            <TopicNotes notes={notes} />
+            <details class="sub-details">
+              <summary>各媒体の見出しを比べる</summary>
+              <HeadlineCompare view={view} />
+            </details>
+          </>
+        ) : (
+          <HeadlineCompare view={view} />
+        )
+      }
     </section>
 
-    <section class="panel spread-panel" aria-labelledby="spread-title">
+    <section class="panel" aria-labelledby="timeline-title">
       <div class="panel-head">
-        <h2 id="spread-title">報道の広がり</h2>
+        <h2 id="timeline-title">
+          <Icon name="timeline" class="h-icon" />
+          報道タイムライン
+        </h2>
+        <span class="note">報じた順・{view.items.length}件</span>
+      </div>
+      <ReportTimeline view={view} />
+    </section>
+
+    <section class="panel" aria-labelledby="spread-title">
+      <div class="panel-head">
+        <h2 id="spread-title">
+          <Icon name="spread" class="h-icon is-rise" />
+          報道の広がり
+        </h2>
         <span class="note">{isLive ? '1時間ごとに更新' : `${formatDateTime(view.latestAt)}まで`}</span>
       </div>
-      <div class="spread-body">
-        <svg
-          class="spread-chart"
-          viewBox={`0 0 ${chart.width} ${chart.height}`}
-          role="img"
-          aria-label={`${chart.startLabel}に${firstSite.label}が最初に報じ、${chart.endLabel}までに${view.coverage}のメディアが報じました`}
-        >
-          <line x1="12" x2={chart.width - 12} y1={chart.baseline} y2={chart.baseline} class="axis"></line>
-          <path d={chart.path} class="line"></path>
-          {chart.dots.map((dot) => <circle cx={dot.x.toFixed(1)} cy={dot.y.toFixed(1)} r="3.2" class="dot-point" />)}
-          <text x="12" y={chart.height - 4} class="label">{chart.startLabel}</text>
-          <text x={chart.width - 12} y={chart.height - 4} class="label end">{chart.endLabel}</text>
-          <text x={chart.width - 12} y="10" class="label end">{view.coverage}社</text>
-        </svg>
-        <p class="spread-note">
-          話題度スコアは、報じたメディアの数・報道の新しさ（12時間ごとに半分に減る）・報じたメディアの分野の広がり・このサイトで読まれた数から計算しています（<a
-            href={href('/about/#score')}>計算のしかた</a
-          >）。
-        </p>
-      </div>
+      <SpreadSteps view={view} />
     </section>
 
-    <ShareButtons url={url} text={`${lead.title}（${view.coverage}媒体が報道）｜${site.name}`} />
+    <section class="panel" aria-labelledby="trend-title">
+      <div class="panel-head">
+        <h2 id="trend-title">
+          <Icon name="trend" class="h-icon is-heat" />
+          話題度の推移
+        </h2>
+        <a class="more" href={href('/about/#score')}>計算のしかた →</a>
+      </div>
+      <HeatTrend view={view} />
+    </section>
+
+    <ShareButtons url={url} text={`${shortHeadline}（${view.coverage}媒体が報道）｜${site.name}`} />
     <FollowCta text="話題になり始めたニュースを、Bluesky でいち早くお届けします。" />
 
     {
       related.length > 0 && (
         <section class="panel" aria-labelledby="related-title">
           <div class="panel-head">
-            <h2 id="related-title">関連する話題</h2>
+            <h2 id="related-title">関連するトピック</h2>
             <a class="more" href={href('/ranking/')}>
               ランキング →
             </a>
           </div>
           <TopicList topics={related} othersLimit={0} ranked={false} />
+        </section>
+      )
+    }
+
+    {
+      genreTopics.length > 0 && category && (
+        <section class="panel" aria-labelledby="genre-topics-title">
+          <div class="panel-head">
+            <h2 id="genre-topics-title">{category.name}の話題のトピック</h2>
+            <a class="more" href={href(`/category/${category.slug}/`)}>
+              {category.name} →
+            </a>
+          </div>
+          <TopicList topics={genreTopics} othersLimit={0} ranked={false} />
+        </section>
+      )
+    }
+
+    {
+      neighbors.length > 0 && (
+        <section class="panel" aria-labelledby="neighbors-title">
+          <div class="panel-head">
+            <h2 id="neighbors-title">前後のニュース</h2>
+            <span class="note">見出しの似ている記事</span>
+          </div>
+          <ItemList items={neighbors} group={false} showExcerpt={false} ads={false} />
         </section>
       )
     }
@@ -296,18 +363,18 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
 </BaseLayout>
 
 <style>
-  .article-head h1 {
-    margin: 6px 0 0;
-    font-size: 1.35rem;
+  .topic-head h1 {
+    margin: 8px 0 0;
+    font-size: var(--fs-h1, 1.35rem);
     line-height: 1.5;
   }
   .kicker {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px 14px;
+    gap: 6px 10px;
     margin: 0;
-    font-size: 0.8rem;
+    font-size: var(--fs-caption);
     color: var(--muted);
   }
   .kicker a {
@@ -321,6 +388,24 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
   .kicker a:hover {
     text-decoration: underline;
   }
+  .kicker .updated {
+    font-variant-numeric: tabular-nums;
+  }
+  .state-stage {
+    background: var(--heat-soft);
+    color: var(--heat);
+  }
+  .stage-declining {
+    background: var(--surface-2);
+    color: var(--muted);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .overview {
+    margin: 10px 0 0;
+    color: var(--text-2);
+    font-size: var(--fs-small);
+    line-height: 1.8;
+  }
   .scorecard {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -332,58 +417,98 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
   }
-  .scorecard > div {
+  .cell {
+    min-width: 0;
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--surface);
-    min-width: 0;
   }
-  .scorecard dt {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--muted);
-  }
-  .scorecard dd {
+  .cell dt {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 2px 6px;
-    margin: 2px 0 0;
-    font-size: 0.85rem;
-    color: var(--text-2);
-  }
-  .scorecard b {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-  }
-  .score-cell .score-num {
-    color: var(--hot);
-  }
-  .score-max {
+    gap: 2px 4px;
     color: var(--muted);
-    font-size: 0.75rem;
-  }
-  .scorecard .cov-dots {
-    color: var(--hot);
-  }
-  .first-source {
+    font-size: var(--fs-caption);
     font-weight: 700;
+  }
+  .cell dt small {
+    flex-basis: 100%;
+    font-size: 0.6875rem;
+    font-weight: 400;
+  }
+  .cell-heat dt :global(.icon) {
+    color: var(--heat);
+  }
+  .cell-rise dt :global(.icon) {
+    color: var(--rise);
+  }
+  .cell dd {
+    margin: 4px 0 0;
+    color: var(--text-2);
+    font-size: var(--fs-small);
+  }
+  .cell .value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 6px;
+  }
+  .cell dd b {
     color: var(--text);
+    font-size: 1.375rem;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .cell-heat .score-num {
+    color: var(--heat);
+  }
+  .cell-rise dd b {
+    color: var(--rise);
+  }
+  .score-max,
+  .unit {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .cell .meter {
+    flex-basis: 100%;
+  }
+  .cell-note {
+    display: block;
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    line-height: 1.5;
     overflow-wrap: anywhere;
   }
-  .growth-cells {
-    gap: 2px 10px !important;
+  .cell .first-source {
+    align-items: center;
+    color: var(--text);
+    font-weight: 800;
+    overflow-wrap: anywhere;
   }
-  .growth-cells span {
-    white-space: nowrap;
-    font-size: 0.78rem;
+  .first-source img {
+    border-radius: 3px;
   }
-  .growth-cells b {
-    font-size: 0.95rem !important;
-    color: var(--accent-strong) !important;
+  .breakdown {
+    margin-top: 6px;
+    font-size: var(--fs-caption);
+    color: var(--text-2);
+    line-height: 1.6;
+  }
+  .breakdown summary {
+    color: var(--accent);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .breakdown ul {
+    margin: 4px 0;
+    padding-left: 1.1em;
+  }
+  .breakdown a {
+    color: var(--accent);
   }
   .tag-chips {
     list-style: none;
@@ -399,7 +524,7 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
     border: 1px solid var(--border-strong);
     border-radius: 999px;
     color: var(--text-2);
-    font-size: 0.8rem;
+    font-size: var(--fs-caption);
     font-weight: 600;
     text-decoration: none;
   }
@@ -409,146 +534,23 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
   }
   .note {
     color: var(--muted);
-    font-size: 0.75rem;
+    font-size: var(--fs-caption);
   }
-  .report-list {
-    list-style: none;
+  .why-text {
     margin: 0;
-    padding: 0;
+    padding: 12px 16px 14px;
+    color: var(--text-2);
+    font-size: var(--fs-small);
+    line-height: 1.8;
   }
-  .report {
-    position: relative;
-    padding: 12px 16px 12px 30px;
-  }
-  .report + .report {
+  .sub-details {
     border-top: 1px solid var(--border);
   }
-  /* 報じた順の線 */
-  .report::before {
-    content: '';
-    position: absolute;
-    left: 15px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: var(--border);
-  }
-  .report::after {
-    content: '';
-    position: absolute;
-    left: 11px;
-    top: 17px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--surface);
-    border: 2px solid var(--hot);
-  }
-  .report:first-child::before {
-    top: 17px;
-  }
-  .report:last-child::before {
-    bottom: calc(100% - 22px);
-  }
-  .report-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 2px 8px;
-    font-size: 0.75rem;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .report-tag {
-    padding: 0 6px;
-    border-radius: 4px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    font-weight: 700;
-    font-size: 0.68rem;
-  }
-  .report-tag.first {
-    background: var(--hot);
-    border-color: var(--hot);
-    color: var(--on-hot);
-  }
-  .report-title {
-    display: block;
-    margin-top: 2px;
-    color: var(--text);
-    font-size: 0.95rem;
-    font-weight: 700;
-    line-height: 1.55;
-    text-decoration: none;
-  }
-  .report-title:hover {
+  .sub-details > summary {
+    padding: 12px 16px;
     color: var(--accent);
-    text-decoration: underline;
-  }
-  .report-title:visited {
-    color: var(--visited);
-  }
-  .report-excerpt {
-    margin: 4px 0 0;
-    color: var(--muted);
-    font-size: 0.8rem;
-    line-height: 1.6;
-  }
-  .report-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 2px 12px;
-    margin-top: 4px;
-    font-size: 0.75rem;
-  }
-  .report-meta a {
-    color: var(--text-2);
-  }
-  .report-summary {
-    color: var(--accent) !important;
+    font-size: var(--fs-small);
     font-weight: 700;
-  }
-  .spread-body {
-    padding: 12px 16px 14px;
-  }
-  .spread-chart {
-    display: block;
-    width: 100%;
-    max-width: 560px;
-    height: auto;
-    margin: 0 auto;
-  }
-  .spread-chart .axis {
-    stroke: var(--border-strong);
-    stroke-width: 1;
-  }
-  .spread-chart .line {
-    fill: none;
-    stroke: var(--hot);
-    stroke-width: 2.4;
-    stroke-linejoin: round;
-  }
-  .spread-chart .dot-point {
-    fill: var(--surface);
-    stroke: var(--hot);
-    stroke-width: 2;
-  }
-  .spread-chart .label {
-    fill: var(--muted);
-    font-size: 9px;
-    font-variant-numeric: tabular-nums;
-  }
-  .spread-chart .label.end {
-    text-anchor: end;
-  }
-  .spread-note {
-    margin: 10px 0 0;
-    color: var(--muted);
-    font-size: 0.75rem;
-    line-height: 1.7;
-  }
-  .spread-note a {
-    color: var(--accent);
+    cursor: pointer;
   }
 </style>

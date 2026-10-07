@@ -1,0 +1,219 @@
+---
+/**
+ * 報道の広がり: 報じた媒体の数が 1 → 2 → 3 → 5 → 10 …と増えた時刻（節目）と、ジャンルが加わった順、
+ * 媒体の数の累計のグラフ（階段状の線）
+ */
+import { formatDateTime, formatTime, siteOf } from '../lib/items.ts';
+import { durationText } from '../lib/topic-core.ts';
+import { topicGenreSpread, topicSpreadSteps, type TopicView } from '../lib/topics.ts';
+
+interface Props {
+  view: TopicView;
+}
+const { view } = Astro.props;
+const steps = topicSpreadSteps(view);
+const genres = topicGenreSpread(view);
+const t0 = view.reports[0]?.time ?? Date.parse(view.firstAt);
+/** 同じ日なら時刻だけ、違う日なら日付も */
+const sameDay = (time: number) => formatDateTime(new Date(time)).split(' ')[0] === formatDateTime(new Date(t0)).split(' ')[0];
+const when = (time: number) => (sameDay(time) ? formatTime(new Date(time).toISOString()) : formatDateTime(new Date(time)));
+const names = (list: string[]) => (list.length > 3 ? `${list.slice(0, 3).join('・')}ほか${list.length - 3}媒体` : list.join('・'));
+
+// 媒体の数の累計のグラフ（階段状の線）
+const chart = (() => {
+  const width = 320;
+  const height = 96;
+  const padX = 12;
+  const padTop = 14;
+  const padBottom = 18;
+  const last = Math.max(view.reports.at(-1)?.time ?? t0, t0 + 60 * 60 * 1000);
+  const span = last - t0;
+  const x = (time: number) => padX + ((time - t0) / span) * (width - padX * 2);
+  const y = (count: number) => height - padBottom - (count / view.coverage) * (height - padTop - padBottom);
+  let path = `M ${x(t0).toFixed(1)} ${y(0).toFixed(1)}`;
+  const dots = view.reports.map((report, index) => {
+    const px = x(report.time);
+    path += ` H ${px.toFixed(1)} V ${y(index + 1).toFixed(1)}`;
+    return { x: px, y: y(index + 1) };
+  });
+  path += ` H ${(width - padX).toFixed(1)}`;
+  return { width, height, path, dots, baseline: y(0), startLabel: formatDateTime(new Date(t0)), endLabel: formatDateTime(new Date(last)) };
+})();
+const firstSite = view.reports[0] ? siteOf(view.reports[0].item).label : '';
+---
+
+<ol class="steps">
+  {
+    steps.map((step, index) => (
+      <li class:list={['step', { 'is-first': index === 0, 'is-last': index === steps.length - 1 }]}>
+        <span class="step-count">
+          <b class="num">{step.count}</b>媒体
+        </span>
+        <span class="step-time">
+          <time datetime={new Date(step.time).toISOString()}>{index === 0 ? formatDateTime(new Date(step.time)) : when(step.time)}</time>
+          {index > 0 && <small>（初報から{durationText(Math.max(step.time - t0, 60_000))}）</small>}
+        </span>
+        <span class="step-who">
+          {index === 0 ? `${names(step.added.map((report) => siteOf(report.item).label))}（初報）` : `+${names(step.added.map((report) => siteOf(report.item).label))}`}
+        </span>
+      </li>
+    ))
+  }
+</ol>
+
+{
+  genres.length >= 2 && (
+    <p class="genres">
+      <span class="genres-label">ジャンルの広がり</span>
+      {genres.map((genre, index) => (
+        <>
+          {index > 0 && <span class="genres-arrow" aria-hidden="true">→</span>}
+          <span class="genre">
+            <span class="dot" style={`--c:${genre.color}`} />
+            {genre.name}
+            <small>{when(genre.time)}</small>
+          </span>
+        </>
+      ))}
+    </p>
+  )
+}
+
+<svg
+  class="spread-chart"
+  viewBox={`0 0 ${chart.width} ${chart.height}`}
+  role="img"
+  aria-label={`${chart.startLabel}に${firstSite}が最初に報じ、${chart.endLabel}までに${view.coverage}の媒体が報じました`}
+>
+  <line x1="12" x2={chart.width - 12} y1={chart.baseline} y2={chart.baseline} class="axis"></line>
+  <path d={chart.path} class="line"></path>
+  {chart.dots.map((dot) => <circle cx={dot.x.toFixed(1)} cy={dot.y.toFixed(1)} r="3.2" class="dot-point" />)}
+  <text x="12" y={chart.height - 4} class="label">{chart.startLabel}</text>
+  <text x={chart.width - 12} y={chart.height - 4} class="label end">{chart.endLabel}</text>
+  <text x={chart.width - 12} y="10" class="label end">{view.coverage}媒体</text>
+</svg>
+
+<style>
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 12px 16px 4px;
+    display: grid;
+    gap: 0;
+  }
+  .step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 4.2em minmax(0, 1fr);
+    column-gap: 10px;
+    padding: 0 0 12px;
+    font-size: var(--fs-small);
+  }
+  /* 節目をつなぐ線 */
+  .step:not(.is-last)::before {
+    content: '';
+    position: absolute;
+    left: 1.9em;
+    top: 26px;
+    bottom: 2px;
+    width: 2px;
+    background: color-mix(in srgb, var(--rise) 30%, var(--border));
+  }
+  .step-count {
+    grid-row: span 2;
+    align-self: start;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 1px;
+    padding: 2px 0;
+    border-radius: 999px;
+    background: var(--rise-soft);
+    color: var(--rise);
+    font-size: var(--fs-caption);
+    font-weight: 700;
+  }
+  .step-count b {
+    font-size: 1rem;
+  }
+  .step.is-first .step-count {
+    background: var(--heat-soft);
+    color: var(--heat);
+  }
+  .step-time {
+    color: var(--text-2);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .step-time small {
+    margin-left: 4px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .step-who {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .genres {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0 16px 10px;
+    font-size: var(--fs-caption);
+    color: var(--text-2);
+  }
+  .genres-label {
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .genre {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-weight: 700;
+  }
+  .genre small {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .genres-arrow {
+    color: var(--muted);
+  }
+  .spread-chart {
+    display: block;
+    width: calc(100% - 32px);
+    max-width: 560px;
+    height: auto;
+    margin: 0 16px 14px;
+  }
+  .spread-chart .axis {
+    stroke: var(--border-strong);
+    stroke-width: 1;
+  }
+  .spread-chart .line {
+    fill: none;
+    stroke: var(--rise);
+    stroke-width: 2.4;
+    stroke-linejoin: round;
+  }
+  .spread-chart .dot-point {
+    fill: var(--surface);
+    stroke: var(--rise);
+    stroke-width: 2;
+  }
+  .spread-chart .label {
+    fill: var(--muted);
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+  }
+  .spread-chart .label.end {
+    text-anchor: end;
+  }
+</style>

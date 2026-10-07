@@ -34,6 +34,8 @@ interface SocialDraft {
 }
 
 interface DashboardData extends AdminDataCommon {
+  /** AI 整理（トピック整理）の候補 */
+  topics?: { id: string; title: string; coverage: number; articles: unknown[]; noted?: unknown }[];
   notice?: Notice | null;
   picks?: (EditorPick & { article?: { title: string } })[];
   social?: SocialDraft[];
@@ -412,8 +414,18 @@ function dataTodos(data: DashboardData, now: number): Todo[] {
     todos.push({
       kind: 'info',
       text: `3媒体以上が報じたトピックで、AI要約がまだのものがあります（${hotTopics.length}件）。要約を載せると、検索や SNS から読まれやすくなります。`,
-      details: hotTopics.slice(0, 3).map((article) => `${shorten(article.title, 28)}（${article.coverage}社）`),
+      details: hotTopics.slice(0, 3).map((article) => `${shorten(article.title, 28)}（${article.coverage}媒体）`),
       link: { label: 'AI要約を作る', href: `${base}/admin/summaries/` },
+    });
+  }
+  // 多くの媒体が報じたトピックで、AI 整理（各メディアの視点）がまだのもの
+  const unnoted = (data.topics ?? []).filter((topic) => topic.coverage >= 4 && topic.articles.length >= 2 && !topic.noted);
+  if (unnoted.length > 0) {
+    todos.push({
+      kind: 'info',
+      text: `4媒体以上が報じたトピックで、AI 整理（各メディアの視点）がまだのものがあります（${unnoted.length}件）。各媒体の報じ方の違いは、このサイトにしかない内容になります。`,
+      details: unnoted.slice(0, 3).map((topic) => `${shorten(topic.title, 28)}（${topic.coverage}媒体）`),
+      link: { label: 'トピック整理', href: `${base}/admin/topics/` },
     });
   }
   if (data.counts && data.counts.summariesToday === 0) {

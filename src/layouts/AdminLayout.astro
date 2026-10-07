@@ -12,13 +12,14 @@ interface Props {
   /** ログイン中の表示（ログイン名・ログアウト）を出すか */
   showUser?: boolean;
   /** 管理画面のページの切り替えで強調するもの */
-  current?: 'overview' | 'summaries' | 'content' | 'notify' | 'analytics';
+  current?: 'overview' | 'summaries' | 'topics' | 'content' | 'notify' | 'analytics';
 }
 const { title, showUser = true, current } = Astro.props;
 /** 管理画面のページ */
 const pages = [
   { key: 'overview', name: '概要', path: '/admin/' },
   { key: 'summaries', name: 'AI要約・記事', path: '/admin/summaries/' },
+  { key: 'topics', name: 'トピック整理', path: '/admin/topics/' },
   { key: 'content', name: 'ピックアップ・お知らせ', path: '/admin/content/' },
   { key: 'notify', name: '通知', path: '/admin/notify/' },
   { key: 'analytics', name: 'アクセス解析', path: '/admin/analytics/' },

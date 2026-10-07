@@ -1,6 +1,6 @@
 /**
- * AI 要約の見せ方（10秒で読む・30秒で読む・2分で理解）。Node 専用の機能は使わない。
- * 要約のプロンプトでは「1文目で『誰が（何が）・何を・どうした』を書く」よう指示しているので、1文目をそのまま「10秒で読む」に使う
+ * AI 要約の見せ方（10秒で把握・30秒で理解・2分で深掘り）。Node 専用の機能は使わない。
+ * 要約のプロンプトでは「1文目で『誰が（何が）・何を・どうした』を書く」よう指示しているので、1文目をそのまま「10秒で把握」に使う
  */
 
 const OPEN = '「『（(【［[〈《“';
@@ -29,7 +29,7 @@ export function firstSentence(text: string, max = 120): string {
   return sentence.length > max ? `${sentence.slice(0, max - 1).join('')}…` : sentence.join('');
 }
 
-/** 1文目のあとの文（「30秒で読む」で1文目と重ねて見せないときに使う） */
+/** 1文目のあとの文（「30秒で理解」で1文目と重ねて見せないときに使う） */
 export function restSentences(text: string): string {
   const trimmed = text.trim();
   const end = sentenceEnd(trimmed);

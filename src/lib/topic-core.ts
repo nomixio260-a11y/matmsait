@@ -350,6 +350,112 @@ export function genreTemperature<T extends TopicStats>(topics: readonly T[], now
   return [...genres.values()].sort((a, b) => b.heat - a.heat || b.topics - a.topics || a.category.localeCompare(b.category));
 }
 
+// ===== トピックのページ: 話題度の推移・いまの段階・報道の広がり =====
+
+/** 話題度の推移の1点 */
+export interface HeatPoint {
+  time: number;
+  /** その時点の話題度（0〜100。その時点までの報道だけで計算し、読まれた数は含めない） */
+  score: number;
+}
+
+/** 推移の点の間隔の候補（時間）。トピックが長く続くほど間隔を広げる */
+const SERIES_STEPS = [1, 2, 3, 6, 12, 24];
+
+/**
+ * 話題度の推移: 最初の報道から now まで、一定の間隔ごとの話題度。
+ * 点が maxPoints を超えないように間隔を 1・2・3・6・12・24 時間から選ぶ（最後の点はいつも now）
+ */
+export function heatSeries(reports: readonly TopicReport[], now: number, { maxPoints = 48 }: { maxPoints?: number } = {}): HeatPoint[] {
+  const first = reports[0];
+  if (!first || now < first.time) return [];
+  const span = now - first.time;
+  const step = (SERIES_STEPS.find((hours) => span / (hours * HOUR) <= maxPoints - 1) ?? SERIES_STEPS.at(-1)!) * HOUR;
+  const points: HeatPoint[] = [];
+  for (let time = first.time; time < now; time += step) points.push({ time, score: scoreOf(heatAt(reports, time)) });
+  points.push({ time: now, score: scoreOf(heatAt(reports, now)) });
+  return points;
+}
+
+/** トピックの段階: 発生（報じられ始めた）・拡大（報じる媒体が増えている）・ピーク・減少 */
+export type LifecycleStage = 'emerging' | 'growing' | 'peak' | 'declining';
+
+export const LIFECYCLE_LABELS: Record<LifecycleStage, string> = {
+  emerging: '発生',
+  growing: '拡大',
+  peak: 'ピーク',
+  declining: '減少',
+};
+
+export interface Lifecycle {
+  stage: LifecycleStage;
+  /** いままでで最も高かった話題度と、その時刻（推移の点から） */
+  peakScore: number;
+  peakAt: number;
+  /** いまの話題度（読まれた数は含めない） */
+  current: number;
+}
+
+/** 報じられ始めてからこの時間までで、増え方がまだ小さいトピックは「発生」 */
+const EMERGING_HOURS = 3;
+/** いまの話題度がピークのこの割合以上なら「ピーク」（それより下がっていれば「減少」） */
+const PEAK_RATIO = 0.75;
+
+/**
+ * いまの段階を、報道の増え方と話題度の推移から機械的に決める。
+ * - 発生: 最初の報道から3時間以内で、新しく報じた媒体がまだ2つ以下
+ * - 拡大: 直近3時間に新しく報じた媒体があり、話題度が3時間前より下がっていない
+ * - ピーク: 新しい報道は止まったが、話題度がピークの75%以上
+ * - 減少: 話題度がピークの75%より下がった
+ */
+export function lifecycleOf(reports: readonly TopicReport[], now: number): Lifecycle {
+  const series = heatSeries(reports, now, { maxPoints: 96 });
+  let peak = series[0] ?? { time: now, score: 0 };
+  for (const point of series) if (point.score >= peak.score) peak = point;
+  const current = series.at(-1)?.score ?? 0;
+  const first = reports[0]?.time ?? now;
+  const gained = growthWithin(reports, now, 3);
+  const before = scoreOf(heatAt(reports, now - 3 * HOUR));
+  let stage: LifecycleStage;
+  if (now - first <= EMERGING_HOURS * HOUR && gained <= 2) stage = 'emerging';
+  else if (gained >= 1 && current >= before) stage = 'growing';
+  else if (current >= peak.score * PEAK_RATIO) stage = 'peak';
+  else stage = 'declining';
+  return { stage, peakScore: peak.score, peakAt: peak.time, current };
+}
+
+/** 報道の広がりの節目（1媒体 → 2媒体 → 3媒体 → 5媒体 → 10媒体 …と、いまの数） */
+export interface SpreadStep {
+  /** その時点の媒体の数 */
+  count: number;
+  /** その数になった時刻 */
+  time: number;
+  /** 前の節目のあとに報じた媒体（この節目まで） */
+  added: TopicReport[];
+}
+
+const SPREAD_MILESTONES = [1, 2, 3, 5, 10, 20, 30, 50];
+
+/** 報じた媒体の数が節目の数になった時刻を、報じた順に並べる（最後はいまの数） */
+export function spreadSteps(reports: readonly TopicReport[], milestones: readonly number[] = SPREAD_MILESTONES): SpreadStep[] {
+  const steps: SpreadStep[] = [];
+  let from = 0;
+  reports.forEach((report, index) => {
+    const count = index + 1;
+    if (!milestones.includes(count) && count !== reports.length) return;
+    steps.push({ count, time: report.time, added: reports.slice(from, count) });
+    from = count;
+  });
+  return steps;
+}
+
+/** ジャンルの広がり: 報じた媒体のジャンルが、どの順に加わったか（ジャンルごとに最初の報道の時刻） */
+export function genreSpread(reports: readonly TopicReport[]): { category: string; time: number }[] {
+  const seen = new Map<string, number>();
+  for (const { item, time } of reports) if (!seen.has(item.category)) seen.set(item.category, time);
+  return [...seen].map(([category, time]) => ({ category, time }));
+}
+
 /** 報じられ始めた話題: 最初の報道が直近 hours 時間以内で、すでに minCoverage 以上のメディアが報じた話題（新しい順） */
 export function newTopics<T extends TopicStats>(
   topics: readonly T[],

@@ -30,6 +30,9 @@
   --heat-soft: #ffe8ee;
   --rise: #6d28d9;
   --rise-soft: #f1eafe;
+  /* 報道の違い（⚠ 報道内容に差があります）。判断はしないので、赤ではなく注意の色 */
+  --warn: #9a5b00;
+  --warn-soft: #fff4e0;
   --shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.04);
   --radius: 12px;
   /* 文字の大きさの段階（補足 → 小 → 本文 → 題名 → 見出し → ページの見出し → 大きな数字） */
@@ -75,6 +78,8 @@
     --heat-soft: #3a1520;
     --rise: #b69cff;
     --rise-soft: #261a40;
+    --warn: #f5b84a;
+    --warn-soft: #33260c;
     --shadow: none;
     color-scheme: dark;
   }
@@ -104,6 +109,8 @@
   --heat-soft: #3a1520;
   --rise: #b69cff;
   --rise-soft: #261a40;
+  --warn: #f5b84a;
+  --warn-soft: #33260c;
   --shadow: none;
   color-scheme: dark;
 }

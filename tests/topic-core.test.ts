@@ -6,11 +6,14 @@ import {
   HOUR,
   analyzeTopic,
   durationText,
+  genreSpread,
   genreTemperature,
   growthWithin,
   heatAt,
   heatOf,
+  heatSeries,
   importanceOf,
+  lifecycleOf,
   momentumOf,
   newTopics,
   normalizeWord,
@@ -20,6 +23,7 @@ import {
   reportsOf,
   scoreBreakdown,
   scoreOf,
+  spreadSteps,
   topicIdOf,
   trendingWords,
   whyTrending,
@@ -154,6 +158,51 @@ describe('話題度の内訳・急上昇の勢い・なぜ話題？', () => {
     expect(whyTrending(continued, NOW, name)).toBe('この24時間で新たに2媒体が報じ、計3媒体になりました。');
     const old = analyzeTopic(cluster([item('a', 's1', 40), item('b', 's2', 30)]), NOW, { reads: 9 });
     expect(whyTrending(old, NOW, name)).toBe('2媒体が報じています。トピあつめでもよく読まれています。');
+  });
+});
+
+describe('トピックのページ: 話題度の推移・いまの段階・報道の広がり', () => {
+  it('話題度の推移は最初の報道から今まで。点が多すぎるときは間隔を広げ、最後はいつも今', () => {
+    const reports = reportsOf([item('a', 's1', 5), item('b', 's2', 3), item('c', 's3', 1)]);
+    const series = heatSeries(reports, NOW);
+    expect(series[0]).toEqual({ time: NOW - 5 * HOUR, score: scoreOf(heatAt(reports, NOW - 5 * HOUR)) });
+    expect(series.at(-1)).toEqual({ time: NOW, score: scoreOf(heatAt(reports, NOW)) });
+    // 5時間なら1時間ごと（0〜4時間後と今で6点）
+    expect(series).toHaveLength(6);
+    expect(series[1].time - series[0].time).toBe(HOUR);
+    // 4日続いたトピックは2時間ごとに広げて48点以内に収める
+    const long = heatSeries(reportsOf([item('a', 's1', 96), item('b', 's2', 1)]), NOW);
+    expect(long.length).toBeLessThanOrEqual(48);
+    expect(long[1].time - long[0].time).toBe(3 * HOUR);
+    expect(heatSeries([], NOW)).toEqual([]);
+  });
+
+  it('いまの段階: 発生・拡大・ピーク・減少', () => {
+    // 1時間前に2媒体が報じ始めた → 発生
+    expect(lifecycleOf(reportsOf([item('a', 's1', 1), item('b', 's2', 0.5)]), NOW).stage).toBe('emerging');
+    // 2時間で5媒体 → 拡大（3時間以内でも増え方が大きい）
+    expect(lifecycleOf(reportsOf([1.9, 1.5, 1, 0.5, 0.2].map((h, i) => item(`g${i}`, `s${i}`, h))), NOW).stage).toBe('growing');
+    // 10時間前に始まり、直近にも報道がある → 拡大
+    expect(lifecycleOf(reportsOf([item('a', 's1', 10), item('b', 's2', 8), item('c', 's3', 1)]), NOW).stage).toBe('growing');
+    // 4時間前までに4媒体、そのあとはない → ピーク（まだ75%以上）
+    const peak = lifecycleOf(reportsOf([5, 4.8, 4.5, 4].map((h, i) => item(`p${i}`, `s${i}`, h))), NOW);
+    expect(peak.stage).toBe('peak');
+    expect(peak.peakAt).toBe(NOW - 4 * HOUR);
+    expect(peak.current).toBeLessThan(peak.peakScore);
+    // 20時間前に4媒体が報じたきり → 減少
+    expect(lifecycleOf(reportsOf([21, 20.5, 20.2, 20].map((h, i) => item(`d${i}`, `s${i}`, h))), NOW).stage).toBe('declining');
+  });
+
+  it('報道の広がりの節目（1・2・3・5・10…と今の数）と、ジャンルが加わった順', () => {
+    const reports = reportsOf([7, 6, 5, 4, 3, 2, 1].map((h, i) => item(`r${i}`, `s${i}`, h, i < 3 ? 'game' : 'tech')));
+    const steps = spreadSteps(reports);
+    expect(steps.map((step) => step.count)).toEqual([1, 2, 3, 5, 7]);
+    expect(steps[3].added.map((report) => report.item.id)).toEqual(['r3', 'r4']);
+    expect(steps[4].time).toBe(NOW - HOUR);
+    expect(genreSpread(reports)).toEqual([
+      { category: 'game', time: NOW - 7 * HOUR },
+      { category: 'tech', time: NOW - 4 * HOUR },
+    ]);
   });
 });
 

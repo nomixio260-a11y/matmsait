@@ -1,0 +1,177 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { NOTE_LIMITS } from '../../lib/topic-notes-core.ts';
+import { href } from '../../lib/items.ts';
+---
+
+<AdminLayout title="トピック整理" current="topics">
+  <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
+  <div class="admin" data-admin data-base={href('')} hidden>
+    <div class="intro">
+      <h1>トピック整理（AI による各媒体の報じ方の整理）</h1>
+      <p>
+        同じ出来事を報じた複数の媒体の記事をチャット AI に読ませて、「共通して報じられていること」「各媒体が特に伝えていること」「報道内容の差」「背景」「AI による整理・解釈」に整理し、トピックのページの「各メディアの視点」に載せます（整理がないトピックは、見出しの機械的な比較を出しています）。費用のかかる AI API は使いません。
+      </p>
+      <ol class="guide">
+        <li>トピックを選ぶ（多くの媒体が報じた、話題度の高いものから）</li>
+        <li>「プロンプトをコピー」を押し、ウェブのページを開ける チャット AI（Claude・ChatGPT・Gemini など）に貼り付けて送る</li>
+        <li>AI の回答（<code>```json</code> から <code>```</code> まで）を貼り付けて「確かめる」</li>
+        <li>内容を確かめて「保存して公開」（サイトの更新のあと、2〜3分で反映）</li>
+      </ol>
+      <p class="note">
+        要約を禁じている掲載元の記事はプロンプトに入れません。出典はトピックの記事に限り、煽る言葉（衝撃・必見など）や URL を含む回答は受け付けません。共通の事実は出典が2つ以上の記事のものだけを載せます。
+      </p>
+      <p class="note" id="data-info" aria-live="polite">読み込んでいます…</p>
+    </div>
+
+    <section class="card" id="pick" aria-labelledby="pick-title">
+      <div class="card-head"><h2 id="pick-title">1. トピックを選ぶ</h2></div>
+      <div class="card-body">
+        <div class="controls">
+          <input type="search" id="topic-search" class="search-input" placeholder="見出しで絞り込む" aria-label="トピックを見出しで絞り込む" />
+          <label class="check"><input type="checkbox" id="only-new" checked /> まだ整理していないトピックだけ</label>
+        </div>
+        <ul class="result-list" id="topic-list" aria-live="polite"></ul>
+        <p class="note" id="topic-empty" hidden>当てはまるトピックがありません。</p>
+      </div>
+    </section>
+
+    <section class="card" id="work" aria-labelledby="work-title" hidden>
+      <div class="card-head"><h2 id="work-title">2. AI に依頼して、回答を貼り付ける</h2></div>
+      <div class="card-body">
+        <p class="pick-title" id="work-topic"></p>
+        <p class="pick-meta" id="work-meta"></p>
+        <ol class="work-articles" id="work-articles"></ol>
+        <p class="note warn" id="work-excluded" hidden></p>
+        <div class="actions">
+          <button type="button" class="primary" id="copy-prompt">プロンプトをコピー</button>
+          <span class="status" id="copy-status" aria-live="polite"></span>
+        </div>
+        <details class="prompt-box">
+          <summary>プロンプトを見る</summary>
+          <textarea id="prompt" rows="12" readonly aria-label="AI に送るプロンプト"></textarea>
+        </details>
+
+        <label class="field answer-field">
+          AI の回答
+          <textarea id="answer" rows="10" placeholder="AI の回答をそのまま貼り付けてください（```json から ``` まで）"></textarea>
+        </label>
+        <div class="actions">
+          <button type="button" id="check">確かめる</button>
+          <span class="note">
+            共通の事実{NOTE_LIMITS.common.max}個まで・報道内容の差{NOTE_LIMITS.differences.max}個まで（長い文は切り詰めます）
+          </span>
+        </div>
+        <ul class="issues" id="issues" aria-live="polite"></ul>
+        <div class="note-preview" id="preview" hidden></div>
+        <div class="actions">
+          <button type="button" class="primary" id="save" disabled>保存して公開</button>
+          <button type="button" class="danger" id="remove" hidden>このトピックの整理を消す</button>
+        </div>
+        <p class="status" id="save-status" aria-live="polite"></p>
+      </div>
+    </section>
+  </div>
+</AdminLayout>
+
+<script>
+  import '../../scripts/admin-topics.ts';
+</script>
+
+<style>
+  .guide {
+    margin: 8px 0;
+    padding-left: 1.4em;
+    font-size: 0.85rem;
+    line-height: 1.8;
+  }
+  .search-input {
+    flex: 1;
+    min-width: 200px;
+  }
+  .result-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    max-height: 480px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .result-list:empty {
+    display: none;
+  }
+  :global(.result-list li) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+  :global(.result-list li + li) {
+    border-top: 1px solid var(--border);
+  }
+  :global(.result-list li.is-selected) {
+    background: var(--accent-soft);
+  }
+  :global(.result-list .result-text) {
+    flex: 1;
+    min-width: 0;
+  }
+  .work-articles {
+    margin: 8px 0;
+    padding-left: 1.4em;
+    font-size: 0.85rem;
+    line-height: 1.7;
+  }
+  .prompt-box {
+    margin-top: 8px;
+  }
+  .prompt-box summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .prompt-box textarea {
+    margin-top: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+  }
+  .answer-field {
+    margin-top: 16px;
+  }
+  .issues {
+    margin: 8px 0 0;
+    padding-left: 1.4em;
+    color: var(--text-2);
+    font-size: 0.85rem;
+    line-height: 1.7;
+  }
+  .issues:empty {
+    display: none;
+  }
+  .note-preview {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    line-height: 1.75;
+  }
+  :global(.note-preview h3) {
+    margin: 12px 0 4px;
+    font-size: 0.85rem;
+  }
+  :global(.note-preview h3:first-child) {
+    margin-top: 0;
+  }
+  :global(.note-preview ul) {
+    margin: 0;
+    padding-left: 1.2em;
+  }
+  :global(.note-preview .cite) {
+    margin-left: 6px;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+</style>
