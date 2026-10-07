@@ -262,3 +262,153 @@ export function suggestKeywords(
     .slice(0, limit)
     .map((entry) => entry.label);
 }
+
+// ===== 言葉での検索（「今日 急上昇 AI」のような入力を、期間・並べ方・ジャンルの条件と検索語に分ける） =====
+
+export type QueryKind = 'rising' | 'hot' | 'new';
+
+export interface QueryCondition {
+  /** 入力された言葉 */
+  word: string;
+  /** どう読んだか（「24時間以内」など） */
+  meaning: string;
+}
+
+export interface InterpretedQuery {
+  /** 検索語として残った言葉（表示用と正規化したもの） */
+  words: string[];
+  terms: string[];
+  /** 条件として読んだもの */
+  days?: number;
+  kind?: QueryKind;
+  category?: string;
+  summaryOnly?: boolean;
+  conditions: QueryCondition[];
+}
+
+const PERIOD_WORDS: [RegExp, number, string][] = [
+  [/^(今日|きょう|本日|24時間|二十四時間)$/, 1, '24時間以内'],
+  [/^(昨日|きのう)$/, 2, '48時間以内'],
+  [/^(3日|三日|3日間)$/, 3, '3日以内'],
+  [/^(今週|1週間|一週間|7日|7日間|最近|この1週間)$/, 7, '1週間以内'],
+];
+
+const KIND_WORDS: [RegExp, QueryKind, string][] = [
+  [/^(急上昇|急増|伸びている|拡大中|広がっている)$/, 'rising', '報じる媒体が増えているトピックを先に'],
+  [/^(話題|人気|注目|話題の|ホット|ランキング)$/, 'hot', '話題度の高い順'],
+  [/^(新着|最新|新しい|速報)$/, 'new', '新しい順'],
+];
+
+/**
+ * 入力を、期間（今日・今週…）・並べ方（急上昇・話題・新着）・ジャンル（ジャンル名）・AI 要約の有無の条件と、検索語に分ける。
+ * 条件の言葉だけのときは、検索語なしで条件だけで探す
+ */
+export function interpretQuery(query: string, categories: readonly { slug: string; name: string }[] = []): InterpretedQuery {
+  const { words } = parseQuery(query);
+  const result: InterpretedQuery = { words: [], terms: [], conditions: [] };
+  // ジャンルの名前（「ゲーム・アニメ」は「ゲーム」「アニメ」でも当てはめる）
+  const categoryAliases = new Map<string, { slug: string; name: string }>();
+  for (const category of categories) {
+    for (const alias of [category.name, ...category.name.split('・'), category.slug]) categoryAliases.set(normalizeText(alias), category);
+  }
+  for (const word of words) {
+    const key = normalizeText(word);
+    const period = PERIOD_WORDS.find(([pattern]) => pattern.test(word));
+    if (period && result.days === undefined) {
+      result.days = period[1];
+      result.conditions.push({ word, meaning: period[2] });
+      continue;
+    }
+    const kind = KIND_WORDS.find(([pattern]) => pattern.test(word));
+    if (kind && result.kind === undefined) {
+      result.kind = kind[1];
+      result.conditions.push({ word, meaning: kind[2] });
+      continue;
+    }
+    const category = categoryAliases.get(key);
+    // ジャンル名は、ほかに検索語があるときもジャンルの条件として読む（「AI テクノロジー」）
+    if (category && result.category === undefined) {
+      result.category = category.slug;
+      result.conditions.push({ word, meaning: `ジャンル「${category.name}」` });
+      continue;
+    }
+    if (/^(ai要約|要約|要約あり)$/.test(key) && !result.summaryOnly) {
+      result.summaryOnly = true;
+      result.conditions.push({ word, meaning: 'AI 要約のある記事' });
+      continue;
+    }
+    result.words.push(word);
+    result.terms.push(key);
+  }
+  return result;
+}
+
+/** search-topics.json のトピック（キーを短くしている） */
+export interface TopicEntry {
+  /** トピックの ID（最初の記事の ID） */
+  i: string;
+  /** 見出し */
+  t: string;
+  /** トピックのすべての記事の見出し（正規化して空白でつないだもの） */
+  w: string;
+  /** 報じた媒体の数 */
+  v: number;
+  /** 話題度 */
+  sc: number;
+  /** 直近3時間に新しく報じた媒体の数 */
+  g: number;
+  /** 最後に報じられた日時 */
+  d: string;
+  /** ジャンル */
+  c: string;
+}
+
+/** search-topics.json のキーワード */
+export interface WordEntry {
+  /** 言葉 */
+  w: string;
+  /** ページの URL の言葉の部分 */
+  s: string;
+  /** 直近の記事の数 */
+  n: number;
+}
+
+/** 条件と検索語に合うトピック（検索語はすべて、どれかの記事の見出しに含まれること） */
+export function rankTopics(topics: readonly TopicEntry[], query: InterpretedQuery, now: number): TopicEntry[] {
+  const cutoff = query.days ? now - query.days * DAY : -Infinity;
+  const matched = topics.filter(
+    (topic) =>
+      Date.parse(topic.d) >= cutoff &&
+      (!query.category || topic.c === query.category) &&
+      query.terms.every((term) => topic.w.includes(term)) &&
+      (query.kind !== 'rising' || topic.g >= 1),
+  );
+  const sorter: Record<QueryKind, (a: TopicEntry, b: TopicEntry) => number> = {
+    rising: (a, b) => b.g - a.g || b.sc - a.sc,
+    hot: (a, b) => b.sc - a.sc || b.v - a.v,
+    new: (a, b) => b.d.localeCompare(a.d),
+  };
+  return [...matched].sort(sorter[query.kind ?? 'hot']);
+}
+
+/** 検索語に合うキーワードのページ（言葉が検索語を含むか、検索語が言葉を含む。記事の多い順） */
+export function matchWords(words: readonly WordEntry[], terms: readonly string[], limit = 8): WordEntry[] {
+  if (terms.length === 0) return [];
+  return words
+    .filter((entry) => {
+      const key = normalizeText(entry.w);
+      return terms.some((term) => term.length >= 2 && (key.includes(term) || (key.length >= 2 && term.includes(key))));
+    })
+    .sort((a, b) => b.n - a.n)
+    .slice(0, limit);
+}
+
+/** 記事がどこで一致したか（「見出しに一致」などの表示に使う） */
+export function matchPlace(entry: SearchEntry, terms: readonly string[]): 'title' | 'keywords' | 'summary' | 'excerpt' | 'site' | undefined {
+  if (terms.length === 0) return undefined;
+  const { title, keywords, body, site } = prepare(entry);
+  if (terms.every((term) => title.includes(term))) return 'title';
+  if (terms.every((term) => title.includes(term) || keywords.includes(term))) return 'keywords';
+  if (terms.every((term) => title.includes(term) || keywords.includes(term) || body.includes(term))) return entry.m ? 'summary' : 'excerpt';
+  return 'site';
+}

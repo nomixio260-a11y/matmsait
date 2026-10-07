@@ -9,6 +9,8 @@ import { getPopular } from './popular.ts';
 import { buildRelatedIndex, clusterTopics, type RelatedIndex, type TopicCluster } from './related.ts';
 import { getSummaries, getSummary } from './summaries.ts';
 import { tagsOf } from './tag-core.ts';
+import { getTopicOverrides } from './topic-overrides.ts';
+import { overrideLinks } from './topic-overrides-core.ts';
 import {
   HOUR,
   LIFECYCLE_LABELS,
@@ -58,7 +60,11 @@ export function getRelatedIndex(): RelatedIndex {
 export function getTopics(): TopicCluster[] {
   if (!topics) {
     const cutoff = builtAt.getTime() - TOPIC_DAYS * 24 * HOUR;
-    topics = clusterTopics(getItems().filter((item) => Date.parse(item.publishedAt) >= cutoff));
+    // 運営者の統合・分割（管理画面の「トピック整理」）を反映する
+    topics = clusterTopics(
+      getItems().filter((item) => Date.parse(item.publishedAt) >= cutoff),
+      overrideLinks(getTopicOverrides()),
+    );
     topicById = new Map(topics.flatMap((topic) => topic.items.map((item) => [item.id, topic] as const)));
   }
   return topics;

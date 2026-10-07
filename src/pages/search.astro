@@ -9,14 +9,16 @@ const sourceHosts = JSON.stringify(Object.fromEntries(getSources().map((source) 
 const base = href('');
 ---
 
-<BaseLayout title="記事を検索" description="掲載している記事とAI要約をキーワードで検索できます。" noindex breadcrumbs={[{ name: '検索' }]}>
+<BaseLayout title="トピック・記事を検索" description="トピック（同じ出来事の報道のまとまり）・キーワード・記事とAI要約を検索できます。" noindex breadcrumbs={[{ name: '検索' }]}>
   <div class="page-head">
-    <h1>記事を検索</h1>
-    <p>見出し・AI要約・抜粋・掲載元から探せます。スペースで区切ると、すべての言葉を含む記事に絞り込みます。</p>
+    <h1>トピック・記事を検索</h1>
+    <p>
+      トピック・キーワード・記事（見出し・AI要約・抜粋・掲載元）から探せます。スペースで区切ると、すべての言葉を含むものに絞り込みます。「今日 急上昇 AI」のように、期間（今日・今週）・並べ方（急上昇・話題・新着）・ジャンルの名前も一緒に入力できます。
+    </p>
   </div>
 
   <form id="search-form" class="search-box" role="search" aria-label="記事検索" action={href('/search/')} method="get">
-    <input id="q" type="search" name="q" placeholder="キーワードを入力（例: AI、大谷翔平）" aria-label="検索キーワード" autocomplete="off" />
+    <input id="q" type="search" name="q" placeholder="例: 大谷翔平、今日 急上昇 AI" aria-label="検索キーワード" autocomplete="off" />
     <button type="submit">検索</button>
   </form>
 
@@ -51,11 +53,24 @@ const base = href('');
   </div>
 
   <section id="suggest" class="suggest" hidden aria-labelledby="suggest-title">
-    <h2 id="suggest-title">いま多くの見出しに出ている言葉</h2>
+    <h2 id="suggest-title">よく出てくるキーワード</h2>
     <ul id="suggest-list"></ul>
   </section>
 
   <p id="search-status" class="search-status" aria-live="polite"></p>
+  <p id="search-conditions" class="search-conditions" hidden></p>
+  <section id="topic-results" class="panel topic-results" hidden aria-labelledby="topic-results-title">
+    <div class="panel-head">
+      <h2 id="topic-results-title">トピック</h2>
+      <span class="note" id="topic-count"></span>
+    </div>
+    <ol id="topic-list" class="search-topics"></ol>
+  </section>
+  <section id="word-results" class="word-results" hidden aria-labelledby="word-results-title">
+    <h2 id="word-results-title">キーワード</h2>
+    <ul id="word-list"></ul>
+  </section>
+  <h2 id="article-title" class="article-title" hidden>記事</h2>
   <p id="search-follow" class="search-follow" hidden>
     <button type="button" class="follow-btn" id="follow-query" data-on="false">
       <span class="icon-off" aria-hidden="true">＋</span><span class="icon-on" aria-hidden="true">✓</span>
@@ -70,7 +85,17 @@ const base = href('');
 </BaseLayout>
 
 <script>
-  import { highlightParts, parseQuery, rankEntries, suggestKeywords, type SearchEntry } from '../lib/search-core.ts';
+  import {
+    highlightParts,
+    interpretQuery,
+    matchPlace,
+    matchWords,
+    rankEntries,
+    rankTopics,
+    type SearchEntry,
+    type TopicEntry,
+    type WordEntry,
+  } from '../lib/search-core.ts';
   import { moreButton as itemMenuButton, syncFollowButtons } from '../scripts/personal.ts';
 
   interface CategoryData {
@@ -108,6 +133,40 @@ const base = href('');
     minute: '2-digit',
   });
 
+  const conditionsLine = document.querySelector<HTMLElement>('#search-conditions')!;
+  const topicResults = document.querySelector<HTMLElement>('#topic-results')!;
+  const topicList = document.querySelector<HTMLOListElement>('#topic-list')!;
+  const topicCount = document.querySelector<HTMLElement>('#topic-count')!;
+  const wordResults = document.querySelector<HTMLElement>('#word-results')!;
+  const wordList = document.querySelector<HTMLUListElement>('#word-list')!;
+  const articleTitle = document.querySelector<HTMLElement>('#article-title')!;
+  const categoryList = [...categoryBySlug.values()];
+  const TOPICS_SHOWN = 5;
+  const PLACE_LABELS = { title: '見出しに一致', keywords: 'AI要約のキーワードに一致', summary: 'AI要約に一致', excerpt: '抜粋に一致', site: '掲載元に一致' } as const;
+
+  // トピックとキーワードの小さな索引（ページを開いたらすぐ読む）
+  let topicsPromise: Promise<{ topics: TopicEntry[]; words: WordEntry[] }> | undefined;
+  function loadTopics(): Promise<{ topics: TopicEntry[]; words: WordEntry[] }> {
+    topicsPromise ??= fetch(`${base}/search-topics.json`).then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<{ topics: TopicEntry[]; words: WordEntry[] }>;
+    });
+    topicsPromise.catch(() => (topicsPromise = undefined));
+    return topicsPromise;
+  }
+
+  function renderTopic(topic: TopicEntry): HTMLLIElement {
+    const li = el('li');
+    const link = el('a', 'search-topic-title', topic.t);
+    link.href = `${base}/topic/${topic.i}/`;
+    const meta = el('p', 'search-topic-meta');
+    meta.append(el('span', 'heat', `話題度 ${topic.sc}`), el('span', undefined, `${topic.v}媒体が報道`));
+    if (topic.g > 0) meta.append(el('span', 'rise', `3時間で+${topic.g}媒体`));
+    meta.append(el('span', undefined, dateFormat.format(new Date(topic.d))));
+    li.append(link, meta);
+    return li;
+  }
+
   let indexPromise: Promise<SearchEntry[]> | undefined;
   function loadIndex(): Promise<SearchEntry[]> {
     indexPromise ??= fetch(`${base}/search-index.json`).then((res) => {
@@ -133,6 +192,7 @@ const base = href('');
   }
 
   function renderRow(entry: SearchEntry, terms: string[]): HTMLLIElement {
+    const place = matchPlace(entry, terms);
     const li = el('li', 'item');
     // 記事のメニュー（…）と「表示しない設定」に使う
     li.dataset.id = entry.i;
@@ -207,6 +267,7 @@ const base = href('');
       original.rel = 'noopener';
       meta.append(original);
     }
+    if (place) meta.append(el('span', 'match-place', PLACE_LABELS[place]));
     if (sourceId) meta.append(itemMenuButton());
     li.append(meta);
     return li;
@@ -226,8 +287,12 @@ const base = href('');
 
   async function showSuggestions() {
     try {
-      const index = await loadIndex();
-      const keywords = suggestKeywords(index, Date.now(), { minSources: 2 });
+      // 候補は小さな索引のキーワード（記事の多い順）から出す。大きな記事の索引は検索したときに読む
+      const { words: wordIndex } = await loadTopics();
+      const keywords = [...wordIndex]
+        .sort((a, b) => b.n - a.n)
+        .slice(0, 12)
+        .map((entry) => entry.w);
       suggestList.replaceChildren(
         ...keywords.map((keyword) => {
           const li = el('li');
@@ -253,18 +318,55 @@ const base = href('');
   async function search() {
     const current = ++sequence;
     const query = input.value;
-    const { words, terms } = parseQuery(query);
-    const filtered = Boolean(fCategory.value || fPeriod.value || fSummary.checked);
-    suggest.hidden = words.length > 0 || suggestList.children.length === 0;
+    // 「今日 急上昇 AI」のような入力を、条件（期間・並べ方・ジャンル・AI 要約）と検索語に分ける。絞り込みの欄で選んだ条件のほうを優先する
+    const interpreted = interpretQuery(query, categoryList);
+    const { words, terms } = interpreted;
+    const category = fCategory.value || interpreted.category;
+    const days = fPeriod.value ? Number(fPeriod.value) : interpreted.days;
+    const summaryOnly = fSummary.checked || Boolean(interpreted.summaryOnly);
+    const filtered = Boolean(category || days || summaryOnly || interpreted.kind);
+    suggest.hidden = query.trim() !== '' || suggestList.children.length === 0;
     if (words.length === 0) followWrap.hidden = true;
+    conditionsLine.hidden = interpreted.conditions.length === 0;
+    conditionsLine.replaceChildren(
+      el('span', 'conditions-label', '条件として読んだ言葉:'),
+      ...interpreted.conditions.map((condition) => el('span', 'condition', `「${condition.word}」→ ${condition.meaning}`)),
+    );
     if (words.length === 0 && !filtered) {
       list.replaceChildren();
       panel.hidden = true;
       moreWrap.hidden = true;
+      topicResults.hidden = true;
+      wordResults.hidden = true;
+      articleTitle.hidden = true;
       status.textContent = 'キーワードを入力するか、絞り込みの条件を選んでください。';
       return;
     }
     status.textContent = '検索しています…';
+    // トピックとキーワード（小さな索引なので先に出す）
+    try {
+      const { topics, words: wordIndex } = await loadTopics();
+      if (current !== sequence) return;
+      const topicHits = rankTopics(topics, { ...interpreted, category, days }, Date.now());
+      topicList.replaceChildren(...topicHits.slice(0, TOPICS_SHOWN).map(renderTopic));
+      topicCount.textContent = topicHits.length > TOPICS_SHOWN ? `${topicHits.length}件中${TOPICS_SHOWN}件` : `${topicHits.length}件`;
+      topicResults.hidden = topicHits.length === 0;
+      const wordHits = matchWords(wordIndex, terms);
+      wordList.replaceChildren(
+        ...wordHits.map((entry) => {
+          const li = el('li');
+          const a = el('a', undefined, entry.w);
+          a.href = `${base}/word/${encodeURIComponent(entry.s)}/`;
+          a.append(el('small', undefined, `${entry.n}件`));
+          li.append(a);
+          return li;
+        }),
+      );
+      wordResults.hidden = wordHits.length === 0;
+    } catch {
+      topicResults.hidden = true;
+      wordResults.hidden = true;
+    }
     let index: SearchEntry[];
     try {
       index = await loadIndex();
@@ -276,15 +378,18 @@ const base = href('');
 
     const hits = rankEntries(index, terms, {
       now: Date.now(),
-      category: fCategory.value || undefined,
-      days: fPeriod.value ? Number(fPeriod.value) : undefined,
-      summaryOnly: fSummary.checked,
-      sort: fSort.value === 'new' ? 'new' : 'relevance',
+      category: category || undefined,
+      days,
+      summaryOnly,
+      sort: fSort.value === 'new' || interpreted.kind === 'new' ? 'new' : 'relevance',
     });
-    const label = words.length > 0 ? `「${words.join(' ')}」の検索結果` : '絞り込みの結果';
+    const label = query.trim() ? `「${query.trim()}」の検索結果` : '絞り込みの結果';
+    const topicTotal = topicResults.hidden ? 0 : topicList.children.length;
     // アクセス解析に検索した言葉と件数を知らせる（よく検索される言葉・見つからなかった言葉の把握に使う）
-    if (words.length > 0) document.dispatchEvent(new CustomEvent('tp:search', { detail: { q: words.join(' '), n: hits.length } }));
-    status.textContent = hits.length === 0 ? `${label}: 一致する記事は見つかりませんでした。` : `${label}: ${hits.length}件`;
+    if (query.trim()) document.dispatchEvent(new CustomEvent('tp:search', { detail: { q: query.trim(), n: hits.length } }));
+    status.textContent =
+      hits.length === 0 && topicTotal === 0 ? `${label}: 一致するトピック・記事は見つかりませんでした。` : `${label}: 記事${hits.length}件${topicTotal > 0 ? `（トピックは上に）` : ''}`;
+    articleTitle.hidden = hits.length === 0;
     syncFollowQuery(words);
     list.replaceChildren(...hits.slice(0, shown).map((entry) => renderRow(entry, terms)));
     panel.hidden = hits.length === 0;
@@ -336,6 +441,7 @@ const base = href('');
   fSort.value = params.get('s') ?? '';
   fSummary.checked = params.get('m') === '1';
   if (!input.value) input.focus();
+  void loadTopics().catch(() => undefined);
   void showSuggestions();
   void search();
 </script>
@@ -455,6 +561,108 @@ const base = href('');
   .more-wrap {
     margin: 14px 0 0;
     text-align: center;
+  }
+  .search-conditions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: -4px 0 12px;
+    font-size: var(--fs-caption);
+  }
+  .search-conditions[hidden] {
+    display: none;
+  }
+  :global(.search-conditions .conditions-label) {
+    color: var(--muted);
+  }
+  :global(.search-conditions .condition) {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--rise-soft);
+    color: var(--rise);
+    font-weight: 700;
+  }
+  .topic-results {
+    margin-bottom: 14px;
+  }
+  .note {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .search-topics {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  :global(.search-topics li) {
+    padding: 10px 16px;
+  }
+  :global(.search-topics li + li) {
+    border-top: 1px solid var(--border);
+  }
+  :global(.search-topic-title) {
+    color: var(--text);
+    font-weight: 700;
+    line-height: 1.55;
+    text-decoration: none;
+  }
+  :global(.search-topic-title:hover) {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  :global(.search-topic-meta) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  :global(.search-topic-meta .heat) {
+    color: var(--heat);
+    font-weight: 700;
+  }
+  :global(.search-topic-meta .rise) {
+    color: var(--rise);
+    font-weight: 700;
+  }
+  .word-results {
+    margin: 0 0 14px;
+  }
+  .word-results h2,
+  .article-title {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+  }
+  .word-results ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+  }
+  :global(.word-results a) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: var(--fs-small);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  :global(.word-results small) {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  :global(.match-place) {
+    color: var(--muted);
+    font-size: 0.6875rem;
   }
   :global(.items mark) {
     background: var(--mark);

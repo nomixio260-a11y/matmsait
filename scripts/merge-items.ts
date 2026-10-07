@@ -3,6 +3,8 @@
 import { resolve } from 'node:path';
 import { loadSources } from '../src/lib/sources.ts';
 import { getSummary } from '../src/lib/summaries.ts';
+import { getTopicOverrides } from '../src/lib/topic-overrides.ts';
+import { overrideLinks } from '../src/lib/topic-overrides-core.ts';
 import { updateDailySnapshots } from './lib/daily.ts';
 import { mergeItems, pruneItems, readItemsFile, withSourceSettings, writeItemsFile } from './lib/store.ts';
 
@@ -27,5 +29,5 @@ const other = readItemsFile(otherPath).filter((item) => known(item.sourceId));
 const hasSummary = (id: string) => Boolean(getSummary(id));
 const merged = pruneItems(withSourceSettings(mergeItems(current, other, isAggregator, hasSummary), sources), { now });
 writeItemsFile(ITEMS_PATH, merged);
-const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep: (item) => known(item.sourceId), hasSummary });
+const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep: (item) => known(item.sourceId), hasSummary, links: overrideLinks(getTopicOverrides()) });
 console.log(`マージ後 ${merged.length} 件（日別まとめを更新: ${days.join(', ') || 'なし'}）`);

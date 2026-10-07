@@ -58,7 +58,7 @@ const fresh = getNewTopics({ hours: 6, limit: 8 });
               <Icon name="word" class="h-icon" />
               注目ワード
             </h2>
-            <span class="note">24時間</span>
+            <a class="more" href={href('/words/')}>キーワード一覧 →</a>
           </div>
           <p class="definition">24時間の見出しに、それまでの6日間より急に増えた言葉（×はふだんの何倍か、「新」はふだんほとんど出てこない言葉）。</p>
           <TrendWords words={words} />

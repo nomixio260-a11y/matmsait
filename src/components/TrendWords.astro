@@ -1,9 +1,10 @@
 ---
-/** 注目ワード（直近24時間の見出しに急に増えた言葉）。押すとサイト内検索、タグのある言葉はタグのページへ */
+/** 注目ワード（直近24時間の見出しに急に増えた言葉）。押すとキーワードのページ（なければサイト内検索）、タグの言葉はタグのページへ */
 import { tags } from '../config/tags.ts';
 import { href } from '../lib/items.ts';
 import { normalizeWord, type TrendWord } from '../lib/topic-core.ts';
 import { paceText, tagPath } from '../lib/topics.ts';
+import { wordHref } from '../lib/words.ts';
 
 interface Props {
   words: TrendWord[];
@@ -17,7 +18,7 @@ const tagByWord = new Map(tags.flatMap((tag) => [tag.name, ...tag.words].map((wo
   {
     words.map((word, index) => {
       const tag = tagByWord.get(normalizeWord(word.word));
-      const link = tag ? href(tagPath(tag)) : `${href('/search/')}?q=${encodeURIComponent(word.word)}`;
+      const link = href(tag ? tagPath(tag) : wordHref(word.word));
       return (
         <li>
           <a

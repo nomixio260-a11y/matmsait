@@ -71,6 +71,24 @@ import { href } from '../../lib/items.ts';
         <p class="status" id="save-status" aria-live="polite"></p>
       </div>
     </section>
+
+    <section class="card" id="fix" aria-labelledby="fix-title" hidden>
+      <div class="card-head"><h2 id="fix-title">3. まとめ方を直す（分割・統合）</h2></div>
+      <div class="card-body">
+        <p class="note">
+          トピックは見出しの似かたで機械的にまとめているので、別の出来事の記事が混ざったり、同じ出来事なのに分かれたりすることがあります。直すと、次のサイトの更新（2〜3分）から反映されます（トピックの最初の記事が変わると、ページの URL も変わります）。
+        </p>
+        <h3 class="sub">このトピックの記事（別の出来事の記事は「外す」）</h3>
+        <ol class="fix-items" id="fix-items"></ol>
+        <h3 class="sub">ほかのトピックとまとめる（同じ出来事なのに分かれているとき）</h3>
+        <input type="search" id="merge-search" class="search-input" placeholder="まとめるトピックを見出しで探す" aria-label="まとめるトピックを見出しで探す" />
+        <ul class="result-list" id="merge-results" aria-live="polite"></ul>
+        <p class="status" id="fix-status" aria-live="polite"></p>
+        <h3 class="sub">これまでの手直し</h3>
+        <ul class="fix-log" id="fix-log"></ul>
+        <p class="note" id="fix-empty">まだありません。</p>
+      </div>
+    </section>
   </div>
 </AdminLayout>
 
@@ -149,6 +167,36 @@ import { href } from '../../lib/items.ts';
   }
   .issues:empty {
     display: none;
+  }
+  .sub {
+    margin: 16px 0 6px;
+    font-size: 0.85rem;
+  }
+  .fix-items,
+  .fix-log {
+    margin: 0;
+    padding-left: 1.4em;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  :global(.fix-items li),
+  :global(.fix-log li) {
+    padding: 6px 0;
+  }
+  :global(.fix-items li + li),
+  :global(.fix-log li + li) {
+    border-top: 1px solid var(--border);
+  }
+  :global(.fix-items .fix-row),
+  :global(.fix-log .fix-row) {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  :global(.fix-items .fix-text),
+  :global(.fix-log .fix-text) {
+    flex: 1;
+    min-width: 0;
   }
   .note-preview {
     margin-top: 12px;

@@ -1,0 +1,121 @@
+---
+/** キーワード一覧: キーワードのページ（人物・企業・製品・テーマ）を、いま増えている言葉とよく出てくる言葉で並べる */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import { builtAt, formatDateTime, href } from '../lib/items.ts';
+import { paceText } from '../lib/topics.ts';
+import { getWordViews, wordPath, type WordView } from '../lib/words.ts';
+
+const views = getWordViews();
+// いま増えている言葉: 24時間に2件以上で、ふだんの2倍以上（ふだん出てこない言葉を含む）
+const rising = views
+  .filter((view) => view.today >= 2 && (view.baseline === 0 || view.today / view.baseline >= 2))
+  .sort((a, b) => b.today / (b.baseline + 1) - a.today / (a.baseline + 1) || b.today - a.today)
+  .slice(0, 30);
+const frequent = [...views].sort((a, b) => b.items.length - a.items.length).slice(0, 120);
+const paceOf = (view: WordView) => (view.baseline > 0 ? `×${paceText(view.today / view.baseline).replace('倍', '')}` : '新');
+---
+
+<BaseLayout
+  title="キーワード一覧（人物・企業・製品・テーマ）"
+  description="ニュースの見出しによく出てくる人物・企業・製品・テーマの言葉の一覧です。言葉ごとに、トピック・7日間の記事の数の推移・一緒に出てくる言葉・新着を見られます。"
+  current="trends"
+  breadcrumbs={[{ name: 'キーワード' }]}
+>
+  <div class="page-head">
+    <h1>キーワード一覧</h1>
+    <p>
+      直近の見出しに出てくる人物・企業・製品・テーマの言葉です（AI 要約のキーワードとテーマの言葉から、複数の媒体の見出しに出てくるものを選んでいます。{formatDateTime(builtAt)}時点）。言葉を押すと、その言葉のトピックや記事の数の推移が見られます。
+    </p>
+  </div>
+  <div class="stack">
+    {
+      rising.length > 0 && (
+        <section class="panel" aria-labelledby="rising-title">
+          <div class="panel-head">
+            <h2 id="rising-title">
+              <Icon name="rise" class="h-icon is-rise" />
+              いま増えている言葉
+            </h2>
+            <span class="note">24時間の件数（×はふだんの何倍か）</span>
+          </div>
+          <ul class="word-list">
+            {rising.map((view) => (
+              <li>
+                <a href={href(wordPath(view.slug))}>
+                  <span class="word">{view.word}</span>
+                  <span class="count num">{view.today}件</span>
+                  <span class="pace">{paceOf(view)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+    <section class="panel" aria-labelledby="frequent-title">
+      <div class="panel-head">
+        <h2 id="frequent-title">
+          <Icon name="word" class="h-icon" />
+          よく出てくる言葉
+        </h2>
+        <span class="note">直近8日間の記事の数</span>
+      </div>
+      <ul class="word-list">
+        {
+          frequent.map((view) => (
+            <li>
+              <a href={href(wordPath(view.slug))}>
+                <span class="word">{view.word}</span>
+                <span class="count num">{view.items.length}件</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .note {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .word-list {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 12px 16px 14px;
+  }
+  .word-list a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .word-list a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .word {
+    font-size: var(--fs-small);
+    font-weight: 700;
+  }
+  .count {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .pace {
+    color: var(--rise);
+    font-size: var(--fs-caption);
+    font-weight: 700;
+  }
+</style>

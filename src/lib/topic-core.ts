@@ -565,6 +565,24 @@ export function normalizeWord(text: string): string {
     .trim();
 }
 
+const ALNUM = /[a-z0-9]/;
+
+/**
+ * 正規化した見出し（normalizeWord）に、正規化した言葉が含まれるか。
+ * 英数字で始まる・終わる言葉は、英数字の続きの一部には当てはめない（「mail」の中の「ai」・「AM5」の中の「M5」など）
+ */
+export function containsWord(normalizedTitle: string, key: string): boolean {
+  if (!key) return false;
+  const startsAlnum = ALNUM.test(key[0]);
+  const endsAlnum = ALNUM.test(key[key.length - 1]);
+  for (let index = normalizedTitle.indexOf(key); index >= 0; index = normalizedTitle.indexOf(key, index + 1)) {
+    const before = normalizedTitle[index - 1] ?? '';
+    const after = normalizedTitle[index + key.length] ?? '';
+    if ((!startsAlnum || !ALNUM.test(before)) && (!endsAlnum || !ALNUM.test(after))) return true;
+  }
+  return false;
+}
+
 export interface TrendWord {
   /** 表示する言葉 */
   word: string;
@@ -624,12 +642,12 @@ export function trendingWords(
     let count = 0;
     const sources = new Set<string>();
     for (const entry of recent) {
-      if (!entry.title.includes(key)) continue;
+      if (!containsWord(entry.title, key)) continue;
       count++;
       sources.add(entry.sourceId);
     }
     if (count < minCount || sources.size < minSources) continue;
-    const baseline = older.filter((title) => title.includes(key)).length / windows;
+    const baseline = older.filter((title) => containsWord(title, key)).length / windows;
     scored.push({ word, count, sources: sources.size, baseline, score: count / (baseline + 1) });
   }
   // 同じ数なら長い言葉（「山本」より「山本由伸」）を先にする

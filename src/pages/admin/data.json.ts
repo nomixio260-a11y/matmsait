@@ -24,6 +24,7 @@ import { getAllSummaries, getSummaries, getSummary } from '../../lib/summaries.t
 import { TEXT_KEYS_PATH, parseJsonList, pickKeys } from '../../lib/article-texts.ts';
 import { coverageOf, getHotTopics, topicOf } from '../../lib/topics.ts';
 import { getAllTopicNotes } from '../../lib/topic-notes.ts';
+import { getTopicOverrides } from '../../lib/topic-overrides.ts';
 import { matchTopicNote } from '../../lib/topic-notes-core.ts';
 import { isHidden } from '../../lib/blocklist.ts';
 import type { Item } from '../../lib/types.ts';
@@ -208,6 +209,10 @@ function noteTopics() {
         // 要約を禁じている掲載元など、プロンプトに入れない媒体の数
         excluded: view.reports.length - usable.length,
         allItems: view.items.map((item) => item.id),
+        // トピックのすべての記事（まとめ方の手直し用。報じた順）
+        items: [...view.items]
+          .sort((a, b) => a.publishedAt.localeCompare(b.publishedAt))
+          .map((item) => ({ id: item.id, title: item.title, url: item.url, site: siteOf(item).label, publishedAt: item.publishedAt })),
         ...(note ? { noted: { topic: note.topic, notedAt: note.notedAt, firstAt: note.firstAt, newer: view.items.filter((item) => !note.items.includes(item.id)).length } } : {}),
       };
     })
@@ -248,8 +253,9 @@ export function GET({ site: siteUrl }: APIContext) {
     notice: parseNotice(readData(NOTICE_PATH)) ?? null,
     picks: picks(),
     social: socialDrafts(siteUrl),
-    // AI 整理（トピック整理）の候補
+    // AI 整理（トピック整理）の候補と、トピックのまとめ方の手直し（統合・分割）
     topics: noteTopics(),
+    topicOverrides: getTopicOverrides(),
     socialLog: socialLog(),
     blocklist: getBlocklist(),
     hidden: hiddenArticles(),

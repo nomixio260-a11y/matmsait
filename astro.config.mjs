@@ -48,7 +48,8 @@ const popularReady = hasPopular();
 const distDir = fileURLToPath(new URL('./dist/', import.meta.url));
 function builtHtml(/** @type {string} */ path) {
   try {
-    return readFileSync(`${distDir}${path.replace(/^\//, '')}index.html`, 'utf8');
+    // キーワードのページの URL は日本語を % で書いたもの。ファイルの場所は元の文字
+    return readFileSync(`${distDir}${decodeURIComponent(path).replace(/^\//, '')}index.html`, 'utf8');
   } catch {
     return '';
   }
@@ -77,7 +78,7 @@ export default defineConfig({
         const path = new URL(item.url).pathname.slice(base.replace(/\/$/, '').length);
         const daily = path.match(/^\/daily\/(\d{4}-\d{2}-\d{2})\/$/);
         const summary = path.match(/^\/summary\/([0-9a-f]+)\/$/);
-        if (/^\/(?:topic|tag)\/[^/]+\/$|^\/(?:rising|tags)\/$/.test(path)) {
+        if (/^\/(?:topic|tag|word)\/[^/]+\/$|^\/(?:rising|tags|words|trends|genres)\/$/.test(path)) {
           // 中身が少なくて noindex にしたページは入れない。話題のページは最後に報じられた日時を最終更新にする
           const html = builtHtml(path);
           if (/<meta name="robots" content="noindex/.test(html)) return undefined;

@@ -35,6 +35,7 @@ const ways = [
   { path: '/tag/ai/', icon: 'word', title: 'AIニュース', text: '生成AI・AIサービスのトピックを話題度の順に' },
   ...(getSummaries().length > 0 ? [{ path: '/summaries/', icon: 'why', title: '10秒で把握', text: '要点を短くまとめたトピック（AIによる整理）' }] : []),
   ...(getPopular('week', 1).length > 0 ? [{ path: '/popular/', icon: 'heat', title: 'よく読まれている', text: 'トピあつめで読まれている記事' }] : []),
+  { path: '/words/', icon: 'word', title: 'キーワード', text: '人物・企業・製品の言葉から探す' },
   { path: '/latest/', icon: 'time', title: '新着', text: 'すべての新しい記事を時間の順に' },
   { path: '/daily/', icon: 'timeline', title: '日別アーカイブ', text: 'その日に話題になったトピック' },
   { path: '/sources/', icon: 'media', title: 'メディア一覧', text: '掲載している媒体と、初報の多い媒体' },

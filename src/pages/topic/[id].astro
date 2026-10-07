@@ -25,6 +25,7 @@ import { clampDescription } from '../../lib/seo.ts';
 import { firstSentence } from '../../lib/summary-view.ts';
 import { LIFECYCLE_LABELS } from '../../lib/topic-core.ts';
 import { topicNoteFor } from '../../lib/topic-notes.ts';
+import { wordPath, wordsOfItems } from '../../lib/words.ts';
 import {
   getTopicViews,
   momentumText,
@@ -59,6 +60,8 @@ const why = topicWhy(view);
 const breakdown = topicScoreBreakdown(view);
 const pace = momentumText(topicMomentum(view, 3));
 const notes = topicNoteFor(view.items);
+// このトピックの見出しに出てくるキーワード（キーワードのページへ）
+const words = wordsOfItems(view.items, 8);
 const rising = view.growth.h3 >= 2;
 const isNew = now - first.time < 6 * 60 * 60 * 1000;
 const isLive = Date.parse(view.latestAt) > now - 24 * 60 * 60 * 1000;
@@ -223,11 +226,18 @@ const jsonLd = [
         </div>
       </dl>
       {
-        view.tags.length > 0 && (
-          <ul class="tag-chips" aria-label="テーマ">
+        (view.tags.length > 0 || words.length > 0) && (
+          <ul class="tag-chips" aria-label="テーマとキーワード">
             {view.tags.map((tag) => (
               <li>
                 <a href={href(tagPath(tag.slug))}>#{tag.name}</a>
+              </li>
+            ))}
+            {words.map((word) => (
+              <li>
+                <a class="word-chip" href={href(wordPath(word.slug))} title={`「${word.word}」のニュース・トピック`}>
+                  {word.word}
+                </a>
               </li>
             ))}
           </ul>
@@ -531,6 +541,9 @@ const jsonLd = [
   .tag-chips a:hover {
     border-color: var(--accent);
     color: var(--accent);
+  }
+  .tag-chips .word-chip {
+    border-style: dashed;
   }
   .note {
     color: var(--muted);

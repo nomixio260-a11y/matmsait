@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import Parser from 'rss-parser';
 import { loadSources, MAX_LIMIT } from '../src/lib/sources.ts';
 import { getSummary } from '../src/lib/summaries.ts';
+import { getTopicOverrides } from '../src/lib/topic-overrides.ts';
+import { overrideLinks } from '../src/lib/topic-overrides-core.ts';
 import type { Item, Source } from '../src/lib/types.ts';
 import { pruneDailySnapshots, updateDailySnapshots } from './lib/daily.ts';
 import {
@@ -205,7 +207,7 @@ async function main() {
   const keep = (item: Item) => sourceById.has(item.sourceId);
   const pruned = pruneDailySnapshots(DAILY_DIR, keep);
   if (pruned.length > 0) console.log(`日別まとめから外した掲載元の記事を削除: ${pruned.join(', ')}`);
-  const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep, hasSummary });
+  const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep, hasSummary, links: overrideLinks(getTopicOverrides()) });
   console.log(
     `新規 ${added} 件 / 合計 ${merged.length} 件を保存しました（成功 ${sources.length - failed.length} / 失敗 ${failed.length}）`,
   );

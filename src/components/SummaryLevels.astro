@@ -8,6 +8,7 @@
 import { formatDateTime, getSource, href, siteOf } from '../lib/items.ts';
 import { firstSentence } from '../lib/summary-view.ts';
 import { summaryPath } from '../lib/summaries.ts';
+import { wordHref } from '../lib/words.ts';
 import type { TopicView } from '../lib/topics.ts';
 import { normalizeWord } from '../lib/topic-core.ts';
 import type { SummaryRecord } from '../lib/types.ts';
@@ -132,7 +133,7 @@ const tabs = [
           <ul>
             {record.keywords.map((keyword) => (
               <li>
-                <a href={`${href('/search/')}?q=${encodeURIComponent(keyword)}`}>#{keyword}</a>
+                <a href={href(wordHref(keyword))}>#{keyword}</a>
               </li>
             ))}
           </ul>

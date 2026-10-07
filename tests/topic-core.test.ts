@@ -5,6 +5,7 @@ import { tagsOf } from '../src/lib/tag-core.ts';
 import {
   HOUR,
   analyzeTopic,
+  containsWord,
   durationText,
   genreSpread,
   genreTemperature,
@@ -301,6 +302,16 @@ describe('注目ワード', () => {
     expect(words.map((word) => word.word)).toEqual(['山本由伸', 'ドジャース']);
     expect(words[0]).toMatchObject({ count: 3, sources: 3, baseline: 0, score: 3 });
     expect(words[1].baseline).toBeCloseTo(12 / 6);
+  });
+
+  it('英数字の言葉は、英数字の続きの一部には当てはめない', () => {
+    expect(containsWord(normalizeWord('Gmailの新機能'), 'ai')).toBe(false);
+    expect(containsWord(normalizeWord('生成AIの新機能'), 'ai')).toBe(true);
+    expect(containsWord(normalizeWord('AIエージェント'), 'ai')).toBe(true);
+    expect(containsWord(normalizeWord('AM5対応'), 'm5')).toBe(false);
+    expect(containsWord(normalizeWord('M5チップ'), 'm5')).toBe(true);
+    // 日本語の言葉は部分一致
+    expect(containsWord(normalizeWord('山本由伸が好投'), normalizeWord('山本由伸'))).toBe(true);
   });
 
   it('言葉の比べ方（全角・半角、大文字・小文字、カタカナ・ひらがな）', () => {

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { jstDateKey } from '../../src/lib/dates.ts';
-import { clusterTopics } from '../../src/lib/related.ts';
+import { clusterTopics, type ClusterOptions } from '../../src/lib/related.ts';
 import type { DailySnapshot, Item } from '../../src/lib/types.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -110,6 +110,8 @@ export interface UpdateOptions extends SnapshotOptions {
   days?: number;
   /** 日別まとめに残してよい記事か（sources.yaml から外した掲載元の記事を、過去のまとめからも外すため） */
   keep?: (item: Item) => boolean;
+  /** 運営者によるトピックの統合・分割（data/topic-overrides.json。サイトのトピックと同じまとめ方にする） */
+  links?: Pick<ClusterOptions, 'mustLink' | 'cannotLink'>;
 }
 
 /**
@@ -120,13 +122,13 @@ export function updateDailySnapshots(
   items: Item[],
   dir: string,
   now: Date,
-  { days = 3, keep = () => true, hasSummary }: UpdateOptions = {},
+  { days = 3, keep = () => true, hasSummary, links }: UpdateOptions = {},
 ): string[] {
   // 話題度は、まとめる日の前後の記事も含めて数える
   const recent = items.filter((item) => Date.parse(item.publishedAt) >= now.getTime() - (days + 2) * DAY);
   const coverage = new Map<string, number>();
   const story = new Map<string, string>();
-  clusterTopics(recent).forEach((cluster, index) => {
+  clusterTopics(recent, links).forEach((cluster, index) => {
     if (cluster.coverage < 2) return;
     for (const item of cluster.items) {
       coverage.set(item.id, cluster.coverage);

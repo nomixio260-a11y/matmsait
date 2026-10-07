@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { highlightParts, normalizeText, parseQuery, rankEntries, suggestKeywords, type SearchEntry } from '../src/lib/search-core.ts';
+import {
+  highlightParts,
+  interpretQuery,
+  matchPlace,
+  matchWords,
+  normalizeText,
+  parseQuery,
+  rankEntries,
+  rankTopics,
+  suggestKeywords,
+  type SearchEntry,
+  type TopicEntry,
+  type WordEntry,
+} from '../src/lib/search-core.ts';
 
 const now = Date.parse('2026-10-06T12:00:00.000Z');
 const hoursAgo = (hours: number) => new Date(now - hours * 3600e3).toISOString();
@@ -107,5 +120,53 @@ describe('suggestKeywords', () => {
     const keywords = suggestKeywords(entries, now, { minSources: 2 });
     expect(keywords).toContain('ChatGPT');
     expect(keywords).not.toContain('SITEPLUS');
+  });
+});
+
+describe('言葉での検索', () => {
+  const categories = [
+    { slug: 'tech', name: 'テクノロジー' },
+    { slug: 'game', name: 'ゲーム・アニメ' },
+  ];
+
+  it('期間・並べ方・ジャンル・AI 要約の言葉を条件として読み、残りを検索語にする', () => {
+    const query = interpretQuery('今日 急上昇 AI テクノロジー', categories);
+    expect(query).toMatchObject({ days: 1, kind: 'rising', category: 'tech', words: ['AI'], terms: ['ai'] });
+    expect(query.conditions.map((condition) => condition.meaning)).toEqual(['24時間以内', '報じる媒体が増えているトピックを先に', 'ジャンル「テクノロジー」']);
+    expect(interpretQuery('アニメ 新着', categories)).toMatchObject({ category: 'game', kind: 'new', words: [] });
+    expect(interpretQuery('AI要約 Apple')).toMatchObject({ summaryOnly: true, words: ['Apple'] });
+    // 条件の言葉がなければ、すべて検索語
+    expect(interpretQuery('大谷翔平 本塁打')).toMatchObject({ words: ['大谷翔平', '本塁打'], conditions: [] });
+  });
+
+  const topics: TopicEntry[] = [
+    { i: 't1', t: 'INZONE の新色', w: 'inzoneの新色 そにー inzone', v: 5, sc: 50, g: 0, d: '2026-10-07T10:00:00.000Z', c: 'tech' },
+    { i: 't2', t: 'ドジャース勝利', w: 'どじゃーす勝利 山本由伸', v: 4, sc: 40, g: 3, d: '2026-10-07T11:00:00.000Z', c: 'sports' },
+    { i: 't3', t: '古い話', w: 'inzone 古い', v: 2, sc: 10, g: 0, d: '2026-10-01T00:00:00.000Z', c: 'tech' },
+  ];
+  const at = Date.parse('2026-10-07T12:00:00.000Z');
+
+  it('トピックを、検索語（どれかの記事の見出し）と条件で探し、並べ方を変える', () => {
+    expect(rankTopics(topics, interpretQuery('INZONE'), at).map((topic) => topic.i)).toEqual(['t1', 't3']);
+    expect(rankTopics(topics, interpretQuery('今日 INZONE'), at).map((topic) => topic.i)).toEqual(['t1']);
+    expect(rankTopics(topics, interpretQuery('急上昇'), at).map((topic) => topic.i)).toEqual(['t2']);
+    expect(rankTopics(topics, interpretQuery('新着'), at).map((topic) => topic.i)).toEqual(['t2', 't1', 't3']);
+    expect(rankTopics(topics, interpretQuery('テクノロジー', [{ slug: 'tech', name: 'テクノロジー' }]), at).map((topic) => topic.i)).toEqual(['t1', 't3']);
+  });
+
+  it('キーワードのページと、記事のどこで一致したか', () => {
+    const words: WordEntry[] = [
+      { w: 'INZONE', s: 'INZONE', n: 8 },
+      { w: 'INZONE H9 II', s: 'INZONE-H9-II', n: 4 },
+      { w: 'ソニー', s: 'ソニー', n: 10 },
+    ];
+    expect(matchWords(words, ['inzone']).map((entry) => entry.w)).toEqual(['INZONE', 'INZONE H9 II']);
+    expect(matchWords(words, ['そにーの新製品']).map((entry) => entry.w)).toEqual(['ソニー']);
+    expect(matchWords(words, [])).toEqual([]);
+    const article: SearchEntry = { i: 'a', t: 'ソニーの新製品', u: 'https://example.com', s: 'GAME Watch', h: 'game.watch.impress.co.jp', c: 'tech', d: '2026-10-07T00:00:00.000Z', m: 'INZONE の新色を発表した', k: 'INZONE ソニー' };
+    expect(matchPlace(article, ['そにー'])).toBe('title');
+    expect(matchPlace(article, ['inzone'])).toBe('keywords');
+    expect(matchPlace(article, ['新色'])).toBe('summary');
+    expect(matchPlace(article, ['game'])).toBe('site');
   });
 });

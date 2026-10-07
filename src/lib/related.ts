@@ -99,6 +99,37 @@ export interface ClusterOptions {
   /** 珍しい組とみなす出現数の割合（記事数に対する比。少なくとも minRareCount 件までは珍しいとみなす） */
   rareRatio?: number;
   minRareCount?: number;
+  /** 必ず同じトピックにする記事の ID の組（運営者の統合。src/lib/topic-overrides-core.ts） */
+  mustLink?: readonly (readonly [string, string])[];
+  /** 同じトピックにしない記事の ID の組（運営者の分割） */
+  cannotLink?: readonly (readonly [string, string])[];
+  /**
+   * 2段目のまとめ方: かぎかっこの中の名前（製品名・作品名など）が同じで、近い時刻に、見出しもある程度似ている別の掲載元の記事をまとめる。
+   * false で使わない
+   */
+  quoteMerge?: false | QuoteMergeOptions;
+}
+
+export interface QuoteMergeOptions {
+  /** 公開日時の差の上限（時間） */
+  maxGapHours?: number;
+  /** 見出しの似かた（1段目と同じ計算）の下限 */
+  minScore?: number;
+  /** その名前を見出しに含む記事（前後 maxGapHours 時間）がこれより多ければ、ありふれた名前とみなしてまとめない */
+  maxItems?: number;
+}
+
+/** かぎかっこ（「」『』“”""）の中の名前（3〜40文字。比べやすい形にして重複を除く） */
+export function quotedNames(title: string): string[] {
+  const names = [...mainTitle(title).normalize('NFKC').matchAll(/「([^「」]{3,40})」|『([^『』]{3,40})』|“([^“”]{3,40})”|"([^"]{3,40})"/g)].map((match) =>
+    compactKey(match[1] ?? match[2] ?? match[3] ?? match[4] ?? ''),
+  );
+  return [...new Set(names)].filter((name) => Array.from(name).length >= 3);
+}
+
+/** 名前の比べ方（大文字・小文字と空白の違いを無視） */
+function compactKey(text: string): string {
+  return text.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
 }
 
 /**
@@ -108,7 +139,16 @@ export interface ClusterOptions {
  */
 export function clusterTopics(
   items: Item[],
-  { windowHours = 48, minScore = 0.33, minShared = 2, rareRatio = 0.003, minRareCount = 5 }: ClusterOptions = {},
+  {
+    windowHours = 48,
+    minScore = 0.33,
+    minShared = 2,
+    rareRatio = 0.003,
+    minRareCount = 5,
+    mustLink = [],
+    cannotLink = [],
+    quoteMerge = {},
+  }: ClusterOptions = {},
 ): TopicCluster[] {
   const unique = [...new Map(items.map((item) => [item.id, item])).values()];
   const total = unique.length;
@@ -149,17 +189,75 @@ export function clusterTopics(
     }
     return index;
   };
+  // 運営者の分割: まとめてはいけない記事の組。まとまりごとに、制約のある記事だけを覚えておいて調べる
+  const indexById = new Map(unique.map((item, index) => [item.id, index]));
+  const forbidden = new Map<number, Set<number>>();
+  for (const [a, b] of cannotLink) {
+    const ia = indexById.get(a);
+    const ib = indexById.get(b);
+    if (ia === undefined || ib === undefined || ia === ib) continue;
+    forbidden.set(ia, (forbidden.get(ia) ?? new Set()).add(ib));
+    forbidden.set(ib, (forbidden.get(ib) ?? new Set()).add(ia));
+  }
+  const constrained = new Map<number, number[]>([...forbidden.keys()].map((index) => [index, [index]]));
+  const union = (i: number, j: number): void => {
+    const ri = find(i);
+    const rj = find(j);
+    if (ri === rj) return;
+    const mi = constrained.get(ri);
+    const mj = constrained.get(rj);
+    if (mi && mj && mi.some((a) => mj.some((b) => forbidden.get(a)?.has(b)))) return;
+    parent[ri] = rj;
+    if (mi) {
+      constrained.set(rj, [...(mj ?? []), ...mi]);
+      constrained.delete(ri);
+    }
+  };
+  // 運営者の統合を先に（時間や見出しの似かたにかかわらずまとめる）
+  for (const [a, b] of mustLink) {
+    const ia = indexById.get(a);
+    const ib = indexById.get(b);
+    if (ia !== undefined && ib !== undefined) union(ia, ib);
+  }
   const times = unique.map((item) => Date.parse(item.publishedAt));
   const window = windowHours * 60 * 60 * 1000;
+  const similarity = (i: number, j: number) => {
+    let both = 0;
+    for (const gram of grams[i]) if (grams[j].has(gram)) both += weight(gram);
+    return (2 * both) / (totalWeight[i] + totalWeight[j] || 1);
+  };
   for (const [key, count] of shared) {
     if (count < minShared) continue;
     const i = Math.floor(key / total);
     const j = key % total;
     if (unique[i].sourceId === unique[j].sourceId || Math.abs(times[i] - times[j]) > window) continue;
-    let both = 0;
-    for (const gram of grams[i]) if (grams[j].has(gram)) both += weight(gram);
-    if ((2 * both) / (totalWeight[i] + totalWeight[j] || 1) < minScore) continue;
-    parent[find(i)] = find(j);
+    if (similarity(i, j) < minScore) continue;
+    union(i, j);
+  }
+
+  // 2段目: 見出しの言い回しが大きく違ってまとまらなかった報道を、かぎかっこの中の名前で拾う。
+  // 名前だけでは同じ製品の別の話題（発売とレビューなど）までまとめてしまうので、近い時刻・見出しの似かたの条件も付ける
+  // （2026-10-08 に本番のデータで、この条件でまとまる組がすべて同じ出来事であることを確かめた。docs/DEVLOG.md）
+  if (quoteMerge) {
+    const { maxGapHours = 6, minScore: quoteMinScore = 0.3, maxItems = 8 } = quoteMerge;
+    const gap = maxGapHours * 60 * 60 * 1000;
+    const keys = unique.map((item) => compactKey(mainTitle(item.title)));
+    const order = unique.map((_, index) => index).sort((a, b) => times[a] - times[b]);
+    const position = new Map(order.map((index, pos) => [index, pos]));
+    unique.forEach((item, i) => {
+      for (const name of quotedNames(item.title)) {
+        // 前後 gap の記事のうち、見出しにその名前を含むもの（かっこなしで書いた記事も）
+        const holders: number[] = [];
+        const pos = position.get(i)!;
+        for (let p = pos - 1; p >= 0 && times[i] - times[order[p]] <= gap; p--) if (keys[order[p]].includes(name)) holders.push(order[p]);
+        for (let p = pos + 1; p < order.length && times[order[p]] - times[i] <= gap; p++) if (keys[order[p]].includes(name)) holders.push(order[p]);
+        if (holders.length + 1 > maxItems) continue;
+        for (const j of holders) {
+          if (unique[j].sourceId === item.sourceId || find(i) === find(j)) continue;
+          if (similarity(i, j) >= quoteMinScore) union(i, j);
+        }
+      }
+    });
   }
 
   const groups = new Map<number, Item[]>();

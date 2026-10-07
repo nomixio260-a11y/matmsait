@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRelatedIndex, clusterTopics, mainTitle, titleGrams } from '../src/lib/related.ts';
+import { buildRelatedIndex, clusterTopics, mainTitle, quotedNames, titleGrams } from '../src/lib/related.ts';
 import type { Item } from '../src/lib/types.ts';
 
 function item(id: string, title: string, publishedAt = '2026-10-06T00:00:00.000Z'): Item {
@@ -81,6 +81,59 @@ describe('clusterTopics', () => {
       ...noise,
     ]);
     expect(clusters.find((cluster) => cluster.items.some((i) => i.id === 'k1'))!.items).toHaveLength(1);
+  });
+
+  it('運営者の分割（まとめない組）と統合（必ずまとめる組）を反映する', () => {
+    const google = [
+      from('a', 'ktai-watch', 'Google ドライブとドキュメント、Markdownファイルを直接編集可能に 変換不要で共同編集'),
+      from('b', 'impress-watch', 'Googleドキュメント、Markdownにネイティブ対応 直接編集可能に', 1),
+      from('c', 'gihyo', 'Googleドキュメント、ドライブでMarkdownファイルを変換なしで表示、編集可能に', 2),
+    ];
+    const honda = from('d', 'car-watch', 'ホンダ、新型SUVの受注を開始 価格は400万円から', 1);
+    const of = (clusters: ReturnType<typeof clusterTopics>, id: string) =>
+      clusters
+        .find((cluster) => cluster.items.some((i) => i.id === id))!
+        .items.map((i) => i.id)
+        .sort();
+    // c を a・b から外す（a と b はまとまったまま）
+    const split = clusterTopics([...google, honda, ...noise], { cannotLink: [['c', 'a'], ['c', 'b']] });
+    expect(of(split, 'a')).toEqual(['a', 'b']);
+    expect(of(split, 'c')).toEqual(['c']);
+    // 見出しの似ていない d を a とまとめる
+    const merged = clusterTopics([...google, honda, ...noise], { mustLink: [['a', 'd']] });
+    expect(of(merged, 'd')).toEqual(['a', 'b', 'c', 'd']);
+    // ない記事の ID は無視する
+    expect(of(clusterTopics([...google, ...noise], { mustLink: [['a', 'zz']], cannotLink: [['zz', 'b']] }), 'a')).toEqual(['a', 'b', 'c']);
+  });
+
+  it('2段目: かぎかっこの中の名前が同じで、近い時刻に、見出しもある程度似ている報道をまとめる', () => {
+    const ripple = [
+      from('a', 'denfaminicogamer', '1988年のサンソフトのゲーム『リップルアイランド』が10月8日より「コンアカ」で配信開始。9種類のコマンドを駆使し、魔物にさらわれた王女を救い出す'),
+      from('b', 'ascii', 'サンソフトの『リップルアイランド』が「コンソールアーカイブス」で10月8日に配信！', 0.5),
+    ];
+    const ids = (clusters: ReturnType<typeof clusterTopics>, id: string) =>
+      clusters
+        .find((cluster) => cluster.items.some((i) => i.id === id))!
+        .items.map((i) => i.id)
+        .sort();
+    // 1段目では（似かたの下限を高くして）まとまらないようにし、2段目だけを確かめる
+    const strict = { minScore: 0.95 };
+    expect(ids(clusterTopics([...ripple, ...noise], { ...strict, quoteMerge: false }), 'a')).toEqual(['a']);
+    expect(ids(clusterTopics([...ripple, ...noise], strict), 'a')).toEqual(['a', 'b']);
+    // 時刻が離れていればまとめない
+    const later = [ripple[0], { ...ripple[1], publishedAt: at(10) }];
+    expect(ids(clusterTopics([...later, ...noise], strict), 'a')).toEqual(['a']);
+    // 同じ名前でも、見出しの似ていない別の話題はまとめない
+    const other = from('c', 'automaton', '『リップルアイランド』の開発者インタビュー 当時の制作秘話を語る', 1);
+    expect(ids(clusterTopics([ripple[0], other, ...noise], strict), 'a')).toEqual(['a']);
+    // 同じ掲載元どうしはまとめない
+    const same = [ripple[0], { ...ripple[1], sourceId: 'denfaminicogamer' }];
+    expect(ids(clusterTopics([...same, ...noise], strict), 'a')).toEqual(['a']);
+  });
+
+  it('かぎかっこの中の名前', () => {
+    expect(quotedNames('サンソフトの『リップルアイランド』が「コンソール アーカイブス」で配信 - 4Gamer')).toEqual(['リップルアイランド', 'コンソールアーカイブス']);
+    expect(quotedNames('「AI」が「AI」を')).toEqual([]);
   });
 
   it('公開日時が離れすぎた記事はまとめない', () => {

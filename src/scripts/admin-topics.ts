@@ -14,6 +14,17 @@ import {
   type NoteParseResult,
   type TopicNote,
 } from '../lib/topic-notes-core.ts';
+import {
+  TOPIC_OVERRIDES_PATH,
+  addMerge,
+  addSplit,
+  emptyOverrides,
+  parseTopicOverrides,
+  removeMerge,
+  removeSplit,
+  serializeTopicOverrides,
+  type TopicOverrides,
+} from '../lib/topic-overrides-core.ts';
 import { normalizeText } from '../lib/search-core.ts';
 import { requireSession, watchSession } from './admin-common.ts';
 import { $, actionsLink, dateFormat, el, errorText, githubClient, loadAdminData, setStatus, type AdminDataCommon } from './admin-shared.ts';
@@ -29,11 +40,14 @@ interface NoteTopicInfo {
   articles: NoteArticle[];
   excluded: number;
   allItems: string[];
+  /** トピックのすべての記事（報じた順） */
+  items: { id: string; title: string; url: string; site: string; publishedAt: string }[];
   noted?: { topic: string; notedAt: string; firstAt: string; newer: number };
 }
 
 interface TopicsData extends AdminDataCommon {
   topics?: NoteTopicInfo[];
+  topicOverrides?: TopicOverrides;
 }
 
 const root = document.querySelector<HTMLElement>('[data-admin]')!;
@@ -124,7 +138,145 @@ function select(topic: NoteTopicInfo): void {
   $('remove').hidden = !topic.noted;
   setStatus($('save-status'), '');
   setStatus($('copy-status'), '');
+  renderFix();
   $('work').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ===== 3. まとめ方の手直し（分割・統合） =====
+
+let overrides: TopicOverrides = emptyOverrides();
+
+/** data/topic-overrides.json を読み、変えて保存する */
+async function updateOverrides(message: string, change: (current: TopicOverrides) => TopicOverrides): Promise<void> {
+  const github = client();
+  const { defaultBranch } = await github.repository();
+  let saved = overrides;
+  await github.commitFiles(defaultBranch, message, async (read) => {
+    saved = change(parseTopicOverrides(await read(TOPIC_OVERRIDES_PATH)));
+    return [{ path: TOPIC_OVERRIDES_PATH, content: serializeTopicOverrides(saved) }];
+  });
+  overrides = saved;
+}
+
+async function runFix(label: string, action: () => Promise<void>): Promise<void> {
+  const status = $('fix-status');
+  setStatus(status, `${label}を保存しています…`);
+  for (const button of document.querySelectorAll<HTMLButtonElement>('#fix button')) button.disabled = true;
+  try {
+    await action();
+    setStatus(status, `${label}を保存しました。次のサイトの更新（2〜3分）から反映されます。`, 'ok');
+    status.append(' ', actionsLink(data.repository));
+  } catch (error) {
+    setStatus(status, `${label}を保存できませんでした: ${errorText(error)}`, 'error');
+  } finally {
+    for (const button of document.querySelectorAll<HTMLButtonElement>('#fix button')) button.disabled = false;
+    renderFix();
+  }
+}
+
+function renderFix(): void {
+  const topic = selected;
+  $('fix').hidden = !topic;
+  if (!topic) return;
+  const split = new Set(overrides.splits.map((entry) => entry.id));
+  $('fix-items').replaceChildren(
+    ...topic.items.map((article) => {
+      const li = el('li');
+      const row = el('div', 'fix-row');
+      const text = el('div', 'fix-text');
+      const link = el('a', '', article.title);
+      link.href = article.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      text.append(link, el('div', 'pick-meta', `${article.site} ・ ${dateFormat.format(new Date(article.publishedAt))}`));
+      row.append(text);
+      if (split.has(article.id)) {
+        row.append(el('span', 'badge-inline', '外し済み（次の更新で反映）'));
+      } else {
+        const button = el('button', 'small', '外す');
+        button.type = 'button';
+        button.setAttribute('aria-label', `「${shorten(article.title, 20)}」をこのトピックから外す`);
+        button.addEventListener('click', () => {
+          if (!confirm(`「${shorten(article.title, 40)}」をこのトピックから外しますか？（このトピックのほかの記事とはまとめなくなります）`)) return;
+          const from = topic.allItems.filter((id) => id !== article.id);
+          void runFix('分割', () =>
+            updateOverrides(`トピックから記事を外す: ${shorten(article.title, 30)}`, (current) =>
+              addSplit(current, { id: article.id, from, title: article.title, at: new Date().toISOString() }),
+            ),
+          );
+        });
+        row.append(button);
+      }
+      li.append(row);
+      return li;
+    }),
+  );
+  renderMergeResults();
+  renderFixLog();
+}
+
+function renderMergeResults(): void {
+  const topic = selected;
+  const query = normalizeText($<HTMLInputElement>('merge-search').value.trim());
+  const list = $('merge-results');
+  if (!topic || !query) {
+    list.replaceChildren();
+    return;
+  }
+  const candidates = (data.topics ?? []).filter((other) => other.id !== topic.id && normalizeText(other.title).includes(query)).slice(0, 10);
+  list.replaceChildren(
+    ...candidates.map((other) => {
+      const li = el('li');
+      const text = el('div', 'result-text');
+      text.append(el('div', 'pick-title', other.title), el('div', 'pick-meta', `${other.coverage}媒体が報道 ・ 最新 ${dateFormat.format(new Date(other.latestAt))}`));
+      const button = el('button', 'small', 'まとめる');
+      button.type = 'button';
+      button.setAttribute('aria-label', `「${shorten(other.title, 20)}」とまとめる`);
+      button.addEventListener('click', () => {
+        if (!confirm(`「${shorten(topic.title, 30)}」と「${shorten(other.title, 30)}」を同じトピックにまとめますか？`)) return;
+        void runFix('統合', () =>
+          updateOverrides(`トピックをまとめる: ${shorten(topic.title, 20)} ＋ ${shorten(other.title, 20)}`, (current) =>
+            addMerge(current, { ids: [topic.id, other.id], titles: [topic.title, other.title], at: new Date().toISOString() }),
+          ),
+        );
+      });
+      li.append(text, button);
+      return li;
+    }),
+  );
+  if (candidates.length === 0) list.append(el('li', 'pick-meta', '当てはまるトピックがありません（72時間のトピックから探します）。'));
+}
+
+function renderFixLog(): void {
+  const entries = [
+    ...overrides.splits.map((split) => ({
+      at: split.at,
+      text: `分割: 「${shorten(split.title ?? split.id, 40)}」を、そのとき同じトピックだった${split.from.length}件の記事とまとめない`,
+      undo: () => updateOverrides(`トピックの分割を取り消す: ${shorten(split.title ?? split.id, 30)}`, (current) => removeSplit(current, split.id)),
+    })),
+    ...overrides.merges.map((merge) => ({
+      at: merge.at,
+      text: `統合: 「${shorten(merge.titles?.[0] ?? merge.ids[0], 30)}」と「${shorten(merge.titles?.[1] ?? merge.ids[1], 30)}」`,
+      undo: () => updateOverrides('トピックの統合を取り消す', (current) => removeMerge(current, merge.ids)),
+    })),
+  ].sort((a, b) => b.at.localeCompare(a.at));
+  $('fix-log').replaceChildren(
+    ...entries.map((entry) => {
+      const li = el('li');
+      const row = el('div', 'fix-row');
+      const text = el('div', 'fix-text');
+      text.append(el('div', '', entry.text), el('div', 'pick-meta', dateFormat.format(new Date(entry.at))));
+      const button = el('button', 'small ghost', '取り消す');
+      button.type = 'button';
+      button.addEventListener('click', () => {
+        if (confirm('この手直しを取り消しますか？')) void runFix('取り消し', entry.undo);
+      });
+      row.append(text, button);
+      li.append(row);
+      return li;
+    }),
+  );
+  $('fix-empty').hidden = entries.length > 0;
 }
 
 function siteOf(id: string): string {
@@ -273,6 +425,8 @@ async function main(): Promise<void> {
   const topics = data.topics ?? [];
   const noted = topics.filter((topic) => topic.noted).length;
   $('data-info').textContent = `サイトの最終更新: ${dateFormat.format(new Date(data.generatedAt))} ・ 72時間のトピック ${topics.length}件（うち整理済み ${noted}件）`;
+  overrides = data.topicOverrides ?? emptyOverrides();
+  $('merge-search').addEventListener('input', renderMergeResults);
   $('topic-search').addEventListener('input', renderList);
   $('only-new').addEventListener('change', renderList);
   $('copy-prompt').addEventListener('click', () => void copyPrompt());

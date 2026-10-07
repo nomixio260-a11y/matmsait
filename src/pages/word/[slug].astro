@@ -1,0 +1,243 @@
+---
+/**
+ * キーワードのページ: その言葉が見出しに入ったニュースを、トピック（同じ出来事の報道のまとまり）・7日間の記事の数の推移・
+ * 一緒に出てくる言葉・関連するテーマ・新着でまとめる。記事の少ない言葉のページは検索エンジンに出さない
+ */
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+import ItemList from '../../components/ItemList.astro';
+import TopicList from '../../components/TopicList.astro';
+import { site } from '../../config/site.ts';
+import { formatDay } from '../../lib/daily.ts';
+import { builtAt, formatDateTime, href } from '../../lib/items.ts';
+import { clampDescription } from '../../lib/seo.ts';
+import { paceText, tagPath } from '../../lib/topics.ts';
+import { getWordViews, relatedWords, wordPath, type WordView } from '../../lib/words.ts';
+
+export const getStaticPaths = (() => getWordViews().map((view) => ({ params: { slug: view.slug }, props: { view } }))) satisfies GetStaticPaths;
+
+interface Props {
+  view: WordView;
+}
+const { view } = Astro.props;
+const week = view.daily.reduce((sum, day) => sum + day.count, 0);
+const max = Math.max(...view.daily.map((day) => day.count), 1);
+const related = relatedWords(view, 12);
+const pace =
+  view.today === 0
+    ? '直近24時間は見出しに出ていません'
+    : view.baseline > 0
+      ? `ふだん（それまでの6日間の1日あたり）の${paceText(view.today / view.baseline)}`
+      : 'それまでの6日間はほとんど出てこなかった言葉です';
+const title = `「${view.word}」のニュース・トピック`;
+const description = clampDescription(
+  `「${view.word}」が見出しに入ったニュースを、同じ出来事の報道のまとまり（トピック）と新着でまとめています。直近7日間で${week}件・${view.sources}媒体、24時間で${view.today}件。` +
+    (view.topics[0] ? `いま話題: ${view.topics[0].lead.title}` : ''),
+);
+const url = new URL(href(wordPath(view.slug)), Astro.site).toString();
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: title,
+    description,
+    url,
+    inLanguage: 'ja',
+    about: { '@type': 'Thing', name: view.word },
+    isPartOf: { '@type': 'WebSite', name: site.name, url: new URL(href('/'), Astro.site).toString() },
+  },
+];
+const dayLabel = (date: string) => formatDay(date).replace(/^\d+年/, '').replace(/\(.\)$/, '');
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd} noindex={!view.indexable} current="trends" breadcrumbs={[{ name: 'キーワード', path: '/words/' }, { name: view.word }]}>
+  <div class="page-head">
+    <p class="kicker">
+      <Icon name="word" />
+      キーワード
+    </p>
+    <h1>「{view.word}」のニュース</h1>
+    <p>
+      直近7日間に<b class="num">{week}</b>件（{view.sources}媒体）の見出しに出てきた言葉です。24時間では<b class="num">{view.today}</b>件で、{pace}。{
+        view.topics.length > 0 && <>{view.topics.length}つのトピック（複数の媒体が報じた出来事）に含まれています。</>
+      }（{formatDateTime(builtAt)}時点・1時間ごとに更新）
+    </p>
+  </div>
+
+  <div class="stack">
+    <section class="panel" aria-labelledby="days-title">
+      <div class="panel-head">
+        <h2 id="days-title">
+          <Icon name="trend" class="h-icon" />
+          7日間の記事の数
+        </h2>
+        <span class="note">見出しに「{view.word}」が入った記事</span>
+      </div>
+      <ol class="days">
+        {
+          view.daily.map((day, index) => (
+            <li class:list={{ 'is-today': index === view.daily.length - 1 }}>
+              <span class="day-count num">{day.count}</span>
+              <span class="day-bar" style={`--h:${Math.round((day.count / max) * 100)}%`} aria-hidden="true" />
+              <span class="day-label">{index === view.daily.length - 1 ? '今日' : dayLabel(day.date)}</span>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    {
+      view.topics.length > 0 && (
+        <section class="panel" aria-labelledby="topics-title">
+          <div class="panel-head">
+            <h2 id="topics-title">
+              <Icon name="heat" class="h-icon is-heat" />
+              「{view.word}」のトピック
+            </h2>
+            <span class="note">話題度の順</span>
+          </div>
+          <TopicList topics={view.topics.slice(0, 10)} othersLimit={1} explain />
+        </section>
+      )
+    }
+
+    {
+      related.length > 0 && (
+        <section class="panel" aria-labelledby="related-title">
+          <div class="panel-head">
+            <h2 id="related-title">
+              <Icon name="spread" class="h-icon" />
+              一緒に出てくる言葉
+            </h2>
+            <span class="note">同じ見出しに入っている数</span>
+          </div>
+          <ul class="chips">
+            {related.map((entry) => (
+              <li>
+                <a href={href(wordPath(entry.view.slug))}>
+                  {entry.view.word}
+                  <small>{entry.count}件</small>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    {
+      view.tags.length > 0 && (
+        <section class="panel" aria-labelledby="tags-title">
+          <div class="panel-head">
+            <h2 id="tags-title">関連するテーマ</h2>
+          </div>
+          <ul class="chips">
+            {view.tags.map((tag) => (
+              <li>
+                <a href={href(tagPath(tag.slug))}>#{tag.name}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <section class="panel" aria-labelledby="latest-title">
+      <div class="panel-head">
+        <h2 id="latest-title">「{view.word}」が見出しに入った新着</h2>
+        <a class="more" href={`${href('/search/')}?q=${encodeURIComponent(view.word)}`}>検索・フォロー →</a>
+      </div>
+      <ItemList items={view.items.slice(0, 15)} group={false} showExcerpt={false} ads={false} />
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 0 4px;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    font-weight: 700;
+  }
+  .days {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    align-items: end;
+    gap: 6px;
+    height: 150px;
+    margin: 0;
+    padding: 14px 16px 12px;
+  }
+  .days li {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    justify-items: center;
+    align-items: end;
+    height: 100%;
+    gap: 4px;
+  }
+  .day-count {
+    color: var(--text-2);
+    font-size: var(--fs-caption);
+    font-weight: 700;
+  }
+  .day-bar {
+    align-self: end;
+    width: 70%;
+    max-width: 36px;
+    height: var(--h);
+    min-height: 2px;
+    border-radius: 4px 4px 0 0;
+    background: color-mix(in srgb, var(--rise) 45%, var(--surface-2));
+  }
+  .is-today .day-bar {
+    background: var(--rise);
+  }
+  .day-label {
+    color: var(--muted);
+    font-size: 0.6875rem;
+    white-space: nowrap;
+  }
+  .is-today .day-label {
+    color: var(--rise);
+    font-weight: 700;
+  }
+  .note {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .chips {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 12px 16px 14px;
+  }
+  .chips a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--text);
+    font-size: var(--fs-small);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .chips a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .chips small {
+    color: var(--muted);
+    font-weight: 400;
+  }
+</style>
