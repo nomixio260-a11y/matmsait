@@ -41,6 +41,8 @@ export interface UpdateEntry {
   d: string;
   /** 話題度（同じ話題を報じた掲載元の数。2以上のときだけ） */
   k?: number;
+  /** 話題の ID（話題のページ /topic/<ID>/ へのリンクに使う。2つ以上のメディアが報じた話題だけ） */
+  p?: string;
   /** AI 要約がある */
   m?: 1;
 }
@@ -237,6 +239,7 @@ function cleanEntry(value: unknown): UpdateEntry | undefined {
     u: link,
     d: v.d as string,
     ...(typeof v.k === 'number' && v.k >= 2 ? { k: Math.floor(v.k) } : {}),
+    ...(isString(v.p) && /^[0-9a-f]{16}$/.test(v.p) ? { p: v.p } : {}),
     ...(v.m === 1 ? { m: 1 as const } : {}),
   };
 }

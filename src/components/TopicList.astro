@@ -1,19 +1,31 @@
 ---
-import { faviconUrl, formatDateTime, getCategory, href, siteOf } from '../lib/items.ts';
-import { getSummary, summaryPath } from '../lib/summaries.ts';
-import type { HotTopic } from '../lib/topics.ts';
+import { builtAt, faviconUrl, formatRelative, getCategory, href, siteOf } from '../lib/items.ts';
+import { getSummary } from '../lib/summaries.ts';
+import { firstSentence } from '../lib/summary-view.ts';
+import { topicPath, type TopicView } from '../lib/topics.ts';
 
 interface Props {
-  topics: HotTopic[];
-  /** 抜粋・カテゴリ・ほかの報道をすべて表示する（話題のニュースのページ用） */
+  topics: TopicView[];
+  /** 抜粋（AI 要約は「10秒で読む」の1文）・カテゴリ・ほかの報道をすべて表示する（話題のニュースのページ用） */
   detailed?: boolean;
   /** ほかの報道を何件まで見せるか（detailed でないとき） */
   othersLimit?: number;
+  /** 急上昇の一覧: 話題の ID → 集計した時間のうちに新しく報じたメディアの数 */
+  gained?: Record<string, number>;
+  /** 急上昇を集計した時間（時間） */
+  gainedHours?: number;
+  /** 順位の数字を出すか */
+  ranked?: boolean;
 }
-const { topics, detailed = false, othersLimit = 2 } = Astro.props;
+const { topics, detailed = false, othersLimit = 2, gained, gainedHours = 3, ranked = true } = Astro.props;
+/** 報じたメディアの数の目盛り（点の数。多すぎると行が長くなるので上限を決める） */
+const DOTS_MAX = 10;
+/** 最初の報道からこの時間以内の話題に NEW の印を付ける */
+const NEW_HOURS = 6;
+const newSince = builtAt.getTime() - NEW_HOURS * 60 * 60 * 1000;
 ---
 
-<ol class:list={['topics', { detailed }]}>
+<ol class:list={['topics', { detailed, unranked: !ranked }]}>
   {
     topics.map((topic, index) => {
       const { lead } = topic;
@@ -22,40 +34,52 @@ const { topics, detailed = false, othersLimit = 2 } = Astro.props;
       const summary = getSummary(lead.id);
       const others = detailed ? topic.others : topic.others.slice(0, othersLimit);
       const hidden = topic.others.length - others.length;
+      const added = gained?.[topic.id];
+      const isNew = Date.parse(topic.firstAt) > newSince;
       return (
-        <li class="topic">
-          <span class:list={['rank', `rank-${index + 1}`]}>{index + 1}</span>
+        <li class="topic" data-topic={topic.id}>
+          {ranked && <span class:list={['rank', `rank-${index + 1}`]}>{index + 1}</span>}
           <div class="topic-body">
-            {summary ? (
-              <a class="item-title" href={href(summaryPath(lead.id))} data-aid={lead.id} data-src={lead.sourceId} data-cat={lead.category}>
-                {lead.title}
-              </a>
-            ) : (
-              <a
-                class="item-title"
-                href={lead.url}
-                target="_blank"
-                rel="noopener"
-                data-aid={lead.id}
-                data-src={lead.sourceId}
-                data-cat={lead.category}
-              >
-                {lead.title}
-              </a>
-            )}
+            <a class="item-title" href={href(topicPath(topic.id))}>
+              {lead.title}
+            </a>
             {detailed &&
               (summary ? (
                 <p class="item-excerpt item-summary">
-                  <span class="ai-badge">AI要約</span>
-                  {summary.summary}
+                  <span class="ai-badge">10秒で読む</span>
+                  {firstSentence(summary.summary)}
                 </p>
               ) : (
                 lead.excerpt && <p class="item-excerpt">{lead.excerpt}</p>
               ))}
-            <div class="item-meta">
-              <span class="coverage" title="この話題を報じた掲載元の数">
-                <b>{topic.coverage}</b>社が報道
+            <div class="topic-stats">
+              <span class="heat" title="話題度スコア（報じたメディアの数・新しさ・分野の広がりから計算。最大100）">
+                <span class="heat-label">話題度</span>
+                <b>{topic.score}</b>
+                <span class="heat-meter" style={`--s:${topic.score}`} aria-hidden="true" />
               </span>
+              <span class="coverage" title="この話題を報じたメディアの数">
+                <b>{topic.coverage}</b>社が報道
+                <span class="cov-dots" style={`--n:${Math.min(topic.coverage, DOTS_MAX)}`} aria-hidden="true" />
+              </span>
+              {added !== undefined ? (
+                <span class="growth" title={`直近${gainedHours}時間に新しく報じたメディアの数`}>
+                  {gainedHours}時間で+{added}社
+                </span>
+              ) : (
+                topic.growth.h3 > 0 && (
+                  <span class="growth" title="直近3時間に新しく報じたメディアの数">
+                    3時間で+{topic.growth.h3}社
+                  </span>
+                )
+              )}
+              {isNew && (
+                <span class="new-topic" title={`最初の報道から${NEW_HOURS}時間以内の話題`}>
+                  NEW
+                </span>
+              )}
+            </div>
+            <div class="item-meta">
               <span class="item-site">
                 <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
                 {site.label}
@@ -66,8 +90,8 @@ const { topics, detailed = false, othersLimit = 2 } = Astro.props;
                   {category.name}
                 </a>
               )}
-              <time datetime={topic.latestAt} data-rel>
-                {formatDateTime(topic.latestAt)}
+              <time datetime={topic.latestAt} data-rel title="最後に報じられた日時">
+                {formatRelative(topic.latestAt)}
               </time>
               {summary && !detailed && <span class="ai-badge">AI要約</span>}
             </div>
@@ -84,7 +108,11 @@ const { topics, detailed = false, othersLimit = 2 } = Astro.props;
                     </li>
                   );
                 })}
-                {hidden > 0 && <li class="others-more">ほか{hidden}件</li>}
+                {hidden > 0 && (
+                  <li class="others-more">
+                    <a href={href(topicPath(topic.id))}>ほか{hidden}件の報道を比べる</a>
+                  </li>
+                )}
               </ul>
             )}
           </div>

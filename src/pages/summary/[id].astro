@@ -3,9 +3,10 @@ import type { GetStaticPaths } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ItemList from '../../components/ItemList.astro';
 import ShareButtons from '../../components/ShareButtons.astro';
+import SummaryLevels from '../../components/SummaryLevels.astro';
 import { site } from '../../config/site.ts';
 import { faviconUrl, formatDateTime, getCategory, getItemsByCategory, href, siteOf } from '../../lib/items.ts';
-import { getRelatedIndex, topicOf } from '../../lib/topics.ts';
+import { getRelatedIndex, topicOf, topicPath, topicViewOf } from '../../lib/topics.ts';
 import { clampDescription } from '../../lib/seo.ts';
 import { getSummaries, summaryPath } from '../../lib/summaries.ts';
 import type { SummaryRecord } from '../../lib/types.ts';
@@ -23,6 +24,8 @@ const url = new URL(href(summaryPath(record.id)), Astro.site).toString();
 // 同じ話題を報じたほかの掲載元の記事（話題のまとまりにあればそれを、なければ見出しの似た記事）
 const topic = topicOf(record.id);
 const coverage = topic?.coverage ?? 1;
+// 2つ以上のメディアが報じた話題なら、その話題のページ（各メディアの報道の比較）へ案内する
+const view = topicViewOf(record.id);
 const fromTopic = topic ? topic.items.filter((item) => item.id !== record.id).slice(0, 8) : [];
 const sameTopic = fromTopic.length > 0 ? fromTopic : getRelatedIndex().related(record, 5);
 // 関連する要約: キーワードが共通する要約を先に、足りなければ同じカテゴリの新しい要約
@@ -50,7 +53,7 @@ const home = new URL(href('/'), Astro.site).toString();
 const jsonLd = [
   {
     '@context': 'https://schema.org',
-    '@type': 'Article',
+    '@type': 'NewsArticle',
     headline: Array.from(record.title).slice(0, 110).join(''),
     description,
     url,
@@ -77,6 +80,9 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
   description={description}
   current={record.category}
   jsonLd={jsonLd}
+  ogType="article"
+  published={record.summarizedAt}
+  modified={record.updatedAt ?? record.summarizedAt}
   breadcrumbs={[
     ...(category ? [{ name: category.name, path: `/category/${category.slug}/` }] : []),
     { name: shortTitle },
@@ -108,7 +114,7 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
         <time datetime={record.publishedAt}>{formatDateTime(record.publishedAt)}</time>
         {
           coverage >= 2 && (
-            <a class="coverage" href={href('/ranking/')} title="この話題を報じた掲載元の数">
+            <a class="coverage" href={href(view ? topicPath(view.id) : '/ranking/')} title="この話題を報じたメディアの報道を比べる">
               <b>{coverage}</b>社が報道
             </a>
           )
@@ -117,47 +123,20 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
       <h1>{record.title}</h1>
     </header>
 
-    <section class="panel ai-box" aria-labelledby="ai-summary-title">
-      <h2 id="ai-summary-title"><span class="ai-badge">AI要約</span>この記事の要約</h2>
-      <p class="summary-text">{record.summary}</p>
-      {
-        record.points.length > 0 && (
-          <ul class="points">
-            {record.points.map((point) => (
-              <li>{point}</li>
-            ))}
-          </ul>
-        )
-      }
-      {
-        record.background && (
-          <div class="background">
-            <h3>背景・用語</h3>
-            <p>{record.background}</p>
-          </div>
-        )
-      }
-      {
-        record.keywords && record.keywords.length > 0 && (
-          <div class="keywords">
-            <h3 class="visually-hidden">キーワード</h3>
-            <ul>
-              {record.keywords.map((keyword) => (
-                <li>
-                  <a href={`${href('/search/')}?q=${encodeURIComponent(keyword)}`}>#{keyword}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )
-      }
-      <p class="ai-note">
-        この要約はAIが元記事をもとに作成し、運営者が確認して掲載しています。正確な内容や詳細は元記事でご確認ください。要約の作り方は<a href={href('/editorial/')}>編集方針</a>をご覧ください。
-      </p>
-      <a class="read-original" href={record.url} target="_blank" rel="noopener" data-aid={record.id} data-src={record.sourceId} data-cat={record.category}>
-        元記事を読む（{source.label}）↗
-      </a>
-    </section>
+    <SummaryLevels record={record} others={view?.summaries.filter((other) => other.id !== record.id) ?? []} topic={view} />
+
+    {
+      view && (
+        <a class="compare-link" href={href(topicPath(view.id))}>
+          <span class="compare-count">{view.coverage}社</span>
+          <span class="compare-text">
+            この話題を報じた{view.coverage}のメディアの報道を比べる
+            <small>初報・報道の広がり・各メディアの見出し</small>
+          </span>
+          <span aria-hidden="true">→</span>
+        </a>
+      )
+    }
 
     <ShareButtons url={url} text={`${record.title}【要約】｜${site.name}`} />
 
@@ -240,86 +219,43 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
     height: 14px;
     border-radius: 3px;
   }
-  .ai-box {
-    padding: 18px 20px 20px;
-  }
-  .ai-box h2 {
-    margin: 0 0 10px;
-    font-size: 1rem;
-  }
-  .summary-text {
-    margin: 0;
-    font-size: 1rem;
-    line-height: 1.9;
-  }
-  .points {
-    margin: 14px 0 0;
-    padding: 12px 14px 12px 32px;
-    border-radius: 10px;
-    background: var(--surface-2);
-    line-height: 1.8;
-  }
-  .background {
-    margin: 14px 0 0;
-    padding: 12px 14px;
-    border-left: 3px solid var(--accent);
-    border-radius: 0 10px 10px 0;
-    background: var(--accent-soft);
-  }
-  .background h3 {
-    margin: 0 0 4px;
-    font-size: 0.8rem;
-    color: var(--accent-strong);
-  }
-  .background p {
-    margin: 0;
-    font-size: 0.9rem;
-    line-height: 1.8;
-  }
-  .keywords ul {
-    list-style: none;
-    margin: 14px 0 0;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .keywords a {
-    display: inline-block;
-    padding: 3px 10px;
-    border: 1px solid var(--border-strong);
-    border-radius: 999px;
-    color: var(--text-2);
-    font-size: 0.8rem;
-    text-decoration: none;
-  }
-  .keywords a:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .ai-note {
-    margin: 14px 0 0;
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-  .ai-note a {
-    color: var(--accent);
-  }
-  .read-original {
+  .compare-link {
     display: flex;
     align-items: center;
-    justify-content: center;
-    margin-top: 16px;
-    min-height: 48px;
-    padding: 10px 16px;
-    border-radius: 10px;
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 800;
-    text-align: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--hot);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    color: var(--text);
+    font-weight: 700;
     text-decoration: none;
   }
-  .read-original:hover {
-    background: var(--accent-strong);
+  .compare-link:hover {
+    border-color: var(--hot);
+    color: var(--accent);
+  }
+  .compare-count {
+    flex: none;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: var(--hot-soft);
+    color: var(--hot);
+    font-size: 0.9rem;
+    font-weight: 800;
+  }
+  .compare-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .compare-text small {
+    display: block;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
   }
 </style>

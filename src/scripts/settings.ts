@@ -254,7 +254,7 @@ $('clear-all').addEventListener('click', async () => {
   if (loadPushLocal().enabled && apiBase) await disablePush(base, apiBase).catch(() => undefined);
   for (const key of Object.values(STORE_KEYS)) writeStored(key, undefined);
   try {
-    for (const key of ['matmsait:saved', 'matmsait:visit', 'theme']) localStorage.removeItem(key);
+    for (const key of ['matmsait:saved', 'matmsait:visit', 'matmsait:install', 'theme']) localStorage.removeItem(key);
   } catch {
     // 保存できない環境
   }

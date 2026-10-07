@@ -1,0 +1,108 @@
+---
+/** 今日の重要ニュース（報じたメディアの数とジャンルの広がりの順。ジャンルの名前つきの短い一覧） */
+import { getCategory, href } from '../lib/items.ts';
+import { topicPath, type TopicView } from '../lib/topics.ts';
+
+interface Props {
+  topics: TopicView[];
+}
+const { topics } = Astro.props;
+---
+
+<ol class="important">
+  {
+    topics.map((topic, index) => {
+      const category = getCategory(topic.categories[0] ?? topic.lead.category);
+      return (
+        <li>
+          <span class="imp-rank">{index + 1}</span>
+          <div class="imp-body">
+            <a class="imp-title" href={href(topicPath(topic.id))}>
+              {topic.lead.title}
+            </a>
+            <span class="imp-meta">
+              {category && (
+                <span class="imp-cat">
+                  <span class="dot" style={`--c:${category.color}`} />
+                  {category.name}
+                </span>
+              )}
+              <span class="coverage">
+                <b>{topic.coverage}</b>社が報道
+              </span>
+              {topic.categories.length > 1 && <span class="imp-spread">{topic.categories.length}ジャンルのメディア</span>}
+            </span>
+          </div>
+        </li>
+      );
+    })
+  }
+</ol>
+
+<style>
+  .important {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .important li {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    padding: 10px 16px;
+  }
+  .important li + li {
+    border-top: 1px solid var(--border);
+  }
+  .important li:hover {
+    background: var(--surface-2);
+  }
+  .imp-rank {
+    flex: none;
+    width: 1.6em;
+    color: var(--accent);
+    font-size: 1rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+  .imp-body {
+    min-width: 0;
+    flex: 1;
+  }
+  .imp-title {
+    display: block;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-decoration: none;
+  }
+  .imp-title::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .important li:hover .imp-title {
+    color: var(--accent);
+  }
+  .imp-title:visited {
+    color: var(--visited);
+  }
+  .imp-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 10px;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+  .imp-cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+</style>

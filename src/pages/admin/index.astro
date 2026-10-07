@@ -74,6 +74,18 @@ import { href } from '../../lib/items.ts';
         </ul>
       </div>
     </section>
+
+    <section class="card" aria-labelledby="social-title" id="social">
+      <div class="card-head"><h2 id="social-title">SNS に投稿する（下書き）</h2></div>
+      <div class="card-body">
+        <p class="note">
+          X の API での自動投稿は投稿ごとに料金がかかるため、ここから X の投稿画面を開いて手で投稿できます（無料）。文面はサイトの更新のたびに、急上昇・いま話題・今日の重要ニュース・AIニュースから作り直します。Bluesky・Mastodon・Misskey は認証情報を登録すれば、上限つきで自動投稿します。
+        </p>
+        <ul class="draft-list" id="social-drafts">
+          <li class="pick-meta">読み込んでいます…</li>
+        </ul>
+      </div>
+    </section>
   </div>
 </AdminLayout>
 

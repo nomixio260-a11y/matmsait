@@ -189,6 +189,24 @@ export function formatDateTime(iso: string | Date): string {
   return dateTimeFormat.format(new Date(iso));
 }
 
+/**
+ * 「◯分前」「◯時間前」（24時間より前は fallback の表示）。ビルドした時点での表示で、閲覧時にスクリプトが今の時刻で書き直す。
+ * 最初から相対時刻にしておくと、書き直しで文字の幅が変わってレイアウトがずれる（CLS）のを抑えられる
+ */
+export function formatRelative(iso: string, fallback: string = formatDateTime(iso), now: number = builtAt.getTime()): string {
+  const diff = now - Date.parse(iso);
+  if (Number.isNaN(diff) || diff >= 24 * 60 * 60 * 1000) return fallback;
+  if (diff < 60 * 1000) return 'たった今';
+  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}分前`;
+  return `${Math.floor(diff / (60 * 60 * 1000))}時間前`;
+}
+
+/** ビルドした時点で1時間以内の記事か（NEW の印。閲覧時にスクリプトが今の時刻で付け直す） */
+export function isFresh(iso: string, now: number = builtAt.getTime()): boolean {
+  const diff = now - Date.parse(iso);
+  return diff >= 0 && diff < 60 * 60 * 1000;
+}
+
 /** base パスを考慮したサイト内リンクを作る（path は "/" 始まり） */
 export function href(path: string): string {
   return import.meta.env.BASE_URL.replace(/\/$/, '') + path;

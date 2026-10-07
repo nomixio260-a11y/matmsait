@@ -1,35 +1,76 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import ImportantList from '../components/ImportantList.astro';
 import ItemList from '../components/ItemList.astro';
+import MediaStats from '../components/MediaStats.astro';
 import PickList from '../components/PickList.astro';
 import PopularList from '../components/PopularList.astro';
 import SummaryCard from '../components/SummaryCard.astro';
 import TopicList from '../components/TopicList.astro';
+import TrendWords from '../components/TrendWords.astro';
 import { categories, site } from '../config/site.ts';
 import { getPicks } from '../lib/editorial.ts';
 import { builtAt, formatDateTime, getItems, getItemsByCategory, getSources, href, pickVaried } from '../lib/items.ts';
 import { getPopular } from '../lib/popular.ts';
 import { clampDescription, headlineTeaser } from '../lib/seo.ts';
 import { getSummaries } from '../lib/summaries.ts';
-import { getHotTopics } from '../lib/topics.ts';
+import {
+  getHotTopics,
+  getImportantTopics,
+  getMediaStats,
+  getRisingTopics,
+  getTagItems,
+  getTagTopics,
+  getTopicViews,
+  getTrendWords,
+  tagPath,
+} from '../lib/topics.ts';
 
-// 収集元が多く、更新の多いサイトが続くと他が埋もれるため、同じ掲載元は数件までにして新着順に並べる
-const latest = pickVaried(getItems(), 30, 3);
+const HOUR = 60 * 60 * 1000;
+// 🔥 いま話題（話題度スコアの順）
+const hot = getHotTopics({ hours: 24, limit: 5 });
+const hotIds = new Set(hot.map((topic) => topic.id));
+// 🚀 急上昇（いま話題に出した話題は除く。少なければ除かない）
+const risingResult = getRisingTopics({ limit: 12 });
+const risingFresh = risingResult.topics.filter((entry) => !hotIds.has(entry.topic.id));
+const rising = (risingFresh.length >= 3 ? risingFresh : risingResult.topics).slice(0, 5);
+const gained = Object.fromEntries(rising.map((entry) => [entry.topic.id, entry.gained]));
+// 📰 今日の重要ニュース（ジャンルごとに1件まで。ジャンルをまたいで今日の大きなニュースを見渡せるように）
+const important = getImportantTopics({ hours: 24, limit: 8, perCategory: 1 });
+// 🔎 注目ワード
+const trends = getTrendWords(10);
+// 🤖 AI ニュース（AI のタグの話題と新着）
+const aiDay = getTagTopics('ai', { hours: 24, limit: 3 });
+const aiTopics = aiDay.length > 0 ? aiDay : getTagTopics('ai', { hours: 48, limit: 3 });
+const aiTopicItems = new Set(aiTopics.flatMap((topic) => topic.items.map((item) => item.id)));
+const aiLatest = getTagItems('ai')
+  .filter((item) => !aiTopicItems.has(item.id))
+  .slice(0, 5);
+// 🤖 AI 要約
 const summaries = getSummaries().slice(0, 6);
-const hot = getHotTopics({ hours: 24, limit: 6 });
+// 📊 メディア別（初報の多い順）
+const media = getMediaStats(24)
+  .filter((stat) => stat.topics > 0)
+  .slice(0, 8);
 // よく読まれている記事（24時間。まだ少なければ1週間）
 const popularDay = getPopular('day', 5);
 const popular = popularDay.length >= 3 ? popularDay : getPopular('week', 5);
+// 新着（同じ掲載元は3件まで）と、カテゴリ別の新着
+const latest = pickVaried(getItems(), 20, 3);
 const sections = categories
-  .map((category) => ({ category, items: pickVaried(getItemsByCategory(category.slug), 6, 2) }))
+  .map((category) => ({ category, items: pickVaried(getItemsByCategory(category.slug), 4, 2) }))
   .filter((section) => section.items.length > 0);
 const sourceCount = getSources().length;
 // 編集部のピックアップ（管理画面で選んだ記事と、運営者のひとこと）
 const picks = getPicks();
+// いまの動き（24時間の記事数・話題になったニュースの数）
+const dayAgo = builtAt.getTime() - 24 * HOUR;
+const dayItems = getItems().filter((item) => Date.parse(item.publishedAt) >= dayAgo).length;
+const dayTopics = getTopicViews().filter((topic) => Date.parse(topic.latestAt) >= dayAgo).length;
 
 const description = clampDescription(
   hot.length > 0
-    ? `${sourceCount}の人気ニュースサイトの新着記事を1時間ごとにまとめてお届け。いま話題：${headlineTeaser(
+    ? `いま何が話題か一目でわかるニュースまとめ。${sourceCount}のメディアの記事を1時間ごとに集め、話題度・急上昇・報じたメディアの数で紹介。いま話題：${headlineTeaser(
         hot.map((topic) => topic.lead),
         2,
         22,
@@ -62,6 +103,14 @@ const jsonLd = [
     },
   },
 ];
+const jump = [
+  { id: 'hot-title', label: '🔥 今話題', show: hot.length > 0 },
+  { id: 'rising-title', label: '🚀 急上昇', show: rising.length > 0 },
+  { id: 'trends-title', label: '🔎 注目ワード', show: trends.length > 0 },
+  { id: 'important-title', label: '📰 今日の重要', show: important.length > 0 },
+  { id: 'ai-title', label: '🤖 AI', show: aiTopics.length + aiLatest.length > 0 },
+  { id: 'media-title', label: '📊 メディア別', show: media.length > 0 },
+].filter((entry) => entry.show);
 ---
 
 <BaseLayout current="" description={description} jsonLd={jsonLd} sidebar={{ hideRanking: true, hidePopular: true }}>
@@ -69,11 +118,23 @@ const jsonLd = [
     <section class="intro">
       <h1>{site.seoTitle}</h1>
       <p>
-        {site.name}は、{sourceCount}の人気ニュースサイトの新着記事を1時間ごとに自動で集め、多くのメディアが報じた話題とAI要約でポイントをまとめています。
+        {site.name}は、{sourceCount}のメディアの新着記事を1時間ごとに集め、いま何が話題なのかを「話題度」「急上昇」「報じたメディアの数」で一目でわかるようにしたニュースサイトです。
+      </p>
+      <p class="pulse">
         <span class="updated">最終更新 {formatDateTime(builtAt)}</span>
+        <span>24時間で<b>{dayItems}</b>件の記事・<b>{dayTopics}</b>件の話題</span>
         <span class="live-count" data-live-count hidden></span>
       </p>
       <p class="since" data-since-banner hidden></p>
+      {
+        jump.length > 1 && (
+          <nav class="jump" aria-label="このページの内容">
+            {jump.map((entry) => (
+              <a href={`#${entry.id}`}>{entry.label}</a>
+            ))}
+          </nav>
+        )
+      }
     </section>
 
     {
@@ -89,22 +150,125 @@ const jsonLd = [
 
     {
       hot.length > 0 && (
-        <section class="panel">
+        <section class="panel" aria-labelledby="hot-title">
           <div class="panel-head">
-            <h2>
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" class="flame">
-                <path
-                  d="M12 2c1 3.5 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.7 1.2 2.7 2.3 3C10.6 8 11.3 5 12 2Z"
-                  fill="currentColor"
-                />
-              </svg>
-              いま話題のニュース
+            <h2 id="hot-title">
+              <span aria-hidden="true">🔥</span>いま話題のニュース
             </h2>
             <a class="more" href={href('/ranking/')}>
+              ランキング →
+            </a>
+          </div>
+          <p class="panel-lead">話題度スコア（報じたメディアの数・新しさ・分野の広がり）の高い順。見出しを押すと各メディアの報道を比べられます。</p>
+          <TopicList topics={hot} othersLimit={1} />
+        </section>
+      )
+    }
+
+    {
+      rising.length > 0 && (
+        <section class="panel" aria-labelledby="rising-title">
+          <div class="panel-head">
+            <h2 id="rising-title">
+              <span aria-hidden="true">🚀</span>急上昇
+            </h2>
+            <a class="more" href={href('/rising/')}>
               すべて見る →
             </a>
           </div>
-          <TopicList topics={hot} />
+          <p class="panel-lead">この{risingResult.hours}時間に、新しく報じるメディアが増えている話題です。</p>
+          <TopicList topics={rising.map((entry) => entry.topic)} gained={gained} gainedHours={risingResult.hours} othersLimit={0} />
+        </section>
+      )
+    }
+
+    {
+      trends.length > 0 && (
+        <section class="panel" aria-labelledby="trends-title">
+          <div class="panel-head">
+            <h2 id="trends-title">
+              <span aria-hidden="true">🔎</span>注目ワード
+            </h2>
+            <span class="window">24時間</span>
+          </div>
+          <TrendWords words={trends} />
+          <form class="home-search" role="search" action={href('/search/')} method="get">
+            <label class="visually-hidden" for="home-q">記事を検索</label>
+            <input id="home-q" type="search" name="q" placeholder="気になる言葉で記事を探す" autocomplete="off" />
+            <button type="submit" class="btn primary">検索</button>
+          </form>
+        </section>
+      )
+    }
+
+    {
+      important.length > 0 && (
+        <section class="panel" aria-labelledby="important-title">
+          <div class="panel-head">
+            <h2 id="important-title">
+              <span aria-hidden="true">📰</span>今日の重要ニュース
+            </h2>
+            <a class="more" href={href('/ranking/#today')}>
+              もっと見る →
+            </a>
+          </div>
+          <p class="panel-lead">24時間に多くのメディアが報じたニュースを、ジャンルごとに1件ずつ選んでいます。</p>
+          <ImportantList topics={important} />
+        </section>
+      )
+    }
+
+    {
+      aiTopics.length + aiLatest.length > 0 && (
+        <section class="panel" aria-labelledby="ai-title">
+          <div class="panel-head">
+            <h2 id="ai-title">
+              <span aria-hidden="true">🤖</span>AIニュース
+            </h2>
+            <a class="more" href={href(tagPath('ai'))}>
+              AIニュースランキング →
+            </a>
+          </div>
+          {aiTopics.length > 0 && <TopicList topics={aiTopics} othersLimit={0} />}
+          {aiLatest.length > 0 && <ItemList items={aiLatest} group={false} showCategory={false} showExcerpt={false} ads={false} />}
+        </section>
+      )
+    }
+
+    {
+      summaries.length > 0 && (
+        <section class="summaries" aria-labelledby="summaries-title">
+          <div class="section-head">
+            <h2 id="summaries-title">
+              <span class="ai-badge">AI要約</span>
+              10秒でわかるニュース
+            </h2>
+            <a class="more" href={href('/summaries/')}>
+              もっと見る →
+            </a>
+          </div>
+          <div class="card-grid">
+            {summaries.map((record) => (
+              <SummaryCard record={record} />
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      media.length > 0 && (
+        <section class="panel" aria-labelledby="media-title">
+          <div class="panel-head">
+            <h2 id="media-title">
+              <span aria-hidden="true">📊</span>メディア別
+            </h2>
+            <a class="more" href={href('/sources/')}>
+              すべてのメディア →
+            </a>
+          </div>
+          <p class="panel-lead">24時間に話題になったニュースを、どのメディアが報じ、どこがいちばん早かったか（初報）。</p>
+          <MediaStats stats={media} />
         </section>
       )
     }
@@ -119,27 +283,6 @@ const jsonLd = [
             </a>
           </div>
           <PopularList entries={popular} />
-        </section>
-      )
-    }
-
-    {
-      summaries.length > 0 && (
-        <section class="summaries" aria-labelledby="summaries-title">
-          <div class="section-head">
-            <h2 id="summaries-title">
-              <span class="ai-badge">AI要約</span>
-              ニュースのポイント
-            </h2>
-            <a class="more" href={href('/summaries/')}>
-              もっと見る →
-            </a>
-          </div>
-          <div class="card-grid">
-            {summaries.map((record) => (
-              <SummaryCard record={record} />
-            ))}
-          </div>
         </section>
       )
     }
@@ -187,6 +330,17 @@ const jsonLd = [
     font-size: 0.8rem;
     line-height: 1.7;
   }
+  .pulse {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+  }
+  .pulse b {
+    margin: 0 2px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
   .updated {
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -203,8 +357,66 @@ const jsonLd = [
   .since[hidden] {
     display: none;
   }
-  .flame {
-    color: var(--hot);
+  /* ページ内の移動（スマートフォンでは横にスクロール） */
+  .jump {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .jump a {
+    flex: none;
+    padding: 6px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .jump a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  /* ページ内の移動で、見出しが上のタブに隠れないように */
+  .panel-head h2[id],
+  .section-head h2[id] {
+    scroll-margin-top: 64px;
+  }
+  .panel-head h2 span[aria-hidden] {
+    margin-right: 4px;
+  }
+  .panel-lead {
+    margin: 0;
+    padding: 8px 16px 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.6;
+  }
+  .window {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  .home-search {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 16px;
+  }
+  .home-search input {
+    flex: 1;
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 16px;
   }
   .section-head {
     display: flex;

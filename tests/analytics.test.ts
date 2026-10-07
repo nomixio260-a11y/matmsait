@@ -22,6 +22,7 @@ import {
   topOf,
   totalsOf,
   visitorId,
+  weekStartDay,
   type StoredEvent,
 } from '../analytics/src/core.ts';
 import { AnalyticsStore, RAW_DAYS, type Sql } from '../analytics/src/store.ts';
@@ -36,6 +37,11 @@ describe('イベントの検証', () => {
     expect(landing?.event).toMatchObject({ type: 'view', path: '/category/tech/', kind: 'category', cat: 'tech', land: 1, ref: 'www.google.co.jp', ret: 1, dev: 'm' });
     const inner = parseEvent({ t: 'view', p: '/', r: 'www.google.com', ret: 1 });
     expect(inner?.event).toMatchObject({ land: 0, ref: '', ret: 0 });
+    // 週・月に初めての訪問の印（2・4）も受け取り、範囲の外の値は0にする
+    expect(parseEvent({ t: 'view', p: '/', l: 1, ret: 7 })?.event.ret).toBe(7);
+    expect(parseEvent({ t: 'view', p: '/', l: 1, ret: 8 })?.event.ret).toBe(0);
+    expect(parseEvent({ t: 'view', p: '/', l: 1, ret: 2.5 })?.event.ret).toBe(0);
+    expect(parseEvent({ t: 'view', p: '/', l: 1, ret: true })?.event.ret).toBe(1);
   });
 
   it('種類ごとに必要な値がなければ受け付けない', () => {
@@ -142,8 +148,8 @@ describe('集計', () => {
     ev({ vid: 'v1', type: 'click', aid: A, src: 'gigazine', cat: 'tech' }),
     ev({ vid: 'v1', path: '/summary/x/', kind: 'summary', aid: B }),
     ev({ vid: 'v1', type: 'time', path: '/', n: 40 }),
-    ev({ vid: 'v2', land: 1, ret: 1 }),
-    ev({ vid: 'v3', land: 1, ref: 't.co' }),
+    ev({ vid: 'v2', land: 1, ret: 1 | 2 }),
+    ev({ vid: 'v3', land: 1, ref: 't.co', ret: 2 | 4 }),
     ev({ vid: 'v3', type: 'search', path: '/search/', q: 'ai', n: 0 }),
     ev({ vid: 'v3', type: 'click', aid: A }),
     ev({ vid: 'v3', type: 'save', aid: A }),
@@ -159,6 +165,13 @@ describe('集計', () => {
     expect(find('visit.channel', 'social')).toMatchObject({ uniq: 1 });
     expect(find('visit.channel', 'direct')).toMatchObject({ uniq: 1 });
     expect(find('visit.ret', '1')).toMatchObject({ uniq: 1 });
+    expect(find('visit.ret', '0')).toMatchObject({ uniq: 2 });
+    // この週・この月に初めて来た人（WAU・MAU のもと）
+    expect(find('visit.wk')).toMatchObject({ count: 2 });
+    expect(find('visit.mo')).toMatchObject({ count: 1 });
+    expect(weekStartDay('2026-10-07')).toBe('2026-10-05');
+    expect(weekStartDay('2026-10-05')).toBe('2026-10-05');
+    expect(weekStartDay('2026-10-04')).toBe('2026-09-28');
     expect(find('click')).toMatchObject({ count: 2, uniq: 2 });
     expect(find('click.src', 'gigazine')).toMatchObject({ count: 1 });
     expect(find('search.q', 'ai')).toMatchObject({ count: 1, sum: 1 });

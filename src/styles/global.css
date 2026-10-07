@@ -122,6 +122,11 @@ h3 {
   line-height: 1.35;
 }
 
+/* 見出しの最後の1〜2文字だけが次の行に回らないように */
+h1 {
+  text-wrap: balance;
+}
+
 .container {
   width: 100%;
   max-width: 1140px;
@@ -360,4 +365,12 @@ h3 {
   margin: 0;
   color: var(--muted);
   text-align: center;
+}
+
+/* 共通のアイコン（BaseLayout の <symbol>）。表示はせず、<use> で参照する */
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }

@@ -1,0 +1,195 @@
+---
+/**
+ * タグのページ: ジャンルをまたいで、1つのテーマ（AI・Apple・MLB など）のニュースをまとめる。
+ * 話題度スコアのランキング・新着・AI 要約を載せる。AI のタグは「AIニュースランキング」として使う
+ */
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ItemList from '../../components/ItemList.astro';
+import ShareButtons from '../../components/ShareButtons.astro';
+import SummaryCard from '../../components/SummaryCard.astro';
+import TopicList from '../../components/TopicList.astro';
+import { tags, type TagDefinition } from '../../config/tags.ts';
+import { site } from '../../config/site.ts';
+import { builtAt, formatDateTime, href } from '../../lib/items.ts';
+import { clampDescription, collectionJsonLd, headlineTeaser } from '../../lib/seo.ts';
+import { getSummaries } from '../../lib/summaries.ts';
+import { TAG_INDEX_MIN_ITEMS, getTagItems, getTagTopics, tagPath, tagsOfItem } from '../../lib/topics.ts';
+
+export const getStaticPaths = (() => tags.map((tag) => ({ params: { slug: tag.slug }, props: { tag } }))) satisfies GetStaticPaths;
+
+interface Props {
+  tag: TagDefinition;
+}
+const { tag } = Astro.props;
+const day = getTagTopics(tag.slug, { hours: 24, limit: 10 });
+const week = getTagTopics(tag.slug, { hours: 24 * 7, limit: 20 });
+const items = getTagItems(tag.slug);
+const latest = items.slice(0, 40);
+const summaries = getSummaries()
+  .filter((record) => tagsOfItem(record).some((other) => other.slug === tag.slug))
+  .slice(0, 6);
+const others = tags.filter((other) => other.slug !== tag.slug);
+const dayCount = items.filter((item) => Date.parse(item.publishedAt) >= builtAt.getTime() - 24 * 60 * 60 * 1000).length;
+
+const ranking = day.length > 0 ? day : week;
+const description = clampDescription(
+  ranking.length > 0
+    ? `${tag.description} 1位${headlineTeaser(
+        ranking.map((topic) => topic.lead),
+        1,
+        28,
+      )}（1時間ごとに更新）`
+    : tag.description,
+);
+const url = new URL(Astro.url.pathname, Astro.site).toString();
+const jsonLd = [
+  collectionJsonLd({
+    name: tag.title,
+    description,
+    url,
+    items: (ranking.length > 0 ? ranking.map((topic) => topic.lead) : latest).slice(0, 10),
+    dateModified: builtAt.toISOString(),
+  }),
+];
+---
+
+<BaseLayout
+  title={tag.title}
+  description={description}
+  jsonLd={jsonLd}
+  current={tag.slug === 'ai' ? 'ai' : undefined}
+  noindex={items.length < TAG_INDEX_MIN_ITEMS}
+  breadcrumbs={[{ name: 'タグ', path: '/tags/' }, { name: tag.name }]}
+>
+  <div class="page-head">
+    <h1>{tag.title}</h1>
+    <p>
+      {tag.description} 24時間で{dayCount}件・1週間で{items.length}件の記事（{formatDateTime(builtAt)}時点）。
+    </p>
+  </div>
+
+  <div class="stack">
+    <ShareButtons url={url} text={`${tag.title}｜${site.name}`} />
+
+    <section class="panel" aria-labelledby="tag-rank-title">
+      <div class="panel-head">
+        <h2 id="tag-rank-title">{tag.name}の話題ランキング</h2>
+        <div class="seg" role="tablist" aria-label="集計期間">
+          <button type="button" role="tab" aria-selected="true" aria-controls="tag-day" id="tab-tag-day">24時間</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="tag-week" id="tab-tag-week">1週間</button>
+        </div>
+      </div>
+      <div id="tag-day" role="tabpanel" aria-labelledby="tab-tag-day">
+        {
+          day.length > 0 ? (
+            <TopicList topics={day} detailed />
+          ) : (
+            <p class="empty">この24時間に、複数のメディアが報じた{tag.name}の話題はまだありません。</p>
+          )
+        }
+      </div>
+      <div id="tag-week" role="tabpanel" aria-labelledby="tab-tag-week" hidden>
+        {week.length > 0 ? <TopicList topics={week} detailed /> : <p class="empty">集計中です。</p>}
+      </div>
+    </section>
+
+    {
+      summaries.length > 0 && (
+        <section class="summaries" aria-labelledby="tag-summaries-title">
+          <h2 id="tag-summaries-title" class="section-title">
+            <span class="ai-badge">AI要約</span>
+            {tag.name}のニュースを10秒で
+          </h2>
+          <div class="card-grid">
+            {summaries.map((record) => (
+              <SummaryCard record={record} />
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    <section class="panel" aria-labelledby="tag-latest-title">
+      <div class="panel-head">
+        <h2 id="tag-latest-title">{tag.name}の新着</h2>
+      </div>
+      <ItemList items={latest} headingLevel={3} />
+    </section>
+
+    <nav class="panel other-tags" aria-labelledby="other-tags-title">
+      <div class="panel-head">
+        <h2 id="other-tags-title">ほかのタグ</h2>
+        <a class="more" href={href('/tags/')}>
+          一覧 →
+        </a>
+      </div>
+      <ul>
+        {
+          others.map((other) => (
+            <li>
+              <a href={href(tagPath(other.slug))}>#{other.name}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</BaseLayout>
+
+<style>
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+  }
+  .card-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 84%;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 6px;
+  }
+  .card-grid > :global(*) {
+    scroll-snap-align: start;
+  }
+  @media (min-width: 620px) {
+    .card-grid {
+      grid-auto-flow: row;
+      grid-auto-columns: auto;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      overflow: visible;
+    }
+  }
+  @media (min-width: 1000px) {
+    .card-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .other-tags ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 12px 16px 16px;
+  }
+  .other-tags a {
+    display: inline-block;
+    padding: 4px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--text-2);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .other-tags a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+</style>

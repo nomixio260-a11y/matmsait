@@ -220,8 +220,15 @@ button.chip:hover {
   color: var(--muted);
   cursor: pointer;
 }
-.save-btn + .more-btn {
-  margin-left: -8px;
+/* 記事の行では「…」を右下に固定し、ほかの情報が長くても「…」だけが次の行に回らないようにする */
+.item > .item-meta {
+  padding-right: 24px;
+}
+.item > .item-meta > .more-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  margin: 0;
 }
 .more-btn:hover,
 .more-btn[aria-expanded='true'] {
@@ -429,5 +436,51 @@ button.chip:hover {
 }
 .notice-close:hover {
   background: var(--surface);
+  color: var(--text);
+}
+
+/* ----- 「ホーム画面に追加」の案内（画面の下） ----- */
+.install-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 65;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(560px, calc(100vw - 24px));
+  padding: 10px 10px 10px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(16 24 40 / 0.18);
+  transform: translateX(-50%);
+}
+.install-bar p {
+  flex: 1;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.install-bar .btn {
+  flex: none;
+  min-height: 34px;
+  padding: 0 12px;
+}
+.install-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.install-close:hover {
+  background: var(--surface-2);
   color: var(--text);
 }

@@ -104,7 +104,8 @@ export function parseEvent(body: unknown): { event: ParsedEvent; article?: Artic
     q: type === 'search' ? normalizeQuery(input.q) : '',
     n: type === 'time' ? Math.min(number, MAX_SECONDS) : Math.min(number, 1_000_000),
     dev: input.d === 'm' || input.d === 't' || input.d === 'd' ? input.d : '',
-    ret: input.ret === 1 || input.ret === true ? 1 : 0,
+    // 1: 前にも来た人、2: この週（月曜から）初めての訪問、4: この月初めての訪問（WAU・MAU に使う）
+    ret: typeof input.ret === 'number' && Number.isInteger(input.ret) && input.ret >= 0 && input.ret <= 7 ? input.ret : input.ret === true ? 1 : 0,
     land: input.l === 1 || input.l === true ? 1 : 0,
   };
   // 種類ごとに必要な値
@@ -189,6 +190,8 @@ export const jstHour = (ms: number) => new Date(ms + JST_OFFSET).getUTCHours();
 /** 日本時間のその日の0時（ミリ秒） */
 export const dayStart = (day: string) => Date.parse(`${day}T00:00:00+09:00`);
 export const addDays = (day: string, days: number) => jstDay(dayStart(day) + days * DAY_MS);
+/** その日を含む週の月曜日（YYYY-MM-DD） */
+export const weekStartDay = (day: string) => addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
 export const isDay = (value: unknown): value is string =>
   typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && jstDay(dayStart(value)) === value;
 
@@ -224,6 +227,8 @@ export const METRICS = [
   'visit.ref',
   'visit.path',
   'visit.ret',
+  'visit.wk',
+  'visit.mo',
   'click',
   'click.aid',
   'click.src',
@@ -265,6 +270,7 @@ interface Cell {
  * - all: すべてのイベント（uniq はその日の訪問者数）
  * - view / view.path / view.kind / view.cat / view.aid / view.dev / view.os / view.br / view.country / view.hour: 閲覧
  * - visit / visit.channel / visit.ref / visit.path / visit.ret: サイトの外から来た訪問（入口のページ）
+ * - visit.wk / visit.mo: この週・この月に初めて来た人（日ごとの合計が週・月の訪問者数になる）
  * - click / click.aid / click.src / click.cat / click.kind: 記事のクリック
  * - search / search.q（sum は0件だった回数）、save / save.aid、time / time.path（sum は秒数）
  * - art.aid: 記事ごとの「読んだ・クリックした・保存した人」（人気の記事の順位に使う）
@@ -312,7 +318,10 @@ export class Aggregator {
           this.add('visit.channel', channelOf(event.ref), vid);
           if (event.ref) this.add('visit.ref', event.ref, vid);
           this.add('visit.path', event.path, vid);
-          this.add('visit.ret', String(event.ret), vid);
+          this.add('visit.ret', String(event.ret & 1), vid);
+          // この週・この月に初めて来た人（日をまたいで同じ人を数えずに、週・月の訪問者数を出すため）
+          if (event.ret & 2) this.add('visit.wk', '', vid);
+          if (event.ret & 4) this.add('visit.mo', '', vid);
         }
         break;
       case 'click':

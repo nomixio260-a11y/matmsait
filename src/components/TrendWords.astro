@@ -1,0 +1,86 @@
+---
+/** 注目ワード（直近24時間の見出しに急に増えた言葉）。押すとサイト内検索、タグのある言葉はタグのページへ */
+import { tags } from '../config/tags.ts';
+import { href } from '../lib/items.ts';
+import { normalizeWord, type TrendWord } from '../lib/topic-core.ts';
+import { tagPath } from '../lib/topics.ts';
+
+interface Props {
+  words: TrendWord[];
+}
+const { words } = Astro.props;
+// タグの言葉そのものなら、タグのページへ（記事がまとまっていて検索より見やすい）
+const tagByWord = new Map(tags.flatMap((tag) => [tag.name, ...tag.words].map((word) => [normalizeWord(word), tag.slug] as const)));
+---
+
+<ol class="trend-words">
+  {
+    words.map((word, index) => {
+      const tag = tagByWord.get(normalizeWord(word.word));
+      const link = tag ? href(tagPath(tag)) : `${href('/search/')}?q=${encodeURIComponent(word.word)}`;
+      return (
+        <li>
+          <a href={link} title={`24時間で${word.count}件の見出しに登場（${word.sources}つのメディア）`}>
+            <span class="trend-rank">{index + 1}</span>
+            <span class="trend-word">{word.word}</span>
+            <span class="trend-count">{word.count}件</span>
+            {word.baseline < 0.5 && <span class="trend-up" aria-label="急上昇">↑</span>}
+          </a>
+        </li>
+      );
+    })
+  }
+</ol>
+
+<style>
+  .trend-words {
+    list-style: none;
+    margin: 0;
+    padding: 12px 16px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .trend-words a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 12px 0 6px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .trend-words a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .trend-rank {
+    display: inline-grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .trend-words li:nth-child(-n + 3) .trend-rank {
+    background: var(--hot);
+    color: var(--on-hot);
+  }
+  .trend-count {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .trend-up {
+    color: var(--hot);
+    font-weight: 800;
+  }
+</style>

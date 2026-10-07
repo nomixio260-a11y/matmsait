@@ -1,14 +1,18 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import ImportantList from '../components/ImportantList.astro';
 import ShareButtons from '../components/ShareButtons.astro';
 import TopicList from '../components/TopicList.astro';
 import { categories, site } from '../config/site.ts';
 import { getSources, href } from '../lib/items.ts';
 import { clampDescription, collectionJsonLd, headlineTeaser } from '../lib/seo.ts';
-import { getHotTopics } from '../lib/topics.ts';
+import { getHotTopics, getImportantTopics } from '../lib/topics.ts';
 
+// 24時間は話題度スコアの順（新しさも入る）、1週間は報じたメディアの数の順
 const daily = getHotTopics({ hours: 24, limit: 30 });
-const weekly = getHotTopics({ hours: 24 * 7, limit: 30 });
+const weekly = getHotTopics({ hours: 24 * 7, limit: 30, sort: 'coverage' });
+// 今日の重要ニュース（ジャンルごとに3件まで）
+const important = getImportantTopics({ hours: 24, limit: 15, perCategory: 3 });
 const byCategory = categories
   .map((category) => ({ category, topics: getHotTopics({ hours: 72, category: category.slug, limit: 5 }) }))
   .filter((entry) => entry.topics.length > 0);
@@ -38,7 +42,12 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
   <div class="page-head">
     <h1>話題のニュースランキング</h1>
     <p>
-      {site.name}が記事を掲載している{getSources().length}のサイトのうち、同じ出来事を報じたサイトが多いニュースほど上位にしています。各ニュースの下にはほかのサイトの報道も並べているので、読み比べにも使えます（1時間ごとに更新）。
+      {site.name}が記事を掲載している{getSources().length}のメディアのうち、同じ出来事を報じたメディアが多く、新しいニュースほど上位にしています（話題度スコア）。見出しを押すと、各メディアの報道を報じた順に比べられます（1時間ごとに更新）。
+    </p>
+    <p class="links">
+      <a href={href('/rising/')}>🚀 急上昇</a>
+      <a href={href('/tag/ai/')}>🤖 AIニュースランキング</a>
+      <a href={href('/tags/')}># タグ一覧</a>
     </p>
   </div>
 
@@ -62,6 +71,7 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
         }
       </div>
       <div id="rank-weekly" role="tabpanel" aria-labelledby="tab-weekly" hidden>
+        <p class="tab-note">1週間に報じたメディアの多い順</p>
         {
           weekly.length > 0 ? (
             <TopicList topics={weekly} detailed />
@@ -71,6 +81,21 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
         }
       </div>
     </section>
+
+    {
+      important.length > 0 && (
+        <section class="panel" id="today" aria-labelledby="today-title">
+          <div class="panel-head">
+            <h2 id="today-title">
+              <span aria-hidden="true">📰</span>今日の重要ニュース
+            </h2>
+            <span class="note">ジャンルごとに3件まで</span>
+          </div>
+          <p class="tab-note">24時間に報じたメディアの数と、報じたメディアのジャンルの広がりの順です。</p>
+          <ImportantList topics={important} />
+        </section>
+      )
+    }
 
     <div class="cat-grid">
       {
@@ -94,6 +119,39 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
 </BaseLayout>
 
 <style>
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px !important;
+  }
+  .links a {
+    padding: 4px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .links a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .tab-note {
+    margin: 0;
+    padding: 8px 16px 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  .note {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  #today {
+    scroll-margin-top: 64px;
+  }
   .cat-grid {
     display: grid;
     gap: 20px;

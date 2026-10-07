@@ -19,14 +19,69 @@ import {
   type AdminDataCommon,
 } from './admin-shared.ts';
 
+interface SocialDraft {
+  /** 種類（急上昇・いま話題など） */
+  kind: string;
+  key: string;
+  /** 投稿文（URL を含む。X の文字数に収めてある） */
+  text: string;
+  url: string;
+}
+
 interface DashboardData extends AdminDataCommon {
   notice?: Notice | null;
   picks?: (EditorPick & { article?: { title: string } })[];
+  social?: SocialDraft[];
+}
+
+/** SNS の投稿の下書き（X・Bluesky の投稿画面を開くリンクと、コピーのボタン） */
+function renderDrafts(drafts: SocialDraft[]): void {
+  const list = $('social-drafts');
+  if (drafts.length === 0) {
+    list.replaceChildren(el('li', 'pick-meta', 'いまは投稿に向いた話題がありません（急上昇・多くのメディアが報じた話題が出ると、ここに下書きができます）。'));
+    return;
+  }
+  list.replaceChildren(
+    ...drafts.map((draft) => {
+      const li = el('li', 'draft');
+      const head = el('div', 'draft-head');
+      head.append(el('span', 'badge', draft.kind));
+      const text = el('p', 'draft-text', draft.text);
+      const actions = el('div', 'actions');
+      const open = (label: string, link: string) => {
+        const anchor = el('a', 'draft-link', label);
+        anchor.href = link;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener';
+        return anchor;
+      };
+      const copy = el('button', 'ghost small', 'コピー');
+      copy.type = 'button';
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(draft.text);
+          copy.textContent = 'コピーしました';
+        } catch {
+          copy.textContent = 'コピーできませんでした';
+        }
+        setTimeout(() => (copy.textContent = 'コピー'), 2000);
+      });
+      actions.append(
+        open('X で投稿', `https://x.com/intent/post?text=${encodeURIComponent(draft.text)}`),
+        open('Bluesky で投稿', `https://bsky.app/intent/compose?text=${encodeURIComponent(draft.text)}`),
+        copy,
+      );
+      li.append(head, text, actions);
+      return li;
+    }),
+  );
 }
 
 interface Live {
   online: number;
   today: { visitors: number; views: number; visits: number; clicks: number };
+  /** この週（月曜から）・この月の訪問者数（WAU・MAU） */
+  period?: { week: number; month: number };
 }
 
 interface PushStats {
@@ -182,6 +237,7 @@ async function main(): Promise<void> {
 
   const todos = dataTodos(data, now);
   renderTodos(todos);
+  renderDrafts(data.social ?? []);
 
   // 数字（記事・要約は管理画面用データから、アクセスと通知はサーバーから）
   const stats = $('stats');
@@ -206,6 +262,12 @@ async function main(): Promise<void> {
       stat('きょうの閲覧数', numberFormat.format(live.today.views)),
       stat('記事のクリック', numberFormat.format(live.today.clicks)),
     );
+    if (live.period) {
+      boxes.push(
+        stat('この週の訪問者（WAU）', numberFormat.format(live.period.week), '月曜から'),
+        stat('この月の訪問者（MAU）', numberFormat.format(live.period.month), '1日から'),
+      );
+    }
   }
   if (counts) {
     boxes.push(

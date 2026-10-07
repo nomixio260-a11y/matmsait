@@ -1,0 +1,90 @@
+---
+/** メディア別: 直近24時間の記事数・話題になったニュースの数・初報（いちばん早く報じた）の数 */
+import { getCategory, href } from '../lib/items.ts';
+import type { MediaStat } from '../lib/topics.ts';
+
+interface Props {
+  stats: MediaStat[];
+}
+const { stats } = Astro.props;
+---
+
+<div class="media-wrap" role="region" aria-label="メディア別の報道の数" tabindex="0">
+  <table class="media-table">
+    <thead>
+      <tr>
+        <th scope="col">メディア</th>
+        <th scope="col" class="num" title="この24時間の記事数">記事</th>
+        <th scope="col" class="num" title="2つ以上のメディアが報じた話題のうち、このメディアも報じた数">話題</th>
+        <th scope="col" class="num" title="いちばん早く報じた話題の数">初報</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        stats.map((stat) => {
+          const category = getCategory(stat.category);
+          return (
+            <tr>
+              <th scope="row">
+                <a href={href(`/source/${stat.sourceId}/`)}>
+                  {category && <span class="dot" style={`--c:${category.color}`} />}
+                  {stat.name}
+                </a>
+              </th>
+              <td class="num">{stat.articles}</td>
+              <td class="num">{stat.topics}</td>
+              <td class="num first">{stat.firsts > 0 ? stat.firsts : '-'}</td>
+            </tr>
+          );
+        })
+      }
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .media-wrap {
+    overflow-x: auto;
+  }
+  .media-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .media-table th,
+  .media-table td {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    text-align: left;
+  }
+  .media-table thead th {
+    border-top: 0;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  .media-table tbody th {
+    font-weight: 600;
+  }
+  .media-table a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .media-table a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .media-table .num {
+    width: 3.5em;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .media-table td.first {
+    color: var(--hot);
+    font-weight: 800;
+  }
+</style>

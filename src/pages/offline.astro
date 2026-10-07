@@ -1,0 +1,34 @@
+---
+/** オフラインのとき（つながらず、そのページを前に見ていないとき）にサービスワーカーが出すページ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { href } from '../lib/items.ts';
+---
+
+<BaseLayout title="オフラインです" description="インターネットにつながっていません。" noindex sidebar={false}>
+  <div class="page-head">
+    <h1>オフラインです</h1>
+    <p>インターネットにつながっていないため、このページを読み込めませんでした。つながったら、もう一度開いてください。</p>
+  </div>
+  <div class="stack">
+    <p class="actions">
+      <button type="button" class="btn primary" onclick="location.reload()">読み込み直す</button>
+      <a class="btn" href={href('/saved/')}>あとで読むを開く</a>
+      <a class="btn" href={href('/')}>トップへ</a>
+    </p>
+    <p class="note">前に開いたページは、オフラインでもそのまま表示できることがあります。</p>
+  </div>
+</BaseLayout>
+
+<style>
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+  }
+  .note {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+</style>

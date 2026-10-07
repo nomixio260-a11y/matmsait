@@ -8,16 +8,33 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { categories, site } from '../src/config/site.ts';
+import { tags } from '../src/config/tags.ts';
 import { dailyPath, getDailySnapshots } from '../src/lib/daily.ts';
-import { withCoverage } from '../src/lib/related.ts';
 import { jstDateKey } from '../src/lib/dates.ts';
 import { getSummaries, summaryPath } from '../src/lib/summaries.ts';
+import {
+  getHotTopics,
+  getImportantTopics,
+  getRisingTopics,
+  getTagTopics,
+  getTopicViews,
+  tagPath,
+  topicPath,
+  type TopicView,
+} from '../src/lib/topics.ts';
+import { growthWithin } from '../src/lib/topic-core.ts';
 import { indexNowPayload, publishWebSub, submitIndexNow } from './lib/ping.ts';
-import { configuredPlatforms, planPosts, previewPlatforms, recordPost, type SocialState } from './lib/social.ts';
-import { isHidden } from '../src/lib/blocklist.ts';
-import { readItemsFile } from './lib/store.ts';
+import {
+  configuredPlatforms,
+  planPosts,
+  platformAllows,
+  platformLimit,
+  previewPlatforms,
+  recordPost,
+  type SocialState,
+  type SocialTopic,
+} from './lib/social.ts';
 
-const ITEMS_PATH = resolve(process.cwd(), 'data/items.json');
 const SOCIAL_STATE_PATH = resolve(process.cwd(), 'data/social.json');
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -43,6 +60,11 @@ async function notifySearchEngines(baseUrl: string, now: Date, dataChanged: bool
     .filter((record) => now.getTime() - Date.parse(record.updatedAt ?? record.summarizedAt) < 3 * 60 * 60 * 1000)
     .slice(0, 100)
     .map((record) => summaryPath(record.id));
+  // 新しく報じられた・報じるメディアが増えた話題のページ（検索エンジンに出すページだけ。3時間以内に報じられたもの）
+  const recentTopics = getTopicViews()
+    .filter((view) => view.indexable && growthWithin(view.reports, now.getTime(), 3) > 0)
+    .slice(0, 100)
+    .map((view) => topicPath(view.id));
   // 記事が増えていなくても、新しい要約ページは知らせる
   const paths = [
     ...(dataChanged
@@ -50,9 +72,12 @@ async function notifySearchEngines(baseUrl: string, now: Date, dataChanged: bool
           '/',
           '/latest/',
           '/ranking/',
+          '/rising/',
           '/daily/',
           ...categories.map((category) => `/category/${category.slug}/`),
+          ...tags.map((tag) => tagPath(tag.slug)),
           ...days.map(dailyPath),
+          ...recentTopics,
         ]
       : []),
     ...(recentSummaries.length > 0 ? ['/summaries/', ...recentSummaries] : []),
@@ -93,15 +118,24 @@ async function postToSocial(baseUrl: string, now: Date) {
     return;
   }
   let state = readState();
+  // 話題はサイトのビルドと同じ計算（同じ記事データから作るので、話題のページの URL と一致する）
+  const toSocial = (view: TopicView, gained = growthWithin(view.reports, now.getTime(), 3)): SocialTopic => ({
+    id: view.id,
+    title: view.lead.title,
+    coverage: view.coverage,
+    score: view.score,
+    gained,
+    latestAt: view.latestAt,
+  });
+  const rising = getRisingTopics({ limit: 10, minTopics: 1 });
   const posts = planPosts(state, {
     now,
-    // 管理画面で非表示にした記事は投稿しない。話題度（同じ話題を報じた掲載元の数）は直近3日分の記事から数える
-    items: withCoverage(
-      readItemsFile(ITEMS_PATH).filter(
-        (item) => !isHidden(item) && Date.parse(item.publishedAt) >= now.getTime() - 3 * 24 * 60 * 60 * 1000,
-      ),
-    ),
     snapshots: getDailySnapshots(),
+    hot: getHotTopics({ hours: 12, limit: 10 }).map((view) => toSocial(view)),
+    // 急上昇は3時間に新しく報じたメディアの数で決める（広げた時間では投稿しない）
+    rising: rising.hours === 3 ? rising.topics.map((entry) => toSocial(entry.topic, entry.gained)) : [],
+    important: getImportantTopics({ hours: 24, limit: 5, perCategory: 1 }).map((view) => toSocial(view)),
+    ai: getTagTopics('ai', { hours: 24, limit: 5 }).map((view) => toSocial(view)),
     pageUrl: (path) => `${baseUrl}${path}`,
     siteName: site.name,
   });
@@ -113,19 +147,27 @@ async function postToSocial(baseUrl: string, now: Date) {
   for (const post of posts) {
     if (dryRun) {
       for (const platform of platforms.length > 0 ? platforms : previewPlatforms) {
-        console.log(`--- ${platform.name} に投稿する内容（${post.key}）---\n${post.compose(platform.fits)}\n`);
+        const allowed = platformAllows(platform.name, post, state, now, platformLimit(platform.name, process.env));
+        console.log(`--- ${platform.name} に投稿する内容（${post.key}${allowed ? '' : '・上限か種類の設定で投稿しない'}）---\n${post.compose(platform.fits)}\n`);
       }
       continue;
     }
-    const results = await Promise.allSettled(
-      platforms.map((platform) => platform.send(post.compose(platform.fits), post)),
-    );
+    // サービスごとの上限（X は投稿に料金がかかるので既定では夜のまとめだけ）
+    const targets = platforms.filter((platform) => platformAllows(platform.name, post, state, now, platformLimit(platform.name, process.env)));
+    if (targets.length === 0) {
+      console.log(`上限か種類の設定により、どのサービスにも投稿しません（${post.key}）`);
+      continue;
+    }
+    const results = await Promise.allSettled(targets.map((platform) => platform.send(post.compose(platform.fits), post)));
+    const succeeded: string[] = [];
     results.forEach((result, index) => {
-      if (result.status === 'fulfilled') console.log(`${platforms[index].name} に投稿しました（${post.key}）`);
-      else warn(`${platforms[index].name} への投稿に失敗（${post.key}）: ${errorMessage(result.reason)}`);
+      if (result.status === 'fulfilled') {
+        succeeded.push(targets[index].name);
+        console.log(`${targets[index].name} に投稿しました（${post.key}）`);
+      } else warn(`${targets[index].name} への投稿に失敗（${post.key}）: ${errorMessage(result.reason)}`);
     });
     // 1つでも投稿できたら記録する（全滅なら次回もう一度試す）
-    if (results.some((result) => result.status === 'fulfilled')) state = recordPost(state, post, now);
+    if (succeeded.length > 0) state = recordPost(state, post, now, succeeded);
   }
   if (!dryRun) writeFileSync(SOCIAL_STATE_PATH, `${JSON.stringify(state, null, 1)}\n`);
 }

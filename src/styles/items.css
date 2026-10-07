@@ -221,6 +221,13 @@ a.pop-badge:hover {
 .save-btn[aria-pressed='true'] path {
   fill: currentColor;
 }
+/* 共通のアイコン（BaseLayout の i-save）は、押したときだけ塗る */
+.save-btn svg {
+  fill: none;
+}
+.save-btn[aria-pressed='true'] svg {
+  fill: currentColor;
+}
 
 /* 前回の訪問のあとに追加された記事 */
 .item.is-unseen .item-title::before {
@@ -397,4 +404,89 @@ a.pop-badge:hover {
 
 .others-more {
   color: var(--muted);
+}
+
+/* ===== 話題度スコア・報じたメディアの数・急上昇の印（話題の一覧と話題のページ） ===== */
+.topic-stats {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 5px;
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.heat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.heat-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.heat b {
+  min-width: 1.3em;
+  color: var(--hot);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* スコアの横棒（0〜100） */
+.heat-meter {
+  display: inline-block;
+  width: 40px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--hot) calc(var(--s, 0) * 1%), var(--surface-2) 0);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* 報じたメディアの数だけ点を並べる */
+.cov-dots {
+  display: inline-block;
+  width: calc(var(--n, 1) * 7px);
+  height: 6px;
+  margin-left: 4px;
+  align-self: center;
+  background: radial-gradient(circle at 3px 3px, currentColor 2.4px, transparent 2.9px) 0 0 / 7px 6px repeat-x;
+}
+
+/* 直近に新しく報じたメディアの数（急上昇） */
+.growth {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent-strong);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.new-topic {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--hot);
+  color: var(--on-hot);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+}
+
+.topics.unranked .topic {
+  gap: 0;
+}
+
+.others-more a {
+  color: var(--accent);
+  font-weight: 600;
 }

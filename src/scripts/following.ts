@@ -181,8 +181,8 @@ function itemRow(match: FollowMatch): HTMLLIElement {
   meta.append(time);
   if ((entry.k ?? 1) >= 2) {
     const coverage = el('a', 'coverage');
-    coverage.href = `${base}/ranking/`;
-    coverage.title = 'この話題を報じた掲載元の数';
+    coverage.href = entry.p ? `${base}/topic/${entry.p}/` : `${base}/ranking/`;
+    coverage.title = entry.p ? 'この話題を報じたメディアの報道を比べる' : 'この話題を報じた掲載元の数';
     coverage.append(el('b', undefined, String(entry.k)), '社が報道');
     meta.append(coverage);
   }

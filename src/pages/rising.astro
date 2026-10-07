@@ -1,0 +1,127 @@
+---
+/** 急上昇: 直近の数時間に、新しく報じるメディアが増えている話題。報じられ始めたばかりの話題も載せる */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ShareButtons from '../components/ShareButtons.astro';
+import TopicList from '../components/TopicList.astro';
+import TrendWords from '../components/TrendWords.astro';
+import { site } from '../config/site.ts';
+import { builtAt, formatDateTime, href } from '../lib/items.ts';
+import { clampDescription, collectionJsonLd, headlineTeaser } from '../lib/seo.ts';
+import { getNewTopics, getRisingTopics, getTrendWords } from '../lib/topics.ts';
+
+const rising = getRisingTopics({ limit: 20 });
+const gained = Object.fromEntries(rising.topics.map((entry) => [entry.topic.id, entry.gained]));
+const risingIds = new Set(rising.topics.map((entry) => entry.topic.id));
+// 報じられ始めた話題（最初の報道が6時間以内。急上昇に出したものは除く）
+const fresh = getNewTopics({ hours: 6, limit: 20 }).filter((topic) => !risingIds.has(topic.id));
+const trends = getTrendWords(15);
+
+const title = '急上昇ニュース（いま報じるメディアが増えている話題）';
+const description = clampDescription(
+  rising.topics.length > 0
+    ? `この${rising.hours}時間で報じるメディアが増えている急上昇ニュース。1位${headlineTeaser(
+        rising.topics.map((entry) => entry.topic.lead),
+        1,
+        30,
+      )}ほか、報じられ始めたばかりの話題と注目ワードを1時間ごとに更新。`
+    : '報じるメディアが増えている急上昇ニュースと、報じられ始めたばかりの話題を1時間ごとに更新しています。',
+);
+const url = new URL(Astro.url.pathname, Astro.site).toString();
+const jsonLd =
+  rising.topics.length > 0
+    ? [
+        collectionJsonLd({
+          name: title,
+          description,
+          url,
+          items: rising.topics.slice(0, 10).map((entry) => entry.topic.lead),
+          dateModified: builtAt.toISOString(),
+        }),
+      ]
+    : [];
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  jsonLd={jsonLd}
+  current="rising"
+  noindex={rising.topics.length === 0}
+  breadcrumbs={[{ name: '急上昇' }]}
+  sidebar={{ hideRanking: true }}
+>
+  <div class="page-head">
+    <h1>急上昇ニュース</h1>
+    <p>
+      直近{rising.hours}時間に、新しく報じたメディアの多い話題です。話題になり始めたニュースをいち早く見つけられます（{formatDateTime(builtAt)}時点・1時間ごとに更新）。
+    </p>
+  </div>
+
+  <div class="stack">
+    <ShareButtons url={url} text={`いま急上昇中のニュース｜${site.name}`} />
+    <section class="panel" aria-labelledby="rising-title">
+      <div class="panel-head">
+        <h2 id="rising-title">
+          <span aria-hidden="true">🚀</span>急上昇
+        </h2>
+        <span class="note">直近{rising.hours}時間に増えたメディアの数</span>
+      </div>
+      {
+        rising.topics.length > 0 ? (
+          <TopicList topics={rising.topics.map((entry) => entry.topic)} gained={gained} gainedHours={rising.hours} detailed />
+        ) : (
+          <p class="empty">いまは報じるメディアが増えている話題がありません。しばらくお待ちください。</p>
+        )
+      }
+    </section>
+
+    {
+      fresh.length > 0 && (
+        <section class="panel" aria-labelledby="fresh-title">
+          <div class="panel-head">
+            <h2 id="fresh-title">
+              <span aria-hidden="true">🆕</span>報じられ始めた話題
+            </h2>
+            <span class="note">最初の報道から6時間以内</span>
+          </div>
+          <TopicList topics={fresh} othersLimit={1} ranked={false} />
+        </section>
+      )
+    }
+
+    {
+      trends.length > 0 && (
+        <section class="panel" aria-labelledby="trends-title">
+          <div class="panel-head">
+            <h2 id="trends-title">
+              <span aria-hidden="true">🔎</span>注目ワード
+            </h2>
+            <span class="note">24時間の見出しで急に増えた言葉</span>
+          </div>
+          <TrendWords words={trends} />
+        </section>
+      )
+    }
+
+    <p class="note-text">
+      多くのメディアが報じた順は<a href={href('/ranking/')}>話題のニュースランキング</a>、AI関連は<a href={href('/tag/ai/')}
+        >AIニュースランキング</a
+      >で見られます。
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .note {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  .panel-head h2 span[aria-hidden] {
+    margin-right: 4px;
+  }
+  .note-text {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 0.85rem;
+  }
+</style>

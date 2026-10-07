@@ -2,7 +2,7 @@ import { categories } from '../config/site.ts';
 import type { UpdatesFile, UpdateEntry, UpdateTopic } from '../lib/follow-core.ts';
 import { builtAt, getItems, siteOf } from '../lib/items.ts';
 import { getSummary, summaryPath } from '../lib/summaries.ts';
-import { coverageOf, getHotTopics } from '../lib/topics.ts';
+import { coverageOf, getHotTopics, topicPath, topicViewOf } from '../lib/topics.ts';
 
 /** 新着として載せる期間と件数（フォロー中のページ・ヘッダーの件数・通知の材料。大きくしすぎない） */
 const HOURS = 36;
@@ -23,6 +23,7 @@ export function GET() {
     .map((item) => {
       const summary = getSummary(item.id);
       const coverage = coverageOf(item.id);
+      const topic = topicViewOf(item.id);
       return {
         i: item.id,
         t: item.title,
@@ -32,6 +33,7 @@ export function GET() {
         u: summary ? summaryPath(item.id) : item.url,
         d: item.publishedAt,
         ...(coverage >= 2 ? { k: coverage } : {}),
+        ...(topic ? { p: topic.id } : {}),
         ...(summary ? { m: 1 as const } : {}),
       };
     });
@@ -39,7 +41,8 @@ export function GET() {
     i: topic.items.map((item) => item.id).slice(0, 50),
     t: topic.lead.title,
     k: topic.coverage,
-    u: getSummary(topic.lead.id) ? summaryPath(topic.lead.id) : '/ranking/',
+    // 通知を押したら、話題のページ（各メディアの報道の比較・AI 要約）を開く
+    u: topicPath(topic.id),
   }));
   const file: UpdatesFile = {
     builtAt: builtAt.toISOString(),

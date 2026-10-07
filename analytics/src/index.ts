@@ -25,6 +25,7 @@ import {
   topOf,
   totalsOf,
   visitorId,
+  weekStartDay,
   type StoredEvent,
 } from './core.ts';
 import { handle } from './front.ts';
@@ -437,12 +438,30 @@ export class Analytics extends DurableObject<Env> {
         return { t: minute * 60_000, views: bucket?.views ?? 0, clicks: bucket?.clicks ?? 0 };
       }),
       recent: this.recent,
+      // この週（月曜から）・この月の訪問者数（その期間に初めて来た人を、日ごとに足したもの）
+      period: this.periodVisitors(now),
       today: {
         visitors: aggregator.total('all').uniq,
         views: aggregator.total('view').count,
         visits: aggregator.total('visit').count,
         clicks: aggregator.total('click').count,
       },
+    };
+  }
+
+  /** この週・この月の訪問者数（WAU・MAU） */
+  private periodVisitors(now: number): { week: number; month: number; weekFrom: string; monthFrom: string } {
+    const today = jstDay(now);
+    this.ensureRolled(today);
+    const weekFrom = weekStartDay(today);
+    const monthFrom = `${today.slice(0, 8)}01`;
+    const { aggregator } = this.todayState(now);
+    const past = (from: string, metric: string) => (from < today ? this.store.rollups(from, addDays(today, -1), [metric]) : []).reduce((sum, row) => sum + row.count, 0);
+    return {
+      week: past(weekFrom, 'visit.wk') + aggregator.total('visit.wk').count,
+      month: past(monthFrom, 'visit.mo') + aggregator.total('visit.mo').count,
+      weekFrom,
+      monthFrom,
     };
   }
 

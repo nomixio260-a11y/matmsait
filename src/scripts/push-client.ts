@@ -3,6 +3,7 @@
  * 通知をオンにすると、サービスワーカー（public/sw.js）を登録して、ブラウザの通知の購読を作り、
  * フォロー・ミュート・受け取り方を通知のサーバー（サイトの /api）に送る。オフにすると購読を消す
  */
+import { serviceWorkerUrl } from './sw-url.ts';
 import { loadFollow, loadMute, readStored, STORE_KEYS, writeStored } from './personal-store.ts';
 
 /** 通知の受け取り方（サーバーの NotifyOptions と同じ形） */
@@ -74,7 +75,7 @@ function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
 
 /** サービスワーカーの登録（サイトのベースパスの下に置く） */
 async function registration(base: string, apiBase: string): Promise<ServiceWorkerRegistration> {
-  const script = `${base}/sw.js?api=${encodeURIComponent(apiBase)}`;
+  const script = serviceWorkerUrl(base, apiBase);
   const existing = await navigator.serviceWorker.getRegistration(`${base}/`);
   if (existing?.active && new URL(existing.active.scriptURL).search === new URL(script, location.href).search) return existing;
   await navigator.serviceWorker.register(script, { scope: `${base}/` });

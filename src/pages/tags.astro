@@ -1,0 +1,93 @@
+---
+/** タグの一覧（テーマごとのニュースまとめ） */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { tags } from '../config/tags.ts';
+import { builtAt, href } from '../lib/items.ts';
+import { getTagItems, getTagTopics, tagPath, topicPath } from '../lib/topics.ts';
+
+const dayAgo = builtAt.getTime() - 24 * 60 * 60 * 1000;
+const entries = tags
+  .map((tag) => {
+    const items = getTagItems(tag.slug);
+    return {
+      tag,
+      week: items.length,
+      day: items.filter((item) => Date.parse(item.publishedAt) >= dayAgo).length,
+      top: getTagTopics(tag.slug, { hours: 48, limit: 1 })[0],
+    };
+  })
+  .sort((a, b) => b.day - a.day || b.week - a.week);
+---
+
+<BaseLayout
+  title="タグ一覧（テーマ別のニュースまとめ）"
+  description="AI・Apple・Google・任天堂・MLB・セキュリティ・半導体・EV・災害・政治・株価など、ジャンルをまたいだテーマごとの最新ニュースまとめの一覧です。"
+  breadcrumbs={[{ name: 'タグ' }]}
+>
+  <div class="page-head">
+    <h1>タグ一覧</h1>
+    <p>ジャンルをまたいで、テーマごとにニュースをまとめています。件数は直近24時間と1週間の記事数です。</p>
+  </div>
+  <ul class="tag-grid">
+    {
+      entries.map(({ tag, week, day, top }) => (
+        <li class="panel tag-card">
+          <a class="tag-name" href={href(tagPath(tag.slug))}>
+            #{tag.name}
+          </a>
+          <p class="tag-count">
+            24時間 <b>{day}</b>件・1週間 <b>{week}</b>件
+          </p>
+          {top && (
+            <a class="tag-top" href={href(topicPath(top.id))}>
+              {top.lead.title}
+            </a>
+          )}
+        </li>
+      ))
+    }
+  </ul>
+</BaseLayout>
+
+<style>
+  .tag-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+  @media (min-width: 640px) {
+    .tag-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .tag-card {
+    padding: 14px 16px;
+  }
+  .tag-name {
+    color: var(--text);
+    font-size: 1.05rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+  .tag-name:hover {
+    color: var(--accent);
+  }
+  .tag-count {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .tag-count b {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .tag-top {
+    display: block;
+    margin-top: 8px;
+    color: var(--text-2);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+</style>

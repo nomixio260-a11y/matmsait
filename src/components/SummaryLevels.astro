@@ -1,0 +1,305 @@
+---
+/**
+ * AI 要約を「10秒で読む・30秒で読む・2分で理解」の3つの長さで見せる。
+ * 10秒: 要約の1文目（プロンプトで「誰が・何を・どうした」を1文目に書くよう指示している）
+ * 30秒: 要約と要点
+ * 2分: 要約・要点に、背景・用語、ほかのメディアの要約にしかない要点、報道の広がり、キーワードを足す
+ */
+import { formatDateTime, getSource, href, siteOf } from '../lib/items.ts';
+import { firstSentence } from '../lib/summary-view.ts';
+import { summaryPath } from '../lib/summaries.ts';
+import type { TopicView } from '../lib/topics.ts';
+import { normalizeWord } from '../lib/topic-core.ts';
+import type { SummaryRecord } from '../lib/types.ts';
+
+interface Props {
+  record: SummaryRecord;
+  /** 同じ話題のほかの記事の要約（ほかのメディアの報じ方として見せる） */
+  others?: SummaryRecord[];
+  /** 記事の話題（報道の広がりを書く） */
+  topic?: TopicView;
+  /** 要約のページへのリンクを出す（話題のページで使う） */
+  linkSummary?: boolean;
+  /** 最初に開いておく長さ */
+  initial?: '10' | '30' | '120';
+}
+const { record, others = [], topic, linkSummary = false, initial = '30' } = Astro.props;
+const source = siteOf(record);
+const lead = firstSentence(record.summary);
+// ほかのメディアの要約にしかない要点（同じ文は省く）
+const seen = new Set(record.points.map((point) => normalizeWord(point)));
+const angles = others
+  .filter((other) => other.id !== record.id)
+  .map((other) => {
+    const points = other.points.filter((point) => {
+      const key = normalizeWord(point);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return { other, label: siteOf(other).label, points: points.slice(0, 2) };
+  })
+  .filter((angle) => angle.points.length > 0)
+  .slice(0, 4);
+// 報道の広がり（最初の報道からの時間と、報じたメディアの数）
+const first = topic?.reports[0];
+const spreadHours = topic ? Math.max(0, Math.round((Date.parse(topic.latestAt) - Date.parse(topic.firstAt)) / 3_600_000)) : 0;
+const firstName = first ? (getSource(first.item.sourceId)?.name ?? siteOf(first.item).label) : '';
+const tabs = [
+  { key: '10', label: '10秒で読む' },
+  { key: '30', label: '30秒で読む' },
+  { key: '120', label: '2分で理解' },
+] as const;
+---
+
+<section class="panel levels" aria-labelledby="levels-title" data-levels>
+  <div class="levels-head">
+    <h2 id="levels-title"><span class="ai-badge">AI要約</span>このニュースのポイント</h2>
+    <div class="seg" role="tablist" aria-label="読む長さ">
+      {
+        tabs.map((tab) => (
+          <button type="button" role="tab" id={`tab-lv-${tab.key}`} aria-controls={`lv-${tab.key}`} aria-selected={tab.key === initial ? "true" : "false"}>
+            {tab.label}
+          </button>
+        ))
+      }
+    </div>
+  </div>
+
+  <div id="lv-10" class="level" role="tabpanel" aria-labelledby="tab-lv-10" hidden={initial !== '10'}>
+    <p class="lead-line">{lead}</p>
+  </div>
+
+  <div id="lv-30" class="level" role="tabpanel" aria-labelledby="tab-lv-30" hidden={initial !== '30'}>
+    <p class="summary-text">{record.summary}</p>
+    {
+      record.points.length > 0 && (
+        <ul class="points">
+          {record.points.map((point) => (
+            <li>{point}</li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+
+  <div id="lv-120" class="level" role="tabpanel" aria-labelledby="tab-lv-120" hidden={initial !== '120'}>
+    <p class="summary-text">{record.summary}</p>
+    {
+      record.points.length > 0 && (
+        <ul class="points">
+          {record.points.map((point) => (
+            <li>{point}</li>
+          ))}
+        </ul>
+      )
+    }
+    {
+      record.background && (
+        <div class="background">
+          <h3>背景・用語</h3>
+          <p>{record.background}</p>
+        </div>
+      )
+    }
+    {
+      angles.length > 0 && (
+        <div class="angles">
+          <h3>ほかのメディアが伝えたポイント</h3>
+          <ul>
+            {angles.map((angle) => (
+              <li>
+                <a href={href(summaryPath(angle.other.id))}>{angle.label}</a>
+                <span>{angle.points.join(' / ')}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+    {
+      topic && first && (
+        <div class="spread">
+          <h3>報道の広がり</h3>
+          <p>{`${firstName}が${formatDateTime(first.item.publishedAt)}に最初に報じ、${spreadHours > 0 ? `${spreadHours}時間で` : ''}${topic.coverage}のメディアに広がりました。`}</p>
+        </div>
+      )
+    }
+    {
+      record.keywords && record.keywords.length > 0 && (
+        <div class="keywords">
+          <h3>キーワード</h3>
+          <ul>
+            {record.keywords.map((keyword) => (
+              <li>
+                <a href={`${href('/search/')}?q=${encodeURIComponent(keyword)}`}>#{keyword}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+  </div>
+
+  <p class="ai-note">
+    この要約はAIが元記事をもとに作成し、運営者が確認して掲載しています。正確な内容や詳細は元記事でご確認ください。要約の作り方は<a
+      href={href('/editorial/')}>編集方針</a
+    >をご覧ください。
+  </p>
+  <div class="level-actions">
+    <a class="read-original" href={record.url} target="_blank" rel="noopener" data-aid={record.id} data-src={record.sourceId} data-cat={record.category}>
+      元記事を読む（{source.label}）↗
+    </a>
+    {
+      linkSummary && (
+        <a class="read-summary" href={href(summaryPath(record.id))}>
+          AI要約のページ →
+        </a>
+      )
+    }
+  </div>
+</section>
+
+<style>
+  .levels {
+    padding: 16px 18px 18px;
+  }
+  .levels-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .levels-head h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .levels .seg button {
+    padding: 5px 12px;
+  }
+  .lead-line {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.8;
+  }
+  .summary-text {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.9;
+  }
+  .points {
+    margin: 14px 0 0;
+    padding: 12px 14px 12px 32px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    line-height: 1.8;
+  }
+  .background,
+  .angles,
+  .spread {
+    margin: 14px 0 0;
+    padding: 12px 14px;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 10px 10px 0;
+    background: var(--accent-soft);
+  }
+  .angles,
+  .spread {
+    border-left-color: var(--border-strong);
+    background: var(--surface-2);
+  }
+  .levels h3 {
+    margin: 0 0 4px;
+    font-size: 0.8rem;
+    color: var(--accent-strong);
+  }
+  .angles h3,
+  .spread h3 {
+    color: var(--text-2);
+  }
+  .background p,
+  .spread p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.8;
+  }
+  .angles ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+    font-size: 0.88rem;
+    line-height: 1.7;
+  }
+  .angles a {
+    margin-right: 8px;
+    color: var(--text-2);
+    font-weight: 700;
+  }
+  .keywords {
+    margin-top: 14px;
+  }
+  .keywords h3 {
+    color: var(--text-2);
+  }
+  .keywords ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .keywords a {
+    display: inline-block;
+    padding: 3px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--text-2);
+    font-size: 0.8rem;
+    text-decoration: none;
+  }
+  .keywords a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .ai-note {
+    margin: 14px 0 0;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .ai-note a {
+    color: var(--accent);
+  }
+  .level-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .read-original {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 800;
+    text-align: center;
+    text-decoration: none;
+  }
+  .read-original:hover {
+    background: var(--accent-strong);
+  }
+  .read-summary {
+    justify-self: center;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+</style>

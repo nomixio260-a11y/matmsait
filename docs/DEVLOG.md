@@ -42,13 +42,15 @@
 
 ### 自動で動いているもの
 
-- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「概要」の「今すぐ更新」/ Actions の Run workflow）で、テスト → 公開先の確認（Cloudflare の Secrets があれば Cloudflare Pages、なければ GitHub Pages）→ フィード取得 → 本文の自動取得 → よく読まれている記事の取得 → データをコミット → ビルド → Cloudflare Pages へ公開 → **フォロー中の新着の通知**（`POST /api/push/check`）→ GitHub Pages をページごとの転送ページに → IndexNow・WebSub へ通知 → SNS 投稿（設定時のみ）。2026-10-07 に運営者が Secrets を登録し、run #51 から pages.dev に公開されている。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
+- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「概要」の「今すぐ更新」/ Actions の Run workflow）で、テスト → 公開先の確認（Cloudflare の Secrets があれば Cloudflare Pages、なければ GitHub Pages）→ フィード取得 → 本文の自動取得 → よく読まれている記事の取得 → データをコミット → ビルド → Cloudflare Pages へ公開 → **フォロー中の新着の通知**（`POST /api/push/check`）→ GitHub Pages をページごとの転送ページに → IndexNow・WebSub へ通知（新しく報じられた話題のページ・タグのページも）→ SNS 投稿（設定時のみ。朝7〜10時の今日の重要ニュース・昼12〜14時の AI ニュース・21時以降の今日のまとめ・急上昇（3時間で2社以上・計3社以上）・いま話題（4社以上・スコア50以上）。深夜0〜7時は投稿しない・24時間に8件まで・急上昇といま話題は90分あける・リンクは話題のページ。X は API が有料のため既定では夜のまとめを1日1件だけ（Variables の `X_DAILY_LIMIT`・`X_MONTHLY_LIMIT`・`X_POST_TYPES` で変更））。2026-10-07 に運営者が Secrets を登録し、run #51 から pages.dev に公開されている。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
 - **自動更新タイマー**（`timer.yml`）: 前回の `update.yml` の実行から60分（変数 `UPDATE_INTERVAL_MINUTES` で変更可）たつまで待ち、`update.yml` を実行して自分自身を次に予約する。GitHub の定期実行（schedule）は一度も動かなかったため、こちらで定期更新する。公開リポジトリでだけ動く（非公開にすると自動で止まる）。
 - 収集元は `sources.yaml` の66件（ニュース・経済・テクノロジー・サイエンス・エンタメ・ゲーム・アニメ・スポーツ・乗り物・ライフの9カテゴリ）。どれも利用規約で商用サイトからの利用が禁じられていないことを確認済みで、確認結果（登録を見送ったサイトと理由も）は `docs/SOURCES.md` にある。はてなブックマーク（収集元・ブックマーク数）は商用で使えないため使っていない。
 - **本文の自動取得**（`scripts/fetch-texts.ts`、`update.yml` の「AI が開けない記事の本文を取得」）: 管理画面が `data/text-requests.json` に書いた依頼（AI が開けなかった記事）について、フィードと同じブラウザ相当の通信（ボットの名前は名乗らない）で記事のページを取得し、本文を運営者の公開鍵（`data/text-keys.json`）で暗号化して `data/texts.json` に置く。robots.txt（クローラー全般と AI のクローラーの拒否）・noai・アクセスの拒否を守り、1回15件まで。依頼がなければ何もしない。
 - **フォロー・通知**（2026-10-07 追加）: 読者がジャンル・掲載元・キーワードをフォローすると「フォロー中」（`/following/`）に新着をまとめ（ブラウザだけに保存）、通知をオンにした人には、毎時の公開のあとに Durable Object が `updates.json` のはじめて見た記事をフォローと照らし合わせてプッシュ通知を送る（1日1回の朝のまとめ・夜は送らない設定も）。いま話題のニュース（4社以上）と、管理画面からの運営のお知らせも送れる。VAPID の鍵は Durable Object が作って保存（秘密の設定は不要）。表示しない設定（ミュート）・既読・表示の設定（`/settings/`）もブラウザだけに保存。
 - **アクセス解析**（Cloudflare。2026-10-07 から pages.dev で動作中）: サイトのページが見たページ・開いた記事・検索・保存・閲覧時間などを同じドメインの `/api/collect` に送り（`src/scripts/analytics.ts`）、Pages の Functions（`functions/api/[[path]].ts`、中身は `analytics/src/front.ts`）が Worker `topiatsume-analytics` の Durable Object（SQLite）に渡して数える。管理画面の「アクセス解析」（`/admin/analytics/`）で見る。`update.yml` が毎回よく読まれている記事を `/api/popular` から `data/popular.json` に取り込む（`scripts/popular.ts`。Cloudflare に公開していないときは何もしない）。GitHub Pages で公開している間はアクセス解析なし。
-- 人気の目安は「話題度」＝同じ出来事を報じた掲載元の数（「N社が報道」）。見出しの似ている記事をまとめて数える（`src/lib/related.ts` の `clusterTopics`）。話題のニュース（トップ・「話題」ページ・サイドバー・カテゴリ）、日別まとめの並び、SNS 投稿（3社以上）、管理画面の「話題の順」に使う。アクセス解析を設定すると、読まれた人数による「よく読まれている記事」（`/popular/`・トップ・サイドバー・「人気N位」）と、管理画面の「よく読まれている順」も使える。
+- **話題エンジン**（2026-10-07 追加。`src/lib/topic-core.ts`・`src/lib/topics.ts`）: 同じ出来事を報じた記事のまとまり（`src/lib/related.ts` の `clusterTopics`。直近8日の記事）ごとに、報じたメディアの数（「N社が報道」）・**話題度スコア**（0〜100。報道1件ごとに1を足し12時間ごとに半分に減らす＋報じたメディアの分野の広がり＋サイトで読まれた人数。熱さ4で63点）・直近1/3/24時間に新しく報じたメディアの数・初報（いちばん早く報じたメディア）を計算する。ここから「🔥いま話題」（スコアの順）・「🚀急上昇」（3時間に新しく報じたメディアの多い順。少なければ6・12時間に広げる）・「報じられ始めた話題」（最初の報道から6時間）・「📰今日の重要ニュース」（24時間の報道の数と分野の広がり。分野ごとに件数の上限）・「🔎注目ワード」（24時間の見出しに急に増えた言葉。候補は AI 要約のキーワードとタグの言葉）・「📊メディア別」（話題の数と初報の数）を作る。2つ以上のメディアが報じた話題には**話題のページ**（`/topic/<最初の記事のID>/`。各メディアの報道を報じた順に比較・初報・報道の広がりのグラフ・AI 要約の10秒/30秒/2分・関連する話題）があり、記事の「N社が報道」から開ける。検索エンジンに出すのは3社以上か AI 要約のある話題だけ（ほかは noindex）。
+- **タグ**（`src/config/tags.ts`）: AI・Apple・Google・Microsoft・任天堂・PlayStation・MLB・セキュリティ・半導体・EV・災害・政治・株価の13個。見出しと AI 要約のキーワードを正規表現で当てはめ（タグごとにジャンルを絞って誤りを減らす）、`/tag/<slug>/`（AI は「AIニュースランキング」）と `/tags/` にまとめる。記事が8件未満のタグのページは noindex。
+- よく読まれている記事: アクセス解析の読まれた人数による「よく読まれている記事」（`/popular/`・トップ・サイドバー・「人気N位」）と、管理画面の「よく読まれている順」。話題度スコアにも少し足す。
 - 記事は直近30日・最大12000件を `data/items.json` に保存（更新の多いサイトで上限が埋まっても、各掲載元の新しい20件は残す）。一覧ページは25ページ（1000件）まで、検索は新しい6000件まで。
 
 ### 運営者の設定状況
@@ -62,8 +64,9 @@
 | Cloudflare（公開先・アクセス解析・通知） | 運営者がアカウントと API トークンを作成し、GitHub の Secrets（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）を登録済み（2026-10-07。登録後の update.yml run #51 で pages.dev への公開と GitHub Pages の転送ページを確認）。Worker `topiatsume-analytics` と Pages のプロジェクト `topiatsume` を使う。ダッシュボードで作られた Worker `matmsait`（Hello World のひな形）は使っていない |
 | 管理画面のログイン（新しい URL） | 運営者が pages.dev の管理画面で初回設定済み（2026-10-07。本文の自動取得の鍵を新しく登録した push で確認） |
 | お知らせ・ピックアップ・通知 | 機能は公開済み。お知らせ（`data/notice.json`）とピックアップ（`data/picks.json`）は、運営者が管理画面から保存すると作られる（まだない） |
-| SNS（X・Bluesky・Mastodon・Misskey） | 未設定 |
-| AdSense・Google アナリティクス・Search Console | 未設定（変数を設定すると有効になる。Google アナリティクスは上のアクセス解析と併用できる） |
+| SNS（X・Bluesky・Mastodon・Misskey） | 未設定。X の API は2026年2月から無料枠がなく、URL つきの投稿は1件0.2ドル（公式の料金表）なので、無料で使うなら管理画面の「概要」の「SNS に投稿する（下書き）」から X の投稿画面を開いて手で投稿する。Bluesky・Mastodon・Misskey は無料で自動投稿できる（Secrets を登録すると動く） |
+| AdSense・Google アナリティクス・Search Console | 未設定（変数を設定すると有効になる。Google アナリティクスは上のアクセス解析と併用できる。Search Console は `PUBLIC_GOOGLE_SITE_VERIFICATION` を設定するか DNS で確認し、サイトマップに `https://topiatsume.pages.dev/sitemap.xml` を登録する） |
+| Cloudflare Web Analytics | 未設定（任意。Pages のプロジェクトの「Metrics」から無料で有効にできる。自前のアクセス解析と併用できる） |
 | 独自ドメイン | なし（収益化の段階で取得を推奨） |
 
 ### 主なファイル
@@ -77,11 +80,16 @@
 | `.github/workflows/timer.yml`, `scripts/timer.ts`, `scripts/lib/timer.ts` | 自動更新タイマー |
 | `scripts/lib/store.ts` | 記事のマージ・重複（同じ URL・同じ見出し）のまとめ・保存 |
 | `scripts/summaries.ts` | 要約のプロンプト作成・取り込み（コマンドライン） |
-| `scripts/notify.ts` | 公開後の通知（IndexNow・WebSub）と SNS 投稿 |
+| `scripts/notify.ts`, `scripts/lib/social.ts` | 公開後の通知（IndexNow・WebSub）と SNS 投稿（投稿の種類・時間帯・上限・サービスごとの上限。話題はサイトのビルドと同じ計算なので話題のページの URL と一致する） |
 | `src/lib/summary-core.ts` | 要約のプロンプト・回答の読み取りと検証・要約ファイルの読み書き（管理画面と共通） |
 | `src/lib/blocklist-core.ts` | 記事の非表示（NGワード・サイト・個別） |
 | `src/lib/related.ts` | 見出しの似ている記事（同じ話題）を探す・話題ごとにまとめて話題度を数える（`clusterTopics`） |
-| `src/lib/topics.ts` | 話題のニュースの一覧（`getHotTopics`）・記事ごとの話題度（`coverageOf`） |
+| `src/lib/topics.ts` | 話題（`getTopicViews`: 話題度スコア・急上昇・初報・AI 要約・タグつき）、いま話題（`getHotTopics`）・急上昇（`getRisingTopics`）・今日の重要（`getImportantTopics`）・注目ワード（`getTrendWords`）・メディア別（`getMediaStats`）・タグの記事、記事ごとの話題度（`coverageOf`） |
+| `src/lib/topic-core.ts`, `src/lib/tag-core.ts`, `src/config/tags.ts` | 話題の数字の計算（ID・初報・新しく報じたメディアの数・話題度スコア・急上昇・重要度・注目ワード。Node の機能を使わない）とタグの定義・当てはめ |
+| `src/pages/topic/[id].astro`, `src/pages/rising.astro`, `src/pages/tag/[slug].astro`, `src/pages/tags.astro` | 話題のページ（各メディアの報道の比較）・急上昇・タグ（AI ニュースランキングなど）・タグ一覧 |
+| `src/components/TopicList.astro`, `ImportantList.astro`, `TrendWords.astro`, `MediaStats.astro`, `SummaryLevels.astro` | 話題の一覧（話題度スコア・N社・急上昇の印）、今日の重要ニュース、注目ワード、メディア別の表、AI 要約の10秒/30秒/2分 |
+| `src/lib/summary-view.ts` | AI 要約の「10秒で読む」（要約の1文目。プロンプトで1文目に「誰が・何を・どうした」を書かせている）など |
+| `src/scripts/pwa.ts`, `src/scripts/sw-url.ts`, `src/pages/offline.astro` | サービスワーカーの登録（すべての閲覧者。通知と同じ URL）・「ホーム画面に追加」の案内（2回目以降の訪問。閉じたら30日出さない）・オフラインのページ |
 | `src/lib/search-core.ts` | サイト内検索（表記ゆれの吸収・並べ方・一致部分の強調・検索の候補） |
 | `src/scripts/reader.ts` | 「あとで読む」と、前回の訪問のあとに届いた記事の印（どちらもブラウザ内だけ） |
 | `src/lib/github-commit.ts` | 管理画面から GitHub API で保存・ワークフロー実行 |
@@ -99,7 +107,7 @@
 | `src/lib/follow-core.ts`, `src/pages/updates.json.ts` | フォロー・ミュートの照合（ブラウザと通知のサーバーで共通）と、直近の新着・話題のファイル（フォロー中のページ・ヘッダーの数・通知の材料） |
 | `src/scripts/personal.ts`, `src/scripts/personal-store.ts`, `src/styles/personal.css` | 読者向けの機能（既読・ミュート・フォローのボタン・記事のメニュー（…）・ヘッダーの新着の数・お知らせを閉じる・先頭に戻る）と、ブラウザへの保存 |
 | `src/pages/following.astro`, `src/scripts/following.ts`, `src/pages/settings.astro`, `src/scripts/settings.ts` | 「フォロー中」（新着の一覧・フォローの追加・通知の設定）と「表示の設定」（表示・ミュート・書き出しと読み込み・アクセス解析で数えない） |
-| `src/scripts/push-client.ts`, `public/sw.js`, `public/badge-96.png` | ブラウザの通知の登録（サービスワーカー・購読・設定の送信・テスト）と、通知の表示 |
+| `src/scripts/push-client.ts`, `public/sw.js`, `public/badge-96.png` | ブラウザの通知の登録（サービスワーカー・購読・設定の送信・テスト）と、通知の表示。`sw.js` はオフラインのとき前に見たページ（40件まで）かオフラインのページを出し、`/_astro/` のファイルを使い回す（ページはいつもネットから読む） |
 | `analytics/src/push.ts`, `analytics/src/webpush.ts` | 通知のサーバー（購読の保存・新着の確認・40件ずつの送信・お知らせ・集計）と、Web Push の暗号化（RFC 8291）・VAPID（RFC 8292） |
 | `src/lib/editorial-core.ts`, `src/lib/editorial.ts`, `src/components/PickList.astro` | お知らせ（`data/notice.json`）とピックアップ（`data/picks.json`）の形・読み込み・トップページの表示 |
 | `src/pages/admin/index.astro`（概要）, `summaries.astro`（AI要約・記事）, `content.astro`, `notify.astro`, `src/scripts/admin-dashboard.ts`, `admin-content.ts`, `admin-notify.ts`, `admin-shared.ts`, `src/styles/admin.css` | 管理画面の各ページと共通の処理・見た目（AI要約・記事のページの処理は今までどおり `src/scripts/admin.ts`） |
@@ -124,6 +132,7 @@ SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npx astro preview
 - 管理画面の動作（ログインを含む）は、Playwright で GitHub API をモックして確かめている（実際の GitHub には書き込まない）。ログインの確認には、Playwright の時計の早送り（`clock.fastForward`）で自動ログアウトや待ち時間を再現する。
 - Cloudflare での公開と同じ組み合わせは、`cd analytics && npm install && npx wrangler dev --var GITHUB_API:<GitHub API のまね>` で解析の Worker を動かし、`SITE_URL=https://topiatsume.pages.dev BASE_PATH=/ PUBLIC_ANALYTICS_URL=/api npm run build` でビルドしてから、ルートで `analytics/node_modules/.bin/wrangler pages dev --port 8788` を動かして確かめる（http://127.0.0.1:8788。`dist`＋`/api`＋Durable Object。`npx tsc --noEmit`（analytics/）で Worker と Functions の型チェック）。Worker だけなら `PUBLIC_ANALYTICS_URL=http://127.0.0.1:8787` でビルドする。集計とデータの保存の中身は `tests/analytics.test.ts`（node:sqlite で SQL も実行）で確かめている。Playwright で数えさせるときは `navigator.webdriver` を false にする（自動操作のブラウザは数えないため）。
 - 通知は、`wrangler dev` に `--var PUSH_TEST_HOSTS:127.0.0.1:9999 --var SITE_URL:http://127.0.0.1:8788` を付けると、偽の届け先（127.0.0.1:9999 で受け取りを記録する小さなサーバー）へ送れる。Playwright で `PushManager.prototype.subscribe` を偽の購読（鍵はテスト側で作る）に差し替え、届いた通知をテスト側で復号して中身を確かめる。サービスワーカーの通知の表示は、フル版の Chromium（`chromium.launch({ channel: 'chromium' })`。ヘッドレス専用版は通知を出せない）と CDP の `ServiceWorker.deliverPushMessage` で確かめる。暗号化は `tests/webpush.test.ts` が RFC 8291 の例と比べている。
+- 話題のページ・トップの各セクション・急上昇・タグ・オフライン（サービスワーカー）は、ビルドしたサイトを Playwright で開いて確かめる（スマホの幅で CLS も測る。オフラインは `context.setOffline(true)`）。SNS の投稿内容は `NOTIFY_DRY_RUN=1 SITE_BASE_URL=https://topiatsume.pages.dev npm run notify` で送らずに確認できる。
 - テストのために `data/` に作ったファイル（要約・非表示の設定・お知らせ・ピックアップなど）は**コミットしない**。
 
 ---
@@ -137,18 +146,43 @@ SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npx astro preview
 5. 収集元の利用条件は `docs/SOURCES.md` のとおり確認したが、最終確認は運営者が行う（規約は変わるので年1回程度見直す）。4Gamer.net と鉄道ファン（railf.jp）は「利用したら一報を」と歓迎しているので、収益化のときに連絡するとよい（任意）。
 6. 話題度（「N社が報道」）は見出しの似かたで同じ出来事をまとめているので、言い回しが大きく違う報道はまとまらないことがある（逆に別の出来事をまとめてしまう誤りは、本番のデータでは見つかっていない）。調整するときは `src/lib/related.ts` の `clusterTopics` の既定値（`minScore` など）を変え、テストと本番のデータで確かめる。
 7. 海外ニュースは、商用サイトで使えるフィードがほとんど見つからなかったため「海外」カテゴリは作っていない（BBC・CNN・AFPBB・聯合ニュースなどは NG）。使えるサイトが見つかったら `src/config/site.ts` にカテゴリを足す。
-8. SNS 自動投稿は未設定・未確認（X の署名は公式の例と一致することを確認済み）。
+8. SNS 自動投稿は未設定。無料で始めるなら Bluesky（アプリパスワード）・Mastodon・Misskey の Secrets を登録する（投稿内容は `NOTIFY_DRY_RUN=1` で確認済み）。X は API が有料（URL つき1件0.2ドル）なので、管理画面の下書きから手で投稿するのがおすすめ。自動投稿するなら上限の Variables を決めてから Secrets を登録する（既定は夜のまとめだけ1日1件・月31件まで）。
 9. 管理画面で編集できる要約は新しい300件まで。それより古い要約は `data/summaries/YYYY-MM.json` を直接編集する。
 10. 本文の自動取得で取得できるかはサイトしだい（アクセスを拒否するサイト・本文が動画だけのページ・JavaScript で本文を表示するページは取れない。2026-10-07 からはボットの名前を名乗らずブラウザ相当の通信で取るが、robots.txt と拒否は守り、ボット対策のすり抜けはしない）。取得できない記事は、本文を貼り付けるか同じ話題の別の記事に切り替える。取得結果で断られることが多い掲載元があれば、`summary: false` にするかを考える。
 11. AI が開けない記事の記録（どのサイトがどれだけ開けなかったか）は運営者のブラウザにだけ残る（localStorage、14日間）。別の端末では記録がない状態から始まる。どのサイトを AI が開けないかが分かってきたら、`docs/SOURCES.md` に書き残しておくとよい。
 12. 収益化の前に: 独自ドメインの取得、AdSense の審査の前に AI 要約を増やす（話題の記事を中心に。審査では独自の内容が重視される）、`ads.txt` の設置、気になる記事の非表示、`src/config/site.ts` の運営者名・問い合わせ先の確認。管理画面の「ピックアップ」のひとことも、運営者の独自の内容として審査で評価されやすい。
-13. アクセス解析の注意: Cloudflare の無料プランは1日にリクエスト10万回・SQLite の書き込み10万行・読み込み500万行が上限（ページを見るごとに1回、表示中は1分ごとに1回送る。1日に数千人くらいまで）。記録は1日4万件まで（`MAX_EVENTS_PER_DAY`）。足りなくなったら Workers の有料プラン（月5ドル）にするか、合図の間隔（`src/scripts/analytics.ts` の `PING_INTERVAL`）を延ばす。訪問者は「IP アドレス＋ブラウザの種類＋日ごとの塩」で数えるので、携帯電話の回線（多くの人が同じ IP を使う）で同じ機種・同じブラウザの人が1人に数えられることがある。人気の順位は同じ人を1回だけ数えるが、多くの IP から送れば操作はできる（おかしな順位に気づいたら、管理画面で記事を非表示にできる）。「いまN人が閲覧中」は2人以上のときだけ出す（`data-min`）。 検索エンジンには新しい URL（pages.dev）を覚え直してもらう必要がある（以前の URL は GitHub Pages の制約で 301 ではなく転送ページ。2026-10-07 からページごとに正規の URL と即時の転送を入れている。Search Console を使うなら新しい URL で登録する）。
+13. アクセス解析の注意: Cloudflare の無料プランは1日にリクエスト10万回・SQLite の書き込み10万行・読み込み500万行が上限（ページを見るごとに1回、表示中は2分ごとに1回（2026-10-07 に1分から変更）、離れるときに1回送る。1ページあたり2〜3回なので、月100万PV（1日3万3千PV）でほぼ上限。上限を超えても、サイトの表示は止まらず計測だけが止まる）。記録は1日4万件まで（`MAX_EVENTS_PER_DAY`）。足りなくなったら Workers の有料プラン（月5ドル）にするか、合図の間隔（`src/scripts/analytics.ts` の `PING_INTERVAL`）を延ばす。訪問者は「IP アドレス＋ブラウザの種類＋日ごとの塩」で数えるので、携帯電話の回線（多くの人が同じ IP を使う）で同じ機種・同じブラウザの人が1人に数えられることがある。人気の順位は同じ人を1回だけ数えるが、多くの IP から送れば操作はできる（おかしな順位に気づいたら、管理画面で記事を非表示にできる）。「いまN人が閲覧中」は2人以上のときだけ出す（`data-min`）。 検索エンジンには新しい URL（pages.dev）を覚え直してもらう必要がある（以前の URL は GitHub Pages の制約で 301 ではなく転送ページ。2026-10-07 からページごとに正規の URL と即時の転送を入れている。Search Console を使うなら新しい URL で登録する）。
+
+14. 話題のページの URL は「話題の最初の記事の ID」なので、あとから届いたもっと早い記事で話題がつながると URL が変わる（古い URL は 404 になる。めったにない）。また話題をまとめる期間（直近8日）を過ぎると話題のページも消える（その日の話題は日別まとめに残る）。検索からの流入が増えてきたら、話題を `data/` に残して長く公開するかを検討する。
+15. 話題度スコア・急上昇・注目ワードの数値は、2026-10-07 時点の記事（1日約1000件・66メディア）で決めた。1時間に新しく報じられる話題は少ない（日中でも3時間で数件）ので、急上昇は3時間で数えている。収集元が増えたり減ったりしたら、`src/lib/topic-core.ts` の定数（`HALF_LIFE_HOURS`・`SCORE_SCALE` など）を本番のデータで見直す。タグ（`src/config/tags.ts`）は本番の見出しで当てはまり方を確かめてから足す。
+16. 「◯社が報道」は掲載元（メディア）の数なので、同じ会社の複数のメディア（例: Impress の PC Watch・ケータイ Watch など）は別々に数える。気になるようなら `sources.yaml` に運営会社を足して数え方を変えることを検討する。
 
 （解決済み: GitHub の Secrets（Cloudflare）の登録と新しい URL の管理画面の初回設定は、2026-10-07 に運営者が行い、毎時の更新が pages.dev に公開されることを確かめた。はてなブックマークの商用利用の問題と、外した収集元・要約を禁じている掲載元の要約は、2026-10-06 に削除して解決した。管理画面のパスワードの設定し直しは、2026-10-07 に運営者が行った（本文を読むための公開鍵も登録済み）。下の記録を参照）
 
 ---
 
 ## 開発の記録（新しい順）
+
+### 2026-10-07 「いま何が話題か一瞬で分かる」サイトへ: 話題度スコア・急上昇・話題のページ（各社の比較）・トップの作り直し・タグ・10秒/30秒/2分・SEO・SNS・WAU/MAU・PWA
+
+- 依頼・目的: 運営者から「アクセス数・リピーターを増やすために大幅改善」。ニュースまとめから「今何が話題なのか一瞬で分かるサイト」へ。今話題・急上昇・話題度スコア・何社が報道しているかの可視化・1/3/24時間の増加量・新しく報じられたニュースの検出・今日の重要ニュース・AI 要約の10秒/30秒/2分・ニュースごとのページ・関連ニュース・各社の報道の比較・AI ニュースのランキング・タグのページ、トップページの作り直し、SEO（sitemap.xml・構造化データ・OGP など）、SNS の自動投稿の設計（スパム対策・無料優先）、無料のアクセス解析（WAU/MAU など）、PWA、著作権の点検。条件は「現在のサイトを実際に確認する・良い機能は残す・推測で実装しない・重い機能や不要な機能を増やさない・無料優先・実際にアクセスが増える施策を優先」。
+- 現在のサイトの確認（本番）: スマホ（390px）とパソコン（1280px）で画面を撮り、速さを測った。トップの HTML は 233KB（転送 26KB）、スマホのトップは **CLS 0.12**（「良い」の 0.1 を超える。原因は「◯分前」の書き換えで行の幅が変わり、「いま話題」の行が上下にずれること）。sitemap.xml は 404（`sitemap-index.xml` だけ）。記事データ（2507件・1日約1000件・66メディア）で話題の統計を取り、24時間に2社以上が報じた話題は約40件（5社以上は2件）、1時間に新しく報じられる話題は日中でも1件程度・3時間で約9件だったので、急上昇は「3時間」で数え、少ないときは時間を広げることにした。見出しを機械的に区切った言葉は「発表」「判明」ばかりになったので、注目ワードの候補は AI 要約のキーワード（固有名詞）に限った（山本由伸・大谷翔平・INZONE などが上位に出ることを確認）。よく読まれている記事（アクセス解析）はまだデータがない（`data/popular.json` が空）。
+- やったこと:
+  - 話題エンジン（`src/lib/topic-core.ts`・`src/lib/topics.ts`）: 話題の ID（最初の記事の ID）・初報・メディアごとの最初の報道・1/3/24時間に新しく報じたメディアの数・**話題度スコア**（報道1件ごとに1、12時間で半分、分野の広がりで上乗せ、読まれた人数を少し足し、0〜100 の目盛りに）・急上昇・報じられ始めた話題・重要度（今日の重要ニュース。分野ごとに件数の上限）・注目ワード・メディア別（話題の数・初報の数）。「いま話題」は報道の数だけでなくスコア（新しさ）の順にした。
+  - **話題のページ**（`/topic/<ID>/`。2社以上の話題すべて。今回のデータで68ページ、うち検索エンジンに出すのは3社以上か AI 要約のある21ページ）: 話題度スコア・報じたメディアの数（点の数でも表示）・初報・1/3/24時間の増加、AI 要約（10秒/30秒/2分）、**各メディアの報道を報じた順に比較**（初報の印・「初報から2時間後」・続報）、**報道の広がりのグラフ**（報じたメディアの数の累計。SVG）、関連する話題（同じタグ・見出しの似た話題・同じ分野）、分野の新着。構造化データは CollectionPage＋ItemList＋パンくず、OGP は article（公開・更新の日時つき）。記事の「◯社が報道」、話題の一覧の見出し、フォロー中のページ、いま話題の通知、SNS の投稿から開く（サイトの中の回遊と、検索から入る入口を増やすため）。記事ごとのページ（要約のない記事1件ずつ）は、中身が見出しと抜粋だけの薄いページになり検索エンジンの評価を下げるおそれと著作権の点から作らず、2社以上の話題と AI 要約のある記事だけにした。
+  - **トップページの作り直し**（スマホ優先）: 「24時間で◯件の記事・◯件の話題」とページ内の移動ボタン、🔥いま話題（スコア・N社・3時間の増加・ほかの報道）、🚀急上昇（いま話題と重ならないもの）、🔎注目ワード（タグの言葉はタグのページへ、ほかは検索へ）と検索の入力欄、📰今日の重要ニュース（分野ごとに1件）、🤖AI ニュース、AI 要約（10秒の1文）、📊メディア別（初報の多い順）、よく読まれている記事、新着（30件→20件）、カテゴリ別（6件→4件）。編集部のピックアップは今までどおり。HTML は 233KB → 187KB。
+  - **急上昇のページ**（`/rising/`）・**タグ**（`src/config/tags.ts` の13個。`/tag/<slug>/` と `/tags/`。AI のタグは「AIニュースランキング」。本番の見出しで当てはまり方を確かめ、「PS5連勝（野球のポストシーズン）」「インテル（サッカー）」「宇宙戦艦ヤマト」などを拾わないようタグごとにジャンルを絞り、記事の少ない「宇宙」は外した）。ヘッダーのタブに「急上昇」「AIニュース」を追加。話題のランキング（`/ranking/`）は24時間をスコアの順・1週間を報道の数の順にし、「今日の重要ニュース」（分野ごとに3件まで）を加えた。
+  - **AI 要約の10秒/30秒/2分**（`src/components/SummaryLevels.astro`）: 要約の形式とプロンプトは変えずに（今までの要約にもそのまま使えるよう）、10秒＝要約の1文目（プロンプトで1文目に「誰が・何を・どうした」を書かせている）、30秒＝要約と要点、2分＝要約・要点・背景・ほかのメディアの要約にしかない要点・報道の広がり・キーワード、を切り替えて読めるようにした。要約のページ・話題のページ・要約のカード（10秒の1文）に使う。要約のページから話題のページ（各社の比較）へ案内する。
+  - SEO: `/sitemap.xml`（`sitemap-index.xml` と同じ内容。ビルドの最後に写す）、robots.txt はそれを案内。話題・タグのページは noindex のものをサイトマップから外し（ビルドした HTML の robots を見て決める）、話題のページは最後の報道の日時を lastmod に。要約のページの構造化データを NewsArticle にし、要約・話題のページの og:type を article（公開・更新の日時つき）に。twitter:title・description を追加。IndexNow に新しく報じられた話題のページ・急上昇・タグのページも送る。見出し（h1）の最後の1文字だけが次の行に回らないように。
+  - 速さ（Core Web Vitals）: 「◯分前」をビルドした時点の値で書いておき（24時間より前は日時）、閲覧時に書き直す（行の幅がほとんど変わらない）。NEW の印もビルド時に付ける → スマホのトップの **CLS 0.12 → 0**。記事の行の「あとで読む」「…」のアイコンを共通の `<symbol>` にして HTML を軽くし、「…」が次の行に1つだけ回る崩れを直した（右下に固定）。
+  - SNS（`scripts/lib/social.ts`・`scripts/notify.ts`）: 投稿の種類を、朝の今日の重要ニュース・昼の AI ニュース・夜の今日のまとめ（従来）・急上昇（3時間で2社以上・計3社以上）・いま話題（4社以上・スコア50以上）にし、リンクを元の記事ではなく話題のページにした（サイトに来てもらうため）。スパム対策として、深夜（0〜7時）は投稿しない・24時間に8件まで・急上昇といま話題は90分あけて1回1件・同じ話題は二度投稿しない・急上昇といま話題はそれぞれ1日3件まで。X の API は2026年2月から無料枠がなく URL つきの投稿は1件0.2ドル（公式の料金表で確認）なので、X だけは既定で夜のまとめを1日1件・月31件までにし（Variables で変更可）、管理画面の「概要」に **SNS の下書き**（X・Bluesky の投稿画面を開くリンクとコピー）を置いて、無料で手で投稿できるようにした。話題はサイトのビルドと同じ計算なので、投稿のリンクは話題のページと一致する。
+  - アクセス解析: **WAU・MAU**（この週（月曜から）・この月の訪問者数）を追加。ブラウザに残っている前回の閲覧日時から「この週・この月に初めての訪問か」だけを送り（`ret` の印。日をまたいで同じ人を追いかけない）、サーバーで足す（`visit.wk`・`visit.mo`）。管理画面の「概要」と「アクセス解析」に表示。ページの種類に topic・tag・rising を追加。「いま見ている人」の合図を1分ごと→2分ごとにして、月100万PV でも Cloudflare の無料枠（1日10万リクエスト）に収まるようにした（サーバーは3分以内の合図で数えるので表示は変わらない）。DAU・リピート率・閲覧時間・流入元（検索・SNS・AI）・人気のページ・リアルタイム・記事を開いた人の割合はもともとある。
+  - PWA: サービスワーカーをすべての閲覧者に登録（通知と同じ URL）し、ページはいつもネットから読み、つながらないときだけ前に見たページ（40件まで）かオフラインのページ（`/offline/`）を出す。`/_astro/` のファイルは使い回す。2回目以降に来た人に「ホーム画面に追加」を画面の下に小さく案内（Chrome などは追加の画面、iPhone は共有ボタンの手順。閉じたら30日出さない）。
+  - 著作権の点検: 掲載は見出し・短い抜粋（約120字。`excerpt: false` の掲載元は見出しだけ）・元記事へのリンクで、画像は転載していない。AI 要約は本文の書き写しや直接の引用をしないようプロンプトで指示し、運営者が確認して載せている（要約を禁じる掲載元は `summary: false` で除外）。本文の自動取得は robots.txt と AI での利用の拒否を守り、運営者の鍵で暗号化して要約が済んだら消し、長くても14日で消している。話題のページも各社の見出しと同じ短い抜粋とリンクだけで、問題は見つからなかった（変更なし）。
+  - 説明: about に「話題度スコア・急上昇の計算のしかた」（`#score`。話題のページからリンク）と新しい使い方、プライバシーポリシーに週・月の初めての訪問の印・「ホーム画面に追加」の案内の記録・サービスワーカーのキャッシュを追記。
+- 主な変更ファイル: `src/lib/topic-core.ts`・`src/lib/topics.ts`・`src/lib/tag-core.ts`・`src/config/tags.ts`・`src/lib/summary-view.ts`（話題・タグ・要約の見せ方）、`src/pages/topic/[id].astro`・`rising.astro`・`tag/[slug].astro`・`tags.astro`・`offline.astro`（新しいページ）、`src/pages/index.astro`・`ranking.astro`・`summary/[id].astro`・`about.astro`・`privacy.astro`、`src/components/TopicList.astro`・`ImportantList.astro`・`TrendWords.astro`・`MediaStats.astro`・`SummaryLevels.astro`・`ItemRow.astro`・`SummaryCard.astro`・`PopularList.astro`・`Header.astro`、`src/layouts/BaseLayout.astro`（OGP・アイコン・相対時刻・PWA）、`astro.config.mjs`（サイトマップ）、`src/pages/robots.txt.ts`、`src/pages/updates.json.ts`・`src/lib/follow-core.ts`・`src/scripts/following.ts`（話題の ID）、`scripts/lib/social.ts`・`scripts/notify.ts`・`.github/workflows/update.yml`（SNS）、`src/pages/admin/data.json.ts`・`admin/index.astro`・`src/scripts/admin-dashboard.ts`・`admin-analytics.ts`・`src/styles/admin.css`（下書き・WAU/MAU）、`analytics/src/core.ts`・`index.ts`・`src/scripts/analytics.ts`（WAU/MAU・合図の間隔）、`public/sw.js`・`src/scripts/pwa.ts`・`sw-url.ts`・`push-client.ts`・`settings.ts`、`src/styles/*.css`、テスト（`tests/topic-core.test.ts`・`summary-view.test.ts` を追加、`social.test.ts`・`analytics.test.ts`・`analytics-site.test.ts` を更新）
+- 確認したこと: `npm test`（32ファイル・281件）・`npm run check`・`npx tsc --noEmit`（analytics/）・`npm run build`（420ページ）。ビルドしたサイトを Playwright で確かめた（トップの6つのセクション・話題の見出しが話題のページへ・ページ内の移動・話題のページのスコア/報道の比較/初報/グラフ/構造化データ/10秒・30秒・2分の切り替え・急上昇/タグ/ランキングの今日の重要・要約のページの NewsArticle・「…」が行の中に収まる・スマホのトップの CLS 0・サービスワーカーの登録とオフライン（前に見たページ・見ていないページはオフラインのページ）・ページのエラーなし）。axe（ライト・ダーク × 1280px・390px、トップ・話題・急上昇・タグ・ランキング・要約・オフライン・about）で違反なし・横のはみ出しなし。手元の Cloudflare と同じ構成（wrangler dev＋pages dev）で、管理画面の「概要」に WAU・MAU（週・月に初めての印つきの閲覧を送って 2・2）と SNS の下書き（7件。X の投稿画面のリンクに文面が入る）が出ること、アクセス解析のページに週・月が出ることを確かめた。読者向けの機能の確認（フォロー・通知（偽の届け先で受け取り・復号）・サービスワーカーの通知の表示・ミュート・既読・表示の設定）も通った。SNS は `NOTIFY_DRY_RUN=1` で、Bluesky などには急上昇の話題を話題のページのリンクで投稿し、X には投稿しない（既定）ことを確かめた。サイトマップは179件（話題21・タグ13・急上昇・タグ一覧を含む。noindex の話題は入らない）。
+- 残った課題・注意点: 「未解決の課題」の8・13〜16。公開後に本番で、トップ・話題のページ・サイトマップ・オフラインを確かめる。X は無料枠がないので、下書きから手で投稿するのがおすすめ。
 
 ### 2026-10-07 設定の確認・読者向けの機能（フォロー・通知・ミュート・既読・表示の設定）・管理画面の拡充（概要・ピックアップ・お知らせ・通知）
 

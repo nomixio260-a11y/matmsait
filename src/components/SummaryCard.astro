@@ -1,5 +1,6 @@
 ---
-import { faviconUrl, formatDateTime, getCategory, href, siteOf } from '../lib/items.ts';
+import { faviconUrl, formatDateTime, formatRelative, getCategory, href, siteOf } from '../lib/items.ts';
+import { firstSentence } from '../lib/summary-view.ts';
 import { summaryPath } from '../lib/summaries.ts';
 import type { SummaryRecord } from '../lib/types.ts';
 
@@ -29,7 +30,7 @@ const site = siteOf(record);
   <Heading class="card-title">
     <a href={href(summaryPath(record.id))} data-aid={record.id} data-src={record.sourceId} data-cat={record.category}>{record.title}</a>
   </Heading>
-  <p class="card-text">{record.summary}</p>
+  <p class="card-text"><span class="card-level">10秒</span>{firstSentence(record.summary)}</p>
   {
     record.points.length > 0 && (
       <p class="card-points">
@@ -41,7 +42,7 @@ const site = siteOf(record);
   <p class="card-meta">
     <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
     <span>{site.label}</span>
-    <time datetime={record.publishedAt} data-rel>{formatDateTime(record.publishedAt)}</time>
+    <time datetime={record.publishedAt} data-rel>{formatRelative(record.publishedAt, formatDateTime(record.publishedAt))}</time>
   </p>
 </article>
 
@@ -107,6 +108,19 @@ const site = siteOf(record);
     -webkit-line-clamp: 4;
     line-clamp: 4;
     overflow: hidden;
+  }
+  .card-level {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 0 6px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1.6;
+    vertical-align: 0.1em;
   }
   .card-points {
     margin: 0;

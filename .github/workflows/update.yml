@@ -281,6 +281,10 @@ jobs:
           MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
           MISSKEY_URL: ${{ secrets.MISSKEY_URL }}
           MISSKEY_TOKEN: ${{ secrets.MISSKEY_TOKEN }}
+          # X は投稿ごとに料金がかかるため、既定では夜のまとめを1日1件だけ（変えるときはリポジトリの Variables で）
+          X_DAILY_LIMIT: ${{ vars.X_DAILY_LIMIT }}
+          X_MONTHLY_LIMIT: ${{ vars.X_MONTHLY_LIMIT }}
+          X_POST_TYPES: ${{ vars.X_POST_TYPES }}
 
       - name: 投稿の記録をコミット
         run: |

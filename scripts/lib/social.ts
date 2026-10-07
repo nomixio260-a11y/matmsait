@@ -1,17 +1,40 @@
 /**
  * SNS への自動投稿。アカウントの認証情報（環境変数）が設定されているサービスにだけ投稿する。
- * - 毎日21時以降の最初の実行で「今日の話題ニュース」まとめを投稿
- * - 多くの掲載元が報じた話題が出たら「いま話題」として投稿（1日の上限あり）
+ * - 朝（7〜10時）: 今日の重要ニュース（ジャンルごとのトップ）
+ * - 昼（12〜14時）: AI ニュースのまとめ
+ * - 夜（21時以降）: 今日の話題ニュースのまとめ（日別まとめ）
+ * - 急上昇: 直近3時間に新しく報じるメディアが増えた話題（1日の上限あり）
+ * - いま話題: 多くのメディアが報じた話題（1日の上限あり）
+ * スパムにならないよう、深夜は投稿しない・投稿の間隔をあける・1日の投稿数に上限を設ける。
+ * 投稿のリンクはこのサイトの話題のページ（各メディアの報道の比較）にする
  */
 import { createHmac, randomBytes } from 'node:crypto';
 import { jstDateKey } from '../../src/lib/dates.ts';
-import type { DailySnapshot, Item } from '../../src/lib/types.ts';
+import type { DailySnapshot } from '../../src/lib/types.ts';
 
-export const DIGEST_HOUR = 21;
-/** 「いま話題」として投稿する話題度（同じ話題を報じた掲載元の数）の下限 */
-export const HOT_THRESHOLD = 3;
-export const HOT_WINDOW_HOURS = 12;
-export const MAX_HOT_PER_DAY = 4;
+/** 投稿の上限と時間帯（日本時間） */
+export const SOCIAL_LIMITS = {
+  /** この時刻より前（0時〜）は投稿しない */
+  quietUntilHour: 7,
+  /** 24時間に投稿する数の上限（すべての種類の合計） */
+  maxPerDay: 8,
+  /** 急上昇・いま話題の投稿の間隔（分） */
+  minGapMinutes: 90,
+  maxRisingPerDay: 3,
+  maxHotPerDay: 3,
+  /** 急上昇として投稿する条件: 直近3時間に新しく報じたメディアの数・報じたメディアの数 */
+  risingMinGained: 2,
+  risingMinCoverage: 3,
+  /** いま話題として投稿する条件 */
+  hotMinCoverage: 4,
+  hotMinScore: 50,
+  /** まとめの投稿の時間帯（時） */
+  morning: [7, 11],
+  ai: [12, 15],
+  digestHour: 21,
+} as const;
+
+export const DIGEST_HOUR = SOCIAL_LIMITS.digestHour;
 const HOUR = 60 * 60 * 1000;
 const URL_PATTERN = /https?:\/\/[^\s]+/g;
 
@@ -62,7 +85,7 @@ function truncate(text: string, max: number): string {
 // ===== 投稿内容 =====
 
 export interface SocialPost {
-  /** 重複投稿を防ぐためのキー（digest:YYYY-MM-DD / hot:記事ID） */
+  /** 重複投稿を防ぐためのキー（digest:YYYY-MM-DD / morning:YYYY-MM-DD / ai:YYYY-MM-DD / rising:話題ID / hot:話題ID） */
   key: string;
   /** 文字数の判定関数を受け取り、上限に収まる本文を返す */
   compose: (fits: (text: string) => boolean) => string;
@@ -72,106 +95,256 @@ export interface SocialPost {
 
 export interface SocialState {
   lastDigest?: string;
-  posted: { key: string; at: string }[];
+  /** 投稿の記録（platforms は投稿できたサービス。以前の記録にはない） */
+  posted: { key: string; at: string; platforms?: string[] }[];
+}
+
+/** 投稿に使う話題（src/lib/topics.ts の数字から必要なものだけ） */
+export interface SocialTopic {
+  /** 話題の ID（話題のページ /topic/<ID>/） */
+  id: string;
+  title: string;
+  /** 報じたメディアの数 */
+  coverage: number;
+  /** 話題度スコア（0〜100） */
+  score: number;
+  /** 直近3時間に新しく報じたメディアの数 */
+  gained: number;
+  /** 最後に報じられた日時（ISO 8601） */
+  latestAt: string;
 }
 
 export interface PlanContext {
   now: Date;
-  items: Item[];
   snapshots: DailySnapshot[];
+  /** いま話題（話題度スコアの順） */
+  hot: SocialTopic[];
+  /** 急上昇（直近3時間に新しく報じたメディアの多い順） */
+  rising: SocialTopic[];
+  /** 今日の重要ニュース（ジャンルごとに1件） */
+  important: SocialTopic[];
+  /** AI の話題（話題度スコアの順） */
+  ai: SocialTopic[];
   /** ページの絶対URLを作る */
   pageUrl: (path: string) => string;
   siteName: string;
 }
 
-function jstHour(date: Date): number {
+export function jstHour(date: Date): number {
   return Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hourCycle: 'h23' }).format(date));
 }
 
-export function digestPost(snapshot: DailySnapshot, { pageUrl, siteName }: PlanContext): SocialPost | undefined {
-  const top = snapshot.items;
-  if (top.length < 3) return undefined;
-  const [, month, day] = snapshot.date.split('-').map(Number);
-  const header = `【${month}/${day}の話題ニュース】`;
-  const url = pageUrl(`/daily/${snapshot.date}/`);
+function monthDay(date: string): { month: number; day: number } {
+  const [, month, day] = date.split('-').map(Number);
+  return { month, day };
+}
+
+/** 見出しを番号つきで並べたまとめの投稿（文字数に収まるまで件数と見出しの長さを減らす） */
+function listPost(
+  key: string,
+  header: string,
+  titles: string[],
+  url: string,
+  hashtags: string,
+  link: SocialPost['link'],
+): SocialPost {
   return {
-    key: `digest:${snapshot.date}`,
+    key,
     compose: (fits) => {
-      for (let count = Math.min(5, top.length); count >= 3; count--) {
+      for (let count = Math.min(5, titles.length); count >= Math.min(3, titles.length); count--) {
         for (const max of [40, 32, 26, 20, 16, 12]) {
-          const lines = top.slice(0, count).map((item, index) => `${index + 1}. ${truncate(item.title, max)}`);
-          const text = [header, ...lines, '', `▶ ${url}`, '#ニュースまとめ'].join('\n');
+          const lines = titles.slice(0, count).map((title, index) => `${index + 1}. ${truncate(title, max)}`);
+          const text = [header, ...lines, '', `▶ ${url}`, ...(hashtags ? [hashtags] : [])].join('\n');
           if (fits(text)) return text;
         }
       }
       return `${header}\n▶ ${url}`;
     },
-    link: {
+    link,
+  };
+}
+
+export function digestPost(snapshot: DailySnapshot, { pageUrl, siteName }: PlanContext): SocialPost | undefined {
+  const top = snapshot.items;
+  if (top.length < 3) return undefined;
+  const { month, day } = monthDay(snapshot.date);
+  const url = pageUrl(`/daily/${snapshot.date}/`);
+  return listPost(
+    `digest:${snapshot.date}`,
+    `【${month}/${day}の話題ニュース】`,
+    top.map((item) => item.title),
+    url,
+    '#ニュースまとめ',
+    {
       url,
       title: `${month}月${day}日の話題のニュースまとめ｜${siteName}`,
       description: `「${truncate(top[0].title, 60)}」ほか、その日に多くのメディアが報じた話題の記事を紹介します。`,
     },
-  };
+  );
 }
 
-export function hotPost(item: Item, { pageUrl }: PlanContext): SocialPost {
-  const rankingUrl = pageUrl('/ranking/');
+export function morningPost(topics: SocialTopic[], date: string, { pageUrl, siteName }: PlanContext): SocialPost | undefined {
+  if (topics.length < 3) return undefined;
+  const { month, day } = monthDay(date);
+  const url = pageUrl('/ranking/#today');
+  return listPost(
+    `morning:${date}`,
+    `【${month}/${day} 今日の重要ニュース】`,
+    topics.map((topic) => `${topic.title}（${topic.coverage}社）`),
+    url,
+    '#ニュース',
+    {
+      url,
+      title: `今日の重要ニュース｜${siteName}`,
+      description: `「${truncate(topics[0].title, 60)}」ほか、多くのメディアが報じたニュースをジャンルごとに紹介します。`,
+    },
+  );
+}
+
+export function aiPost(topics: SocialTopic[], date: string, { pageUrl, siteName }: PlanContext): SocialPost | undefined {
+  if (topics.length < 2) return undefined;
+  const { month, day } = monthDay(date);
+  const url = pageUrl('/tag/ai/');
+  return listPost(
+    `ai:${date}`,
+    `【${month}/${day} AIニュース】`,
+    topics.map((topic) => topic.title),
+    url,
+    '#AI #生成AI',
+    {
+      url,
+      title: `AIニュースランキング｜${siteName}`,
+      description: `「${truncate(topics[0].title, 60)}」ほか、多くのメディアが報じたAIのニュースを紹介します。`,
+    },
+  );
+}
+
+/** 1つの話題の投稿（急上昇・いま話題）。リンクは話題のページ（各メディアの報道の比較） */
+function topicPost(kind: 'rising' | 'hot', topic: SocialTopic, { pageUrl, siteName }: PlanContext): SocialPost {
+  const url = pageUrl(`/topic/${topic.id}/`);
+  const header =
+    kind === 'rising' ? `🚀 急上昇（3時間で+${topic.gained}社・計${topic.coverage}社が報道）` : `🔥 いま話題（${topic.coverage}社が報道・話題度${topic.score}）`;
   return {
-    key: `hot:${item.id}`,
+    key: `${kind}:${topic.id}`,
     compose: (fits) => {
       for (const max of [100, 70, 50, 40, 30, 20]) {
-        const text = [
-          `🔥 いま話題（${item.coverage ?? 1}つのメディアが報道）`,
-          truncate(item.title, max),
-          item.url,
-          '',
-          `ほかの話題 ▶ ${rankingUrl}`,
-        ].join('\n');
+        const text = [header, truncate(topic.title, max), `各メディアの報道を比べる ▶ ${url}`].join('\n');
         if (fits(text)) return text;
       }
-      return `🔥 ${truncate(item.title, 20)}\n${item.url}`;
+      return `${header}\n▶ ${url}`;
     },
-    link: { url: item.url, title: truncate(item.title, 100), description: truncate(item.excerpt, 150) },
+    link: {
+      url,
+      title: truncate(`${topic.title}｜${topic.coverage}社の報道まとめ`, 100),
+      description: `${topic.coverage}のメディアが報じたニュースを、報じた順に比べられます（${siteName}）。`,
+    },
   };
 }
 
-/** 今回の実行で投稿するものを決める */
-export function planPosts(state: SocialState, context: PlanContext): SocialPost[] {
-  const { now, items, snapshots } = context;
-  const posts: SocialPost[] = [];
-  const today = jstDateKey(now);
+export function hotPost(topic: SocialTopic, context: PlanContext): SocialPost {
+  return topicPost('hot', topic, context);
+}
 
-  if (jstHour(now) >= DIGEST_HOUR && state.lastDigest !== today) {
+export function risingPost(topic: SocialTopic, context: PlanContext): SocialPost {
+  return topicPost('rising', topic, context);
+}
+
+/** 今回の実行で投稿するものを決める（上限と時間帯を守る） */
+export function planPosts(state: SocialState, context: PlanContext): SocialPost[] {
+  const { now, snapshots } = context;
+  const hour = jstHour(now);
+  if (hour < SOCIAL_LIMITS.quietUntilHour) return [];
+  const today = jstDateKey(now);
+  const recent = state.posted.filter((entry) => now.getTime() - Date.parse(entry.at) < 24 * HOUR);
+  const room = SOCIAL_LIMITS.maxPerDay - recent.length;
+  if (room <= 0) return [];
+  const posted = new Set(state.posted.map((entry) => entry.key));
+  const posts: SocialPost[] = [];
+
+  // 1日1回のまとめ（時間帯ごと）
+  if (hour >= SOCIAL_LIMITS.digestHour && state.lastDigest !== today) {
     const snapshot = snapshots.find((s) => s.date === today);
     const post = snapshot && digestPost(snapshot, context);
     if (post) posts.push(post);
   }
-
-  const posted = new Set(state.posted.map((entry) => entry.key));
-  const hotToday = state.posted.filter(
-    (entry) => entry.key.startsWith('hot:') && now.getTime() - Date.parse(entry.at) < 24 * HOUR,
-  ).length;
-  if (hotToday < MAX_HOT_PER_DAY) {
-    const cutoff = now.getTime() - HOT_WINDOW_HOURS * HOUR;
-    const candidate = items
-      .filter(
-        (item) =>
-          (item.coverage ?? 1) >= HOT_THRESHOLD &&
-          Date.parse(item.publishedAt) >= cutoff &&
-          !posted.has(`hot:${item.id}`),
-      )
-      .sort((a, b) => (b.coverage ?? 1) - (a.coverage ?? 1) || b.publishedAt.localeCompare(a.publishedAt))[0];
-    if (candidate) posts.push(hotPost(candidate, context));
+  if (hour >= SOCIAL_LIMITS.morning[0] && hour < SOCIAL_LIMITS.morning[1] && !posted.has(`morning:${today}`)) {
+    const post = morningPost(context.important.slice(0, 5), today, context);
+    if (post) posts.push(post);
   }
-  return posts;
+  if (hour >= SOCIAL_LIMITS.ai[0] && hour < SOCIAL_LIMITS.ai[1] && !posted.has(`ai:${today}`)) {
+    const post = aiPost(context.ai.slice(0, 5), today, context);
+    if (post) posts.push(post);
+  }
+
+  // 急上昇・いま話題（前の投稿から間をあけ、1回の実行で1件まで。同じ話題は二度投稿しない）
+  const eventPosts = recent.filter((entry) => /^(rising|hot):/.test(entry.key));
+  const lastEvent = Math.max(0, ...eventPosts.map((entry) => Date.parse(entry.at)));
+  const seenTopic = (id: string) => posted.has(`rising:${id}`) || posted.has(`hot:${id}`);
+  if (now.getTime() - lastEvent >= SOCIAL_LIMITS.minGapMinutes * 60 * 1000) {
+    const risingToday = eventPosts.filter((entry) => entry.key.startsWith('rising:')).length;
+    const hotToday = eventPosts.filter((entry) => entry.key.startsWith('hot:')).length;
+    const rising = context.rising.find(
+      (topic) => topic.gained >= SOCIAL_LIMITS.risingMinGained && topic.coverage >= SOCIAL_LIMITS.risingMinCoverage && !seenTopic(topic.id),
+    );
+    const hotCutoff = now.getTime() - 12 * HOUR;
+    const hot = context.hot.find(
+      (topic) =>
+        topic.coverage >= SOCIAL_LIMITS.hotMinCoverage &&
+        topic.score >= SOCIAL_LIMITS.hotMinScore &&
+        Date.parse(topic.latestAt) >= hotCutoff &&
+        !seenTopic(topic.id),
+    );
+    if (rising && risingToday < SOCIAL_LIMITS.maxRisingPerDay) posts.push(risingPost(rising, context));
+    else if (hot && hotToday < SOCIAL_LIMITS.maxHotPerDay) posts.push(hotPost(hot, context));
+  }
+  return posts.slice(0, room);
 }
 
 /** 投稿済みとして記録する（古い記録は捨てる） */
-export function recordPost(state: SocialState, post: SocialPost, now: Date): SocialState {
+export function recordPost(state: SocialState, post: SocialPost, now: Date, platforms: string[] = []): SocialState {
   return {
     lastDigest: post.key.startsWith('digest:') ? post.key.slice('digest:'.length) : state.lastDigest,
-    posted: [...state.posted, { key: post.key, at: now.toISOString() }].slice(-300),
+    posted: [...state.posted, { key: post.key, at: now.toISOString(), ...(platforms.length > 0 ? { platforms } : {}) }].slice(-500),
   };
+}
+
+// ===== サービスごとの上限 =====
+
+export interface PlatformLimit {
+  /** 24時間の上限 */
+  daily: number;
+  /** 30日の上限 */
+  monthly: number;
+  /** 投稿する種類（digest・morning・ai・rising・hot）。undefined はすべて */
+  types?: string[];
+}
+
+/**
+ * サービスごとの投稿の上限。X の API は投稿ごとに料金がかかる（2026年時点で URL つきの投稿は1件 0.2 ドル）ため、
+ * 既定では夜のまとめだけを1日1件にする。変えるときはリポジトリの Variables（X_DAILY_LIMIT・X_MONTHLY_LIMIT・X_POST_TYPES）で
+ */
+export function platformLimit(name: string, env: Record<string, string | undefined>): PlatformLimit {
+  if (name === 'X') {
+    const number = (value: string | undefined, fallback: number) => {
+      const parsed = Number.parseInt(value ?? '', 10);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+    };
+    const types = (env.X_POST_TYPES ?? 'digest')
+      .split(',')
+      .map((type) => type.trim())
+      .filter(Boolean);
+    return { daily: number(env.X_DAILY_LIMIT, 1), monthly: number(env.X_MONTHLY_LIMIT, 31), types: types.includes('all') ? undefined : types };
+  }
+  return { daily: SOCIAL_LIMITS.maxPerDay, monthly: 300 };
+}
+
+/** このサービスにこの投稿をしてよいか（種類と、24時間・30日の上限） */
+export function platformAllows(name: string, post: SocialPost, state: SocialState, now: Date, limit: PlatformLimit): boolean {
+  const type = post.key.split(':')[0];
+  if (limit.types && !limit.types.includes(type)) return false;
+  const mine = state.posted.filter((entry) => entry.platforms?.includes(name));
+  const within = (ms: number) => mine.filter((entry) => now.getTime() - Date.parse(entry.at) < ms).length;
+  return within(24 * HOUR) < limit.daily && within(30 * 24 * HOUR) < limit.monthly;
 }
 
 // ===== 各サービスへの投稿 =====

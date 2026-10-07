@@ -1,13 +1,100 @@
 /*
- * トピあつめの通知（サービスワーカー）。届いた通知を表示し、押したらページを開くだけで、
- * ページの読み込みやキャッシュには関わらない（fetch は扱わない）。
- * 登録は「フォロー中」のページで通知をオンにしたとき（src/scripts/push-client.ts）。?api= はアクセス解析・通知のサーバーの場所
+ * トピあつめのサービスワーカー。
+ * - 通知: 届いた通知を表示し、押したらページを開く
+ * - オフライン: ページはいつもネットから読み（新しい記事を出すため）、つながらないときだけ前に見たページかオフラインのページを出す。
+ *   名前に中身のハッシュが入るファイル（/_astro/）は、一度読んだものを使い回す
+ * 登録は src/scripts/pwa.ts（すべての閲覧者）と src/scripts/push-client.ts（通知をオンにしたとき。同じ URL）。
+ * ?api= はアクセス解析・通知のサーバーの場所
  */
 const API = new URL(self.location.href).searchParams.get('api') || '';
 const BASE = new URL('./', self.location.href).href;
+/** キャッシュの名前（中身の作り方を変えたら番号を上げる。古いものは activate で消す） */
+const PAGES = 'pages-v1';
+const ASSETS = 'assets-v1';
+const OFFLINE_URL = new URL('offline/', BASE).href;
+/** 前に見たページを残す数・ファイルを残す数 */
+const MAX_PAGES = 40;
+const MAX_ASSETS = 80;
 
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(PAGES);
+      await cache.add(new Request(OFFLINE_URL, { cache: 'reload' })).catch(() => undefined);
+      await self.skipWaiting();
+    })(),
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const keep = new Set([PAGES, ASSETS]);
+      for (const name of await caches.keys()) if (!keep.has(name)) await caches.delete(name);
+      // ページの読み込みとサービスワーカーの起動を並行させる（表示が遅くならないように）
+      if (self.registration.navigationPreload) await self.registration.navigationPreload.enable().catch(() => undefined);
+      await self.clients.claim();
+    })(),
+  );
+});
+
+/** キャッシュを決めた数までに減らす（古く入れたものから消す） */
+async function trim(name, max) {
+  const cache = await caches.open(name);
+  const keys = await cache.keys();
+  for (const request of keys.slice(0, Math.max(0, keys.length - max))) await cache.delete(request);
+}
+
+/** ページ: ネットから読み、読めたら保存する。つながらなければ保存したもの、なければオフラインのページ */
+async function page(event) {
+  try {
+    const response = (await event.preloadResponse) || (await fetch(event.request));
+    if (response.ok && response.type === 'basic') {
+      const copy = response.clone();
+      event.waitUntil(
+        (async () => {
+          const cache = await caches.open(PAGES);
+          await cache.put(event.request, copy);
+          await trim(PAGES, MAX_PAGES);
+        })(),
+      );
+    }
+    return response;
+  } catch (error) {
+    const cache = await caches.open(PAGES);
+    const saved = (await cache.match(event.request, { ignoreSearch: true })) || (await cache.match(OFFLINE_URL));
+    if (saved) return saved;
+    throw error;
+  }
+}
+
+/** 名前にハッシュが入るファイル: 保存したものがあればそれを使い、なければネットから読んで保存する */
+async function asset(event) {
+  const cache = await caches.open(ASSETS);
+  const saved = await cache.match(event.request);
+  if (saved) return saved;
+  const response = await fetch(event.request);
+  if (response.ok) {
+    const copy = response.clone();
+    event.waitUntil(cache.put(event.request, copy).then(() => trim(ASSETS, MAX_ASSETS)));
+  }
+  return response;
+}
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  // ほかのサイト・管理画面・アクセス解析のサーバー・データ（JSON）はブラウザに任せる
+  if (url.origin !== self.location.origin || !url.href.startsWith(BASE)) return;
+  const path = url.pathname.slice(new URL(BASE).pathname.length - 1);
+  if (/^\/(admin|api)\//.test(path)) return;
+  if (request.mode === 'navigate') {
+    event.respondWith(page(event));
+    return;
+  }
+  if (path.startsWith('/_astro/')) event.respondWith(asset(event));
+});
 
 /** 開くページはこのサイトの中だけ（ほかのサイトの URL が入っていたらトップを開く） */
 function pageUrl(url) {

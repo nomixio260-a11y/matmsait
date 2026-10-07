@@ -1,5 +1,6 @@
 // @ts-check
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 
@@ -43,6 +44,16 @@ function hasPopular() {
 }
 const popularReady = hasPopular();
 
+/** ビルドしたページの HTML（話題・タグのページは中身しだいで noindex になるので、サイトマップに入れるかを HTML で決める） */
+const distDir = fileURLToPath(new URL('./dist/', import.meta.url));
+function builtHtml(/** @type {string} */ path) {
+  try {
+    return readFileSync(`${distDir}${path.replace(/^\//, '')}index.html`, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
 export default defineConfig({
   site,
   base,
@@ -57,7 +68,7 @@ export default defineConfig({
       // 掲載元別・新着の一覧は外部サイトへのリンクが並ぶだけなので、検索エンジンにはトップ・カテゴリ・要約・話題・日別まとめを見てもらう
       filter: (page) =>
         !/\/\d+\/$/.test(page) &&
-        !/\/(search|saved|latest|following|settings)\/$/.test(page) &&
+        !/\/(search|saved|latest|following|settings|offline)\/$/.test(page) &&
         !/\/(admin|source)\//.test(page) &&
         (summarizedAt.size > 0 || !/\/summaries\/$/.test(page)) &&
         (popularReady || !/\/popular\/$/.test(page)),
@@ -66,6 +77,13 @@ export default defineConfig({
         const path = new URL(item.url).pathname.slice(base.replace(/\/$/, '').length);
         const daily = path.match(/^\/daily\/(\d{4}-\d{2}-\d{2})\/$/);
         const summary = path.match(/^\/summary\/([0-9a-f]+)\/$/);
+        if (/^\/(?:topic|tag)\/[^/]+\/$|^\/(?:rising|tags)\/$/.test(path)) {
+          // 中身が少なくて noindex にしたページは入れない。話題のページは最後に報じられた日時を最終更新にする
+          const html = builtHtml(path);
+          if (/<meta name="robots" content="noindex/.test(html)) return undefined;
+          item.lastmod = html.match(/<meta property="article:modified_time" content="([^"]+)"/)?.[1] ?? builtAt;
+          return item;
+        }
         if (daily) {
           item.lastmod = dailyUpdatedAt(daily[1]);
         } else if (summary) {
@@ -76,5 +94,15 @@ export default defineConfig({
         return item;
       },
     }),
+    // よく使われる /sitemap.xml でも同じサイトマップを読めるようにする（Search Console に登録しやすいように）
+    {
+      name: 'sitemap-alias',
+      hooks: {
+        'astro:build:done': ({ dir }) => {
+          const index = new URL('sitemap-index.xml', dir);
+          if (existsSync(index)) copyFileSync(index, new URL('sitemap.xml', dir));
+        },
+      },
+    },
   ],
 });

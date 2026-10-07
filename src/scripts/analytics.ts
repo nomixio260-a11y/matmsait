@@ -10,7 +10,11 @@
 
 /** このブラウザを数えないか（'1': 数えない、'0': 数える（自分で選んだ）、なし: 数える） */
 export const OPTOUT_KEY = 'matmsait:analytics-optout';
-const PING_INTERVAL = 60_000;
+/**
+ * 「いま見ている人」の合図の間隔。サーバーは3分以内に合図のあった人を数えるので、それより短くする。
+ * 合図は Cloudflare の無料枠（1日10万リクエスト）を使うため、月100万PV でも枠に収まるよう2分にしている
+ */
+const PING_INTERVAL = 120_000;
 /** 前の閲覧からこれだけ空いたら、新しい訪問とみなす（「あとで読む」の新着の印と同じ） */
 const SESSION_GAP = 30 * 60_000;
 /** 操作がないままこれだけたったら、表示中でも合図を送らない（開いたまま離れた人を「見ている人」に数えない） */
@@ -55,6 +59,9 @@ export function pageKind(path: string): { kind: string; cat?: string; src?: stri
       return { kind: 'source', src: second };
     case 'summary':
     case 'summaries':
+    case 'topic':
+    case 'tag':
+    case 'rising':
     case 'latest':
     case 'ranking':
     case 'popular':
@@ -63,6 +70,8 @@ export function pageKind(path: string): { kind: string; cat?: string; src?: stri
     case 'saved':
     case 'following':
       return { kind: first };
+    case 'tags':
+      return { kind: 'tag' };
     case 'settings':
     case 'about':
     case 'privacy':
@@ -136,6 +145,25 @@ export interface VisitInfo {
   available: boolean;
 }
 
+const JST_OFFSET = 9 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 訪問の印（1: 前にも来た人、2: この週（日本時間の月曜から）初めての訪問、4: この月初めての訪問）。
+ * 前に見た日時（このブラウザにだけ保存）と比べるだけなので、日をまたいで同じ人を追いかけずに週・月の訪問者数（WAU・MAU）を数えられる
+ */
+export function visitFlags(visit: VisitInfo, now: number): number {
+  let flags = visit.returning ? 1 : 0;
+  if (!visit.available) return flags;
+  const local = new Date(now + JST_OFFSET);
+  const todayStart = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - JST_OFFSET;
+  const weekStart = todayStart - ((local.getUTCDay() + 6) % 7) * DAY_MS;
+  const monthStart = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), 1) - JST_OFFSET;
+  if (visit.lastView === undefined || visit.lastView < weekStart) flags |= 2;
+  if (visit.lastView === undefined || visit.lastView < monthStart) flags |= 4;
+  return flags;
+}
+
 /** このページがサイトの外から来た最初のページ（入口）か（前の閲覧から30分以内なら同じ訪問の続き） */
 export function isLanding(visit: VisitInfo, referrerIsOwnSite: boolean, now: number): boolean {
   if (!visit.available) return !referrerIsOwnSite;
@@ -196,7 +224,7 @@ export function startAnalytics(endpoint: string, visit: VisitInfo = { returning:
       d: device(),
     };
     const ref = referrerLabel(document.referrer, location.search, location.hostname);
-    if (landing && isLanding(visit, ref === undefined, Date.now())) Object.assign(payload, { l: 1, r: ref ?? '', ret: visit.returning ? 1 : 0 });
+    if (landing && isLanding(visit, ref === undefined, Date.now())) Object.assign(payload, { l: 1, r: ref ?? '', ret: visitFlags(visit, Date.now()) });
     void send(payload).then(showOnline);
   };
 

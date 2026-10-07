@@ -39,6 +39,8 @@ interface Live {
   minutes: { t: number; views: number; clicks: number }[];
   recent: { ts: number; type: string; path: string; kind: string; aid: string; title: string; q: string; ref: string; country: string; dev: string }[];
   today: { visitors: number; views: number; visits: number; clicks: number };
+  /** この週（月曜から）・この月の訪問者数（WAU・MAU。古いサーバーにはない） */
+  period?: { week: number; month: number };
   /** 記事 ID → 記事の名前 */
   titles?: Record<string, string>;
 }
@@ -534,7 +536,9 @@ function renderLive(live: Live) {
     if (!articles.has(aid)) articles.set(aid, { aid, title, url: '', src: '', cat: '' });
   }
   $('live-online').textContent = `${formatNumber(live.online)}人`;
-  $('live-today').textContent = `今日: 訪問者 ${formatNumber(live.today.visitors)}人 ・ 閲覧 ${formatNumber(live.today.views)}回 ・ 記事を開いた ${formatNumber(live.today.clicks)}回`;
+  $('live-today').textContent =
+    `今日: 訪問者 ${formatNumber(live.today.visitors)}人 ・ 閲覧 ${formatNumber(live.today.views)}回 ・ 記事を開いた ${formatNumber(live.today.clicks)}回` +
+    (live.period ? ` ／ この週の訪問者 ${formatNumber(live.period.week)}人 ・ この月 ${formatNumber(live.period.month)}人` : '');
   const last = live.minutes.length - 1;
   drawColumns(
     $('live-minutes'),

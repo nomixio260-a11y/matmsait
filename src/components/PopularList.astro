@@ -1,5 +1,5 @@
 ---
-import { faviconUrl, formatDateTime, getCategory, href, siteOf } from '../lib/items.ts';
+import { faviconUrl, formatDateTime, formatRelative, getCategory, href, siteOf } from '../lib/items.ts';
 import type { PopularEntry } from '../lib/popular.ts';
 import { getSummary, summaryPath } from '../lib/summaries.ts';
 
@@ -59,7 +59,7 @@ const { entries, detailed = false } = Astro.props;
                 </a>
               )}
               <time datetime={item.publishedAt} data-rel>
-                {formatDateTime(item.publishedAt)}
+                {formatRelative(item.publishedAt, formatDateTime(item.publishedAt))}
               </time>
               {summary && !detailed && <span class="ai-badge">AI要約</span>}
             </div>
