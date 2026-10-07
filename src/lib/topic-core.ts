@@ -3,7 +3,7 @@
  * - 話題度スコア: 報じたメディアの数・報道の新しさ・ジャンルの広がり・このサイトで読まれた人数から 0〜100 で表す
  * - 急上昇: 直近の数時間に新しく報じたメディアの数
  * - 初報: いちばん早く報じたメディア
- * - 今日の重要ニュース: 報じたメディアの数とジャンルの広がり（時間では減らさない）の順。1つのジャンルに偏らないようにする
+ * - 今日の注目（今日の5トピック）: 報じた媒体の数とジャンルの広がり（時間では減らさない）の順。1つのジャンルに偏らないようにする（重要度の判断ではない）
  * - 注目ワード: 直近の見出しに、それまでより急に多く出てきた言葉
  */
 import type { TopicCluster } from './related.ts';
@@ -95,17 +95,49 @@ export function categoriesOf(reports: readonly TopicReport[]): string[] {
   return [...counts].sort((a, b) => b[1] - a[1]).map(([category]) => category);
 }
 
+/** 話題度の内訳（「なぜこの話題度？」の説明に使う） */
+export interface ScoreBreakdown {
+  /** 報じた媒体の数 */
+  reports: number;
+  /** 新しさで重みづけした報道の数（報じてから HALF_LIFE_HOURS 時間ごとに半分になる） */
+  weighted: number;
+  /** 報じた媒体のジャンルの数 */
+  genres: number;
+  /** ジャンルの広がりによる倍率 */
+  spread: number;
+  /** このサイトで読まれた人数による上乗せ */
+  readsBonus: number;
+  /** 熱さ（weighted × spread + readsBonus） */
+  heat: number;
+  /** 話題度（0〜100） */
+  score: number;
+}
+
 /**
- * 熱さ: 報道1件ごとに1を足す（報じてから HALF_LIFE_HOURS 時間ごとに半分に減る）。
+ * 熱さの内訳: 報道1件ごとに1を足す（報じてから HALF_LIFE_HOURS 時間ごとに半分に減る）。
  * 報じたメディアのジャンルが多いほど上乗せし、このサイトで読まれた人数（わかるとき）も少し足す
  */
-export function heatOf(reports: readonly TopicReport[], now: number, { reads = 0 }: { reads?: number } = {}): number {
-  let heat = 0;
-  for (const { time } of reports) heat += 0.5 ** (Math.max(0, now - time) / (HALF_LIFE_HOURS * HOUR));
+export function scoreBreakdown(reports: readonly TopicReport[], now: number, { reads = 0 }: { reads?: number } = {}): ScoreBreakdown {
+  let weighted = 0;
+  for (const { time } of reports) weighted += 0.5 ** (Math.max(0, now - time) / (HALF_LIFE_HOURS * HOUR));
   const genres = new Set(reports.map((report) => report.item.category)).size;
-  heat *= 1 + DIVERSITY_BONUS * Math.max(0, genres - 1);
-  if (reads > 0) heat += READS_WEIGHT * Math.log2(1 + reads);
-  return heat;
+  const spread = 1 + DIVERSITY_BONUS * Math.max(0, genres - 1);
+  const readsBonus = reads > 0 ? READS_WEIGHT * Math.log2(1 + reads) : 0;
+  const heat = weighted * spread + readsBonus;
+  return { reports: reports.length, weighted, genres, spread, readsBonus, heat, score: scoreOf(heat) };
+}
+
+/** 熱さ（話題度スコアのもとになる値） */
+export function heatOf(reports: readonly TopicReport[], now: number, options: { reads?: number } = {}): number {
+  return scoreBreakdown(reports, now, options).heat;
+}
+
+/** ある時点の熱さ（その時点までの報道だけで計算する。読まれた人数は含めない） */
+export function heatAt(reports: readonly TopicReport[], time: number): number {
+  return heatOf(
+    reports.filter((report) => report.time <= time),
+    time,
+  );
 }
 
 /** 熱さを 0〜100 の話題度スコアにする（大きな話題ほど 100 に近づく） */
@@ -180,6 +212,142 @@ export function rankRising<T extends TopicStats>(
     if (rising.length >= minTopics) break;
   }
   return result;
+}
+
+/** 急上昇の勢い（何媒体から何媒体に増えたか、その前の時間と比べた増え方） */
+export interface Momentum {
+  /** 集計した時間（時間） */
+  hours: number;
+  /** 集計を始めた時点の媒体の数 */
+  before: number;
+  /** いまの媒体の数 */
+  after: number;
+  /** 集計した時間に新しく報じた媒体の数 */
+  gained: number;
+  /** その前の baselineHours 時間に新しく報じた媒体の数 */
+  baseline: number;
+  baselineHours: number;
+  /** 1時間あたりの増え方が、その前の時間の何倍か（その前に増えていなければ undefined） */
+  ratio?: number;
+}
+
+/** 直近 hours 時間の勢い（その前の baselineHours 時間の増え方と比べる） */
+export function momentumOf(reports: readonly TopicReport[], now: number, hours = 3, baselineHours = 6): Momentum {
+  const start = now - hours * HOUR;
+  const baselineStart = start - baselineHours * HOUR;
+  let before = 0;
+  let gained = 0;
+  let baseline = 0;
+  for (const { time } of reports) {
+    if (time > now) continue;
+    if (time > start) gained++;
+    else {
+      before++;
+      if (time > baselineStart) baseline++;
+    }
+  }
+  const ratio = baseline > 0 ? gained / hours / (baseline / baselineHours) : undefined;
+  return { hours, before, after: before + gained, gained, baseline, baselineHours, ratio };
+}
+
+/** 経過時間の短い表記（「45分」「3時間」「2日」） */
+export function durationText(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  if (minutes < 60) return `${minutes}分`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours}時間` : `${Math.round(hours / 24)}日`;
+}
+
+/**
+ * なぜ話題？: 数字から機械的に作る短い説明（1〜3文）。ニュースの価値は判断せず、報道の状況だけを書く。
+ * categoryName はジャンルの slug から表示名を返す
+ */
+export function whyTrending(stats: TopicStats, now: number, categoryName: (slug: string) => string | undefined): string {
+  const sentences: string[] = [];
+  const momentum = momentumOf(stats.reports, now, 3);
+  const first = stats.reports[0];
+  const last = stats.reports[stats.reports.length - 1];
+  if (momentum.before === 0 && momentum.gained >= 2 && first) {
+    sentences.push(`最初の報道から${durationText(now - first.time)}で${momentum.gained}媒体が報じました`);
+  } else if (momentum.gained >= 2) {
+    sentences.push(`直近3時間で新たに${momentum.gained}媒体が報じ、計${stats.coverage}媒体になりました`);
+  } else if (stats.growth.h24 >= 2 && first && last && stats.growth.h24 === stats.coverage) {
+    // 24時間のうちに報じられ始めたトピック: どれくらいの時間で広がったか（同時に報じられたときは「1時間以内」）
+    const spread = last.time - first.time;
+    sentences.push(
+      spread < HOUR
+        ? `最初の報道から1時間以内に${stats.coverage}媒体が報じました`
+        : `最初の報道から${durationText(spread)}で${stats.coverage}媒体に広がりました`,
+    );
+  } else if (stats.growth.h24 >= 2) {
+    sentences.push(`この24時間で新たに${stats.growth.h24}媒体が報じ、計${stats.coverage}媒体になりました`);
+  } else {
+    sentences.push(`${stats.coverage}媒体が報じています`);
+  }
+  if (stats.categories.length >= 2) {
+    const names = stats.categories
+      .slice(0, 3)
+      .map((slug) => categoryName(slug) ?? slug)
+      .map((name) => `「${name}」`)
+      .join('');
+    sentences.push(`${names}の${stats.categories.length}ジャンルの媒体に広がっています`);
+  }
+  if (stats.reads >= 5) sentences.push('トピあつめでもよく読まれています');
+  return `${sentences.join('。')}。`;
+}
+
+/** ジャンルごとのニュースの温度（そのジャンルのトピックの熱さの合計） */
+export interface GenreHeat {
+  category: string;
+  /** いまの熱さの合計 */
+  heat: number;
+  /** 24時間前の同じ時刻の熱さの合計 */
+  previous: number;
+  /** 直近 hours 時間に報道があったトピックの数 */
+  topics: number;
+  /** 24時間前の同じ時刻に数えたときのトピックの数 */
+  previousTopics: number;
+  /** それらのトピックを報じた媒体の数の合計 */
+  outlets: number;
+  /** 直近3時間に新しい報道があったトピックの数 */
+  rising: number;
+}
+
+/**
+ * ニュースの温度: トピックを最も多く報じたジャンル（categories[0]）に振り分け、熱さを足す。
+ * 昨日の同じ時刻の熱さ（その時点までの報道だけで計算）も出して、増え方を比べられるようにする
+ */
+export function genreTemperature<T extends TopicStats>(topics: readonly T[], now: number, { hours = 24 }: { hours?: number } = {}): GenreHeat[] {
+  const since = now - hours * HOUR;
+  const yesterday = now - 24 * HOUR;
+  const yesterdaySince = yesterday - hours * HOUR;
+  const genres = new Map<string, GenreHeat>();
+  const genreOf = (slug: string) => {
+    let genre = genres.get(slug);
+    if (!genre) {
+      genre = { category: slug, heat: 0, previous: 0, topics: 0, previousTopics: 0, outlets: 0, rising: 0 };
+      genres.set(slug, genre);
+    }
+    return genre;
+  };
+  for (const topic of topics) {
+    const slug = topic.categories[0];
+    if (!slug) continue;
+    const latest = topic.reports.at(-1)?.time ?? 0;
+    if (latest > since) {
+      const genre = genreOf(slug);
+      genre.heat += heatOf(topic.reports, now);
+      genre.topics++;
+      genre.outlets += topic.coverage;
+      if (growthWithin(topic.reports, now, 3) > 0) genre.rising++;
+    }
+    if (topic.reports.some((report) => report.time > yesterdaySince && report.time <= yesterday)) {
+      const genre = genreOf(slug);
+      genre.previous += heatAt(topic.reports, yesterday);
+      genre.previousTopics++;
+    }
+  }
+  return [...genres.values()].sort((a, b) => b.heat - a.heat || b.topics - a.topics || a.category.localeCompare(b.category));
 }
 
 /** 報じられ始めた話題: 最初の報道が直近 hours 時間以内で、すでに minCoverage 以上のメディアが報じた話題（新しい順） */

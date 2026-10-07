@@ -3,6 +3,7 @@ import { faviconUrl, formatDateTime, formatRelative, formatTime, getCategory, hr
 import { popularRank } from '../lib/popular.ts';
 import { getSummary, summaryPath } from '../lib/summaries.ts';
 import { coverageOf, topicPath, topicViewOf } from '../lib/topics.ts';
+import Wrap from './Wrap.astro';
 import type { Item } from '../lib/types.ts';
 
 interface Props {
@@ -11,13 +12,15 @@ interface Props {
   /** 日付見出しの下では時刻だけ、それ以外は日付も表示する */
   timeOnly?: boolean;
   showExcerpt?: boolean;
+  /** 時刻を左に並べるタイムラインの形（新着） */
+  timeline?: boolean;
 }
-const { item, showCategory = true, timeOnly = false, showExcerpt = true } = Astro.props;
+const { item, showCategory = true, timeOnly = false, showExcerpt = true, timeline = false } = Astro.props;
 const site = siteOf(item);
 const category = showCategory ? getCategory(item.category) : undefined;
 // 日別まとめの記事は保存時の話題度、それ以外はビルド時に数えた話題度
 const coverage = Math.max(item.coverage ?? 1, coverageOf(item.id));
-// 「◯社が報道」から、その話題のページ（各メディアの報道の比較）へ
+// 「◯媒体が報道」から、そのトピックのページ（各媒体の報道の比較）へ
 const topic = topicViewOf(item.id);
 const coverageLink = href(topic ? topicPath(topic.id) : '/ranking/');
 // AI 要約がある記事は当サイトの要約ページへ、ない記事は配信元へリンクする
@@ -30,7 +33,7 @@ const rank = popularRank(item.id);
 ---
 
 <li
-  class:list={['item', { 'is-new': isFresh(item.publishedAt) }]}
+  class:list={['item', { 'is-new': isFresh(item.publishedAt), 'item-tl': timeline }]}
   data-id={item.id}
   data-at={item.publishedAt}
   data-src={item.sourceId}
@@ -38,6 +41,14 @@ const rank = popularRank(item.id);
   data-cat={item.category}
   data-cat-name={getCategory(item.category)?.name}
 >
+  {
+    timeline && (
+      <time class="tl-time" datetime={item.publishedAt}>
+        {formatTime(item.publishedAt)}
+      </time>
+    )
+  }
+  <Wrap when={timeline} class="tl-body">
   {
     summary ? (
       <a class="item-title" href={link} data-aid={item.id} data-src={item.sourceId} data-cat={item.category}>
@@ -73,13 +84,17 @@ const rank = popularRank(item.id);
         </a>
       )
     }
-    <time datetime={item.publishedAt} data-rel={timeOnly ? 't' : ''}>
-      {formatRelative(item.publishedAt, timeOnly ? formatTime(item.publishedAt) : formatDateTime(item.publishedAt))}
-    </time>
+    {
+      !timeline && (
+        <time datetime={item.publishedAt} data-rel={timeOnly ? 't' : ''}>
+          {formatRelative(item.publishedAt, timeOnly ? formatTime(item.publishedAt) : formatDateTime(item.publishedAt))}
+        </time>
+      )
+    }
     {
       coverage >= 2 && (
-        <a class="coverage" href={coverageLink} title={topic ? 'この話題を報じたメディアの報道を比べる' : 'この話題を報じた掲載元の数'}>
-          <b>{coverage}</b>社が報道
+        <a class="coverage" href={coverageLink} title={topic ? 'このトピックを報じた媒体の報道を比べる' : 'このトピックを報じた媒体の数'}>
+          <b>{coverage}</b>媒体が報道
         </a>
       )
     }
@@ -113,4 +128,5 @@ const rank = popularRank(item.id);
       <svg width="16" height="16" aria-hidden="true"><use href="#i-more"></use></svg>
     </button>
   </div>
+  </Wrap>
 </li>

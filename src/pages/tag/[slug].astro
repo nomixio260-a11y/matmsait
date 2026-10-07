@@ -58,7 +58,7 @@ const jsonLd = [
   title={tag.title}
   description={description}
   jsonLd={jsonLd}
-  current={tag.slug === 'ai' ? 'ai' : undefined}
+  current={tag.slug}
   noindex={items.length < TAG_INDEX_MIN_ITEMS}
   breadcrumbs={[{ name: 'タグ', path: '/tags/' }, { name: tag.name }]}
 >

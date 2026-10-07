@@ -1,0 +1,74 @@
+---
+/** 今日、変化したこと（昨日の同じ時刻との比較や、直近の報道の増え方から機械的に作る短い文） */
+import Icon from './Icon.astro';
+import { href } from '../lib/items.ts';
+import { getTodayChanges, type TodayChange } from '../lib/topics.ts';
+
+interface Props {
+  limit?: number;
+}
+const { limit = 5 } = Astro.props;
+const changes = getTodayChanges(limit);
+const icons: Record<TodayChange['kind'], string> = {
+  'genre-up': 'up',
+  'genre-down': 'down',
+  spread: 'spread',
+  word: 'word',
+  new: 'new',
+  total: 'trend',
+};
+---
+
+{
+  changes.length > 0 && (
+    <ul class="changes">
+      {changes.map((change) => (
+        <li class:list={['change', `change-${change.kind}`]}>
+          <Icon name={icons[change.kind]} />
+          {change.href ? <a href={href(change.href)}>{change.text}</a> : <span>{change.text}</span>}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+<style>
+  .changes {
+    list-style: none;
+    margin: 0;
+    padding: 4px 16px 12px;
+    display: grid;
+    gap: 2px;
+  }
+  .change {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: var(--fs-small);
+    line-height: 1.65;
+  }
+  .change + .change {
+    border-top: 1px dashed var(--border);
+  }
+  .change :global(.icon) {
+    align-self: flex-start;
+    margin-top: 3px;
+    color: var(--muted);
+  }
+  .change-genre-up :global(.icon),
+  .change-spread :global(.icon) {
+    color: var(--heat);
+  }
+  .change-new :global(.icon) {
+    color: var(--rise);
+  }
+  .change a {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .change a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+</style>

@@ -16,6 +16,8 @@ interface Props {
   ads?: boolean;
   /** 日付見出しの見出しレベル */
   headingLevel?: 2 | 3;
+  /** 時刻を左に並べるタイムラインの形（新着） */
+  timeline?: boolean;
 }
 const {
   items,
@@ -24,6 +26,7 @@ const {
   showExcerpt = true,
   ads = true,
   headingLevel = 2,
+  timeline = false,
 } = Astro.props;
 const DayHeading = headingLevel === 3 ? 'h3' : 'h2';
 const withAds = ads && Boolean(adsenseClient && adsenseSlot);
@@ -47,7 +50,7 @@ const showAdAfter = (n: number) => withAds && n % site.adEvery === 0 && n < item
         <ul class="items">
           {g.rows.map(({ item, n }) => (
             <>
-              <ItemRow item={item} showCategory={showCategory} showExcerpt={showExcerpt} timeOnly={group} />
+              <ItemRow item={item} showCategory={showCategory} showExcerpt={showExcerpt} timeOnly={group} timeline={timeline} />
               {showAdAfter(n) && (
                 <li class="item-ad">
                   <AdSlot />

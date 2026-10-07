@@ -64,7 +64,7 @@ const articles = new Map<string, Article>();
 const PAGE_NAMES: Record<string, string> = {
   '/': 'トップ',
   '/latest/': '新着記事',
-  '/ranking/': '話題のニュース',
+  '/ranking/': '話題のトピック',
   '/popular/': 'よく読まれている記事',
   '/summaries/': 'AI要約の一覧',
   '/daily/': '日別まとめ',

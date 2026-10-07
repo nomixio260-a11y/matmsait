@@ -1,5 +1,5 @@
 ---
-/** 今日の重要ニュース（報じたメディアの数とジャンルの広がりの順。ジャンルの名前つきの短い一覧） */
+/** 今日の注目（報じた媒体の数とジャンルの広がりの順。ジャンルの名前つきの短い一覧） */
 import { getCategory, href } from '../lib/items.ts';
 import { topicPath, type TopicView } from '../lib/topics.ts';
 
@@ -28,9 +28,9 @@ const { topics } = Astro.props;
                 </span>
               )}
               <span class="coverage">
-                <b>{topic.coverage}</b>社が報道
+                <b>{topic.coverage}</b>媒体が報道
               </span>
-              {topic.categories.length > 1 && <span class="imp-spread">{topic.categories.length}ジャンルのメディア</span>}
+              {topic.categories.length > 1 && <span class="imp-spread">{topic.categories.length}ジャンルの媒体</span>}
             </span>
           </div>
         </li>

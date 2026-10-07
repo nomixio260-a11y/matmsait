@@ -75,7 +75,7 @@ const latestInCategory = category
   : [];
 
 const shortTitle = Array.from(lead.title).length > 30 ? `${Array.from(lead.title).slice(0, 29).join('')}…` : lead.title;
-const title = `${lead.title}｜${view.coverage}社の報道まとめ`;
+const title = `${lead.title}｜${view.coverage}媒体の報道を比較`;
 const description = clampDescription(
   `${view.coverage}のメディアが報じたニュース。初報は${firstSite.label}（${formatDateTime(first.item.publishedAt)}）。` +
     (summary ? firstSentence(summary.summary) : '各メディアの見出しを報じた順に並べて比べられます。'),
@@ -118,7 +118,7 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
   ogType="article"
   published={view.firstAt}
   modified={view.latestAt}
-  breadcrumbs={[{ name: '話題のニュース', path: '/ranking/' }, { name: shortTitle }]}
+  breadcrumbs={[{ name: '話題のトピック', path: '/ranking/' }, { name: shortTitle }]}
 >
   <article
     class="stack topic-page"
@@ -139,7 +139,7 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
             </a>
           )
         }
-        <span>{view.coverage}社が報道</span>
+        <span>{view.coverage}媒体が報道</span>
         <span>
           最終更新 <time datetime={view.latestAt}>{formatDateTime(view.latestAt)}</time>
         </span>
@@ -262,7 +262,7 @@ const isLive = Date.parse(view.latestAt) > builtAt.getTime() - 24 * 60 * 60 * 10
       </div>
     </section>
 
-    <ShareButtons url={url} text={`${lead.title}（${view.coverage}社が報道）｜${site.name}`} />
+    <ShareButtons url={url} text={`${lead.title}（${view.coverage}媒体が報道）｜${site.name}`} />
     <FollowCta text="話題になり始めたニュースを、Bluesky でいち早くお届けします。" />
 
     {

@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ImportantList from '../components/ImportantList.astro';
+import Icon from '../components/Icon.astro';
 import ShareButtons from '../components/ShareButtons.astro';
 import TopicList from '../components/TopicList.astro';
 import { categories, site } from '../config/site.ts';
@@ -11,21 +12,21 @@ import { getHotTopics, getImportantTopics } from '../lib/topics.ts';
 // 24時間は話題度スコアの順（新しさも入る）、1週間は報じたメディアの数の順
 const daily = getHotTopics({ hours: 24, limit: 30 });
 const weekly = getHotTopics({ hours: 24 * 7, limit: 30, sort: 'coverage' });
-// 今日の重要ニュース（ジャンルごとに3件まで）
+// 今日の注目（24時間に多くの媒体が報じ、ジャンルの広いトピック。ジャンルごとに3件まで）
 const important = getImportantTopics({ hours: 24, limit: 15, perCategory: 3 });
 const byCategory = categories
   .map((category) => ({ category, topics: getHotTopics({ hours: 72, category: category.slug, limit: 5 }) }))
   .filter((entry) => entry.topics.length > 0);
 
-const title = '話題のニュースランキング（多くのメディアが報じたニュース）';
+const title = '話題のトピックランキング（多くの媒体が報じたニュース）';
 const description = clampDescription(
   daily.length > 0
-    ? `複数のニュースサイトが報じた「いま話題のニュース」を、報じたメディアの数でランキング。1位${headlineTeaser(
+    ? `複数の媒体が報じた「今話題のトピック」を、話題度（報じた媒体の数・新しさ・広がり）の順にランキング。1位${headlineTeaser(
         daily.map((topic) => topic.lead),
         1,
         30,
       )}ほか、24時間・1週間・カテゴリ別の話題を1時間ごとに更新。`
-    : '複数のニュースサイトが報じた話題のニュースを、報じたメディアの数でランキングしています。',
+    : '複数の媒体が報じたトピックを、話題度（報じた媒体の数・新しさ・広がり）の順にランキングしています。',
 );
 const url = new URL(Astro.url.pathname, Astro.site).toString();
 const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.slice(0, 10).map((topic) => topic.lead) })];
@@ -36,26 +37,29 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
   description={description}
   jsonLd={jsonLd}
   current="ranking"
-  breadcrumbs={[{ name: '話題のニュース' }]}
+  breadcrumbs={[{ name: '話題のトピック' }]}
   sidebar={{ hideRanking: true }}
 >
   <div class="page-head">
-    <h1>話題のニュースランキング</h1>
+    <h1>話題のトピックランキング</h1>
     <p>
-      {site.name}が記事を掲載している{getSources().length}のメディアのうち、同じ出来事を報じたメディアが多く、新しいニュースほど上位にしています（話題度スコア）。見出しを押すと、各メディアの報道を報じた順に比べられます（1時間ごとに更新）。
+      {site.name}が記事を掲載している{getSources().length}の媒体のうち、同じ出来事を報じた媒体が多く、新しいトピックほど上位です。<b>話題度</b>＝今どれくらい話題か（報じた媒体の数・新しさ・ジャンルの広がり。0〜100）。題名を押すと、各媒体の報道を報じた順に比べられます（1時間ごとに更新）。
     </p>
     <p class="links">
-      <a href={href('/rising/')}>🚀 急上昇</a>
-      <a href={href('/tag/ai/')}>🤖 AIニュースランキング</a>
-      <a href={href('/tags/')}># タグ一覧</a>
+      <a href={href('/rising/')}><Icon name="rise" />急上昇</a>
+      <a href={href('/tag/ai/')}><Icon name="word" />AIニュース</a>
+      <a href={href('/genres/')}><Icon name="genre" />ジャンル・テーマ</a>
     </p>
   </div>
 
   <div class="stack">
-    <ShareButtons url={url} text={`いま話題のニュースランキング｜${site.name}`} />
+    <ShareButtons url={url} text={`いま話題のトピックランキング｜${site.name}`} />
     <section class="panel">
       <div class="panel-head">
-        <h2>話題のニュース</h2>
+        <h2>
+          <Icon name="heat" class="h-icon is-heat" />
+          話題のトピック
+        </h2>
         <div class="seg" role="tablist" aria-label="集計期間">
           <button type="button" role="tab" aria-selected="true" aria-controls="rank-daily" id="tab-daily">24時間</button>
           <button type="button" role="tab" aria-selected="false" aria-controls="rank-weekly" id="tab-weekly">1週間</button>
@@ -64,14 +68,14 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
       <div id="rank-daily" role="tabpanel" aria-labelledby="tab-daily">
         {
           daily.length > 0 ? (
-            <TopicList topics={daily} detailed />
+            <TopicList topics={daily} detailed explain />
           ) : (
             <p class="empty">いまは複数のサイトが報じた話題がありません。しばらくお待ちください。</p>
           )
         }
       </div>
       <div id="rank-weekly" role="tabpanel" aria-labelledby="tab-weekly" hidden>
-        <p class="tab-note">1週間に報じたメディアの多い順</p>
+        <p class="tab-note">1週間に報じた媒体の多い順</p>
         {
           weekly.length > 0 ? (
             <TopicList topics={weekly} detailed />
@@ -87,11 +91,14 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
         <section class="panel" id="today" aria-labelledby="today-title">
           <div class="panel-head">
             <h2 id="today-title">
-              <span aria-hidden="true">📰</span>今日の重要ニュース
+              <Icon name="focus" class="h-icon is-focus" />
+              今日の注目
             </h2>
             <span class="note">ジャンルごとに3件まで</span>
           </div>
-          <p class="tab-note">24時間に報じたメディアの数と、報じたメディアのジャンルの広がりの順です。</p>
+          <p class="tab-note">
+            24時間に報じた媒体の数と、報じた媒体のジャンルの広がりの順です（新しさでは減らしません）。ニュースの重要度を判断するものではありません。
+          </p>
           <ImportantList topics={important} />
         </section>
       )
@@ -104,7 +111,7 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
             <div class="panel-head">
               <h2>
                 <span class="dot" style={`--c:${category.color}`} />
-                {category.name}の話題
+                {category.name}のトピック
               </h2>
               <a class="more" href={href(`/category/${category.slug}/`)}>
                 新着を見る →
@@ -131,6 +138,9 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: daily.s
     margin-top: 10px !important;
   }
   .links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     padding: 4px 12px;
     border: 1px solid var(--border-strong);
     border-radius: 999px;

@@ -136,7 +136,7 @@ describe('planPosts', () => {
     expect(planPosts(empty, context(at('07:05'), { rising })).map((post) => post.key)).toEqual(['rising:r']);
   });
 
-  it('朝は今日の重要ニュース、昼は AI ニュースのまとめを1日1回', () => {
+  it('朝は今日の注目ニュース、昼は AI ニュースのまとめを1日1回', () => {
     const important = [topic('i1'), topic('i2'), topic('i3')];
     const ai = [topic('a1'), topic('a2')];
     const [morning] = planPosts(empty, context(at('08:00'), { important, ai }));
@@ -233,7 +233,7 @@ describe('管理画面の「今すぐ投稿」', () => {
     expect(post.key).toBe('now:2026-10-06T14');
     const text = post.compose(fitsBluesky);
     expect(text).toContain('【いま話題のニュース】10/6 14時');
-    expect(text).toContain('1. 話題h1の見出し（6社）');
+    expect(text).toContain('1. 話題h1の見出し（6媒体）');
     expect(text).toContain('https://example.com/site/');
     expect(post.link.title).toBe('いま話題のニュース｜テスト');
     const after = recordPost(state, post, at('14:20'));

@@ -5,18 +5,24 @@ import { tagsOf } from '../src/lib/tag-core.ts';
 import {
   HOUR,
   analyzeTopic,
+  durationText,
+  genreTemperature,
   growthWithin,
+  heatAt,
   heatOf,
   importanceOf,
+  momentumOf,
   newTopics,
   normalizeWord,
   rankHot,
   rankImportant,
   rankRising,
   reportsOf,
+  scoreBreakdown,
   scoreOf,
   topicIdOf,
   trendingWords,
+  whyTrending,
   type TopicStats,
 } from '../src/lib/topic-core.ts';
 import type { Item } from '../src/lib/types.ts';
@@ -96,6 +102,83 @@ function topic(id: string, hours: number[], category = 'tech', reads = 0): Topic
   );
 }
 
+describe('話題度の内訳・急上昇の勢い・なぜ話題？', () => {
+  it('話題度の内訳（新しさで重みづけした報道の数 × ジャンルの広がり ＋ 読まれた数）', () => {
+    const reports = reportsOf([item('a', 's1', 0, 'tech'), item('b', 's2', 12, 'game')]);
+    const breakdown = scoreBreakdown(reports, NOW, { reads: 3 });
+    expect(breakdown.reports).toBe(2);
+    expect(breakdown.weighted).toBeCloseTo(1.5);
+    expect(breakdown.genres).toBe(2);
+    expect(breakdown.spread).toBeCloseTo(1.2);
+    expect(breakdown.readsBonus).toBeCloseTo(1);
+    expect(breakdown.heat).toBeCloseTo(1.5 * 1.2 + 1);
+    expect(breakdown.score).toBe(scoreOf(breakdown.heat));
+    expect(heatOf(reports, NOW, { reads: 3 })).toBeCloseTo(breakdown.heat);
+  });
+
+  it('ある時点の熱さは、その時点までの報道だけで計算する', () => {
+    const reports = reportsOf([item('a', 's1', 30), item('b', 's2', 26), item('c', 's3', 1)]);
+    // 24時間前の時点では、30時間前と26時間前の報道だけ（6時間前・2時間前の扱い）
+    expect(heatAt(reports, NOW - 24 * HOUR)).toBeCloseTo(0.5 ** (6 / 12) + 0.5 ** (2 / 12));
+  });
+
+  it('急上昇の勢い: 何媒体から何媒体に増えたか、その前の6時間と比べて何倍のペースか', () => {
+    // 3時間より前に2媒体（そのうち1媒体が直前6時間）、直近3時間に3媒体
+    const reports = reportsOf([item('a', 's1', 20), item('b', 's2', 5), item('c', 's3', 2.5), item('d', 's4', 1), item('e', 's5', 0.2)]);
+    const momentum = momentumOf(reports, NOW, 3);
+    expect(momentum).toMatchObject({ hours: 3, before: 2, after: 5, gained: 3, baseline: 1, baselineHours: 6 });
+    // 直近は1時間に1媒体、その前は6時間に1媒体 → 6倍
+    expect(momentum.ratio).toBeCloseTo(6);
+    // その前に増えていなければ倍率は出さない
+    expect(momentumOf(reportsOf([item('a', 's1', 2), item('b', 's2', 1)]), NOW, 3).ratio).toBeUndefined();
+  });
+
+  it('経過時間の短い表記', () => {
+    expect(durationText(20 * 60_000)).toBe('20分');
+    expect(durationText(3 * HOUR)).toBe('3時間');
+    expect(durationText(72 * HOUR)).toBe('3日');
+  });
+
+  it('なぜ話題？は報道の状況だけを短く書く', () => {
+    const name = (slug: string) => ({ tech: 'テクノロジー', game: 'ゲーム・アニメ', news: 'ニュース' })[slug];
+    const burst = analyzeTopic(cluster([item('a', 's1', 2, 'tech'), item('b', 's2', 1, 'game'), item('c', 's3', 0.5, 'tech')]), NOW);
+    expect(whyTrending(burst, NOW, name)).toBe('最初の報道から2時間で3媒体が報じました。「テクノロジー」「ゲーム・アニメ」の2ジャンルの媒体に広がっています。');
+    const growing = analyzeTopic(cluster([item('a', 's1', 10), item('b', 's2', 2), item('c', 's3', 1)]), NOW);
+    expect(whyTrending(growing, NOW, name)).toBe('直近3時間で新たに2媒体が報じ、計3媒体になりました。');
+    const day = analyzeTopic(cluster([item('a', 's1', 20), item('b', 's2', 10)]), NOW);
+    expect(whyTrending(day, NOW, name)).toBe('最初の報道から10時間で2媒体に広がりました。');
+    // 同じ時刻に一斉に報じられたときは「1分で」ではなく「1時間以内に」
+    const together = analyzeTopic(cluster([item('a', 's1', 7), item('b', 's2', 7), item('c', 's3', 6.9)]), NOW);
+    expect(whyTrending(together, NOW, name)).toBe('最初の報道から1時間以内に3媒体が報じました。');
+    const continued = analyzeTopic(cluster([item('a', 's1', 30), item('b', 's2', 10), item('c', 's3', 8)]), NOW);
+    expect(whyTrending(continued, NOW, name)).toBe('この24時間で新たに2媒体が報じ、計3媒体になりました。');
+    const old = analyzeTopic(cluster([item('a', 's1', 40), item('b', 's2', 30)]), NOW, { reads: 9 });
+    expect(whyTrending(old, NOW, name)).toBe('2媒体が報じています。トピあつめでもよく読まれています。');
+  });
+});
+
+describe('ニュースの温度（ジャンルごと）', () => {
+  it('トピックをいちばん多く報じたジャンルに振り分け、熱さと昨日の同じ時刻の熱さを足す', () => {
+    const topics = [
+      analyzeTopic(cluster([item('a1', 'a-s1', 1, 'tech'), item('a2', 'a-s2', 2, 'tech'), item('a3', 'a-s3', 2, 'game')]), NOW),
+      analyzeTopic(cluster([item('b1', 'b-s1', 5, 'game'), item('b2', 'b-s2', 30, 'game')]), NOW),
+      analyzeTopic(cluster([item('c1', 'c-s1', 26, 'news'), item('c2', 'c-s2', 28, 'news')]), NOW),
+    ];
+    const genres = genreTemperature(topics, NOW);
+    expect(genres.map((genre) => genre.category)).toEqual(['tech', 'game', 'news']);
+    const tech = genres[0];
+    expect(tech).toMatchObject({ topics: 1, previousTopics: 0, outlets: 3, rising: 1, previous: 0 });
+    expect(tech.heat).toBeCloseTo(heatOf(topics[0].reports, NOW));
+    const game = genres[1];
+    // 30時間前の報道は、昨日の同じ時刻の熱さに入る
+    expect(game.previous).toBeCloseTo(heatAt(topics[1].reports, NOW - 24 * HOUR));
+    const news = genres[2];
+    // 24時間より前の報道だけのトピックは、今日の数には入らない
+    expect(news).toMatchObject({ topics: 0, heat: 0, previousTopics: 1 });
+    expect(news.previous).toBeGreaterThan(0);
+  });
+});
+
 describe('いま話題・急上昇・報じられ始めた話題', () => {
   const fresh = topic('a', [1, 1.5, 2]);
   const big = topic('b', [20, 21, 22, 23, 24, 25]);
@@ -128,7 +211,7 @@ describe('いま話題・急上昇・報じられ始めた話題', () => {
   });
 });
 
-describe('今日の重要ニュース', () => {
+describe('今日の注目（今日の5トピック）', () => {
   it('報じたメディアの数とジャンルの広がりの順で、1つのジャンルは決めた件数まで', () => {
     const topics = [
       topic('a', [1, 2, 3, 4, 5], 'game'),

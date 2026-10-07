@@ -21,8 +21,32 @@
   --focus: #2563eb;
   /* いま見ている人数の印 */
   --live: #15803d;
+  /*
+   * 意味に結びつけた色（大事な数字にだけ使う）
+   * 話題度（今どれくらい話題か）= --heat、急上昇（どれくらいの速さで広がっているか）= --rise。
+   * 時間・初報・報道の数・キーワードは色を付けず、アイコンと文字で示す
+   */
+  --heat: #c0183f;
+  --heat-soft: #ffe8ee;
+  --rise: #6d28d9;
+  --rise-soft: #f1eafe;
   --shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.04);
   --radius: 12px;
+  /* 文字の大きさの段階（補足 → 小 → 本文 → 題名 → 見出し → ページの見出し → 大きな数字） */
+  --fs-caption: 0.75rem;
+  --fs-small: 0.8125rem;
+  --fs-body: 0.9375rem;
+  --fs-title: 1rem;
+  --fs-h2: 1.0625rem;
+  --fs-h1: 1.375rem;
+  --fs-display: 1.75rem;
+  /* 余白の段階 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
   color-scheme: light;
 }
 
@@ -47,6 +71,10 @@
     --visited: #b9a3ea;
     --focus: #60a5fa;
     --live: #4ade80;
+    --heat: #ff6b8b;
+    --heat-soft: #3a1520;
+    --rise: #b69cff;
+    --rise-soft: #261a40;
     --shadow: none;
     color-scheme: dark;
   }
@@ -72,6 +100,10 @@
   --visited: #b9a3ea;
   --focus: #60a5fa;
   --live: #4ade80;
+  --heat: #ff6b8b;
+  --heat-soft: #3a1520;
+  --rise: #b69cff;
+  --rise-soft: #261a40;
   --shadow: none;
   color-scheme: dark;
 }
@@ -373,4 +405,86 @@ h1 {
   width: 0;
   height: 0;
   overflow: hidden;
+}
+
+/* ===== アイコンと数字 ===== */
+.icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: -0.15em;
+}
+
+/* 話題度などの数字（桁をそろえ、太く。トピあつめの数字の書体） */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* 話題度の横棒（0〜100） */
+.meter {
+  display: inline-block;
+  width: 44px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--heat) calc(var(--s, 0) * 1%), color-mix(in srgb, var(--heat) 14%, var(--surface-2)) 0);
+}
+
+/* 状態の印（急上昇中・NEW・今日の注目）。色は意味のあるものだけ */
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.75;
+  white-space: nowrap;
+}
+.state-rise {
+  background: var(--rise-soft);
+  color: var(--rise);
+}
+.state-new {
+  background: var(--surface-2);
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.state-focus {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+/* 見出しの横のアイコン（セクションの種類） */
+.h-icon {
+  color: var(--muted);
+}
+.h-icon.is-heat {
+  color: var(--heat);
+}
+.h-icon.is-rise {
+  color: var(--rise);
+}
+.h-icon.is-focus {
+  color: var(--accent);
+}
+
+/* セクションの定義の1行（「話題度＝今どれくらい話題か」など） */
+.definition {
+  margin: 0;
+  padding: 8px 16px 0;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  line-height: 1.6;
+}
+.definition b {
+  color: var(--text-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 数字や棒が動いていることを、短く控えめに伝える */
+  .meter {
+    transition: background-size 0.4s ease;
+  }
 }

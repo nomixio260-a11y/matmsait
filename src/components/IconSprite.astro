@@ -1,0 +1,113 @@
+---
+/**
+ * サイト全体で使うアイコン（SVG の symbol）。ページに1回だけ置き、<Icon name="heat" /> で使う。
+ * 絵文字は環境で見た目が変わるので使わず、線のアイコンにそろえる（色は文字の色を引き継ぐ）
+ */
+---
+
+<svg class="icon-sprite" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-save" viewBox="0 0 24 24">
+      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
+    </symbol>
+    <symbol id="i-more" viewBox="0 0 24 24">
+      <circle cx="5" cy="12" r="1.8" fill="currentColor"></circle>
+      <circle cx="12" cy="12" r="1.8" fill="currentColor"></circle>
+      <circle cx="19" cy="12" r="1.8" fill="currentColor"></circle>
+    </symbol>
+    <!-- 話題度（今どれくらい話題か） -->
+    <symbol id="i-heat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3c.6 2.7 2.5 4.4 3.8 6.2 1.2 1.6 1.7 3.2 1.7 4.8a5.5 5.5 0 0 1-11 0c0-2.1 1-3.8 2.5-5 .1 1.7.8 2.9 2 3.5-.3-3.4.1-6.6 1-9.5Z"></path>
+    </symbol>
+    <!-- 急上昇（どれくらいの速さで広がっているか） -->
+    <symbol id="i-rise" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m3 17 6-6 4 4 8-8"></path>
+      <path d="M14 7h7v7"></path>
+    </symbol>
+    <!-- 今日の注目 -->
+    <symbol id="i-focus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9L12 3.5Z"></path>
+    </symbol>
+    <!-- 報じた媒体 -->
+    <symbol id="i-media" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 5a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v14a1 1 0 0 0 1 1H6a2 2 0 0 1-2-2V5Z"></path>
+      <path d="M17 8h2a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2"></path>
+      <path d="M8 8h5M8 12h5M8 16h3"></path>
+    </symbol>
+    <!-- 時間 -->
+    <symbol id="i-time" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 7v5l3 2"></path>
+    </symbol>
+    <!-- 初報（最初に確認できた報道） -->
+    <symbol id="i-first" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 21V4"></path>
+      <path d="M5 4h11l-2 3.5 2 3.5H5"></path>
+    </symbol>
+    <!-- キーワード -->
+    <symbol id="i-word" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 9h14M4 15h14M10 4 8 20M16 4l-2 16"></path>
+    </symbol>
+    <!-- なぜ話題？ -->
+    <symbol id="i-why" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18h6M10 21h4"></path>
+      <path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z"></path>
+    </symbol>
+    <!-- トレンド（変化） -->
+    <symbol id="i-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12h4l3 7 4-14 3 7h4"></path>
+    </symbol>
+    <!-- ジャンル -->
+    <symbol id="i-genre" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+      <rect x="4" y="4" width="7" height="7" rx="1.5"></rect>
+      <rect x="13" y="4" width="7" height="7" rx="1.5"></rect>
+      <rect x="4" y="13" width="7" height="7" rx="1.5"></rect>
+      <rect x="13" y="13" width="7" height="7" rx="1.5"></rect>
+    </symbol>
+    <!-- ホーム -->
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m3 11 9-7 9 7"></path>
+      <path d="M5 10v10h5v-6h4v6h5V10"></path>
+    </symbol>
+    <!-- 各社の比較 -->
+    <symbol id="i-compare" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+      <rect x="3" y="5" width="8" height="14" rx="1.5"></rect>
+      <rect x="13" y="5" width="8" height="14" rx="1.5"></rect>
+    </symbol>
+    <!-- 報道のタイムライン -->
+    <symbol id="i-timeline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M9 6h11M9 12h11M9 18h11"></path>
+      <circle cx="4.5" cy="6" r="1.5"></circle>
+      <circle cx="4.5" cy="12" r="1.5"></circle>
+      <circle cx="4.5" cy="18" r="1.5"></circle>
+    </symbol>
+    <!-- 報道の広がり -->
+    <symbol id="i-spread" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="6" cy="12" r="2.5"></circle>
+      <circle cx="18" cy="6" r="2.5"></circle>
+      <circle cx="18" cy="18" r="2.5"></circle>
+      <path d="m8.3 10.9 7.4-3.7M8.3 13.1l7.4 3.7"></path>
+    </symbol>
+    <!-- 補足の説明 -->
+    <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 11v5M12 8h.01"></path>
+    </symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m6 9 6 6 6-6"></path>
+    </symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 19V5M6 11l6-6 6 6"></path>
+    </symbol>
+    <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 5v14M6 13l6 6 6-6"></path>
+    </symbol>
+    <symbol id="i-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 12h14M13 6l6 6-6 6"></path>
+    </symbol>
+    <!-- 新しく報じられ始めた -->
+    <symbol id="i-new" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+      <path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"></path>
+    </symbol>
+  </defs>
+</svg>

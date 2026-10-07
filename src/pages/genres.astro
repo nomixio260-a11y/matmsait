@@ -1,0 +1,235 @@
+---
+/**
+ * ジャンル: ジャンル（カテゴリ）・テーマ（タグ）・読み方（10秒で把握・よく読まれている・新着・日別・メディア）から探す入口。
+ * ヘッダーの主なメニューを5つにしたので、カテゴリや AI ニュースなどはここから辿る
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import NewsTemperature from '../components/NewsTemperature.astro';
+import { categories } from '../config/site.ts';
+import { tags } from '../config/tags.ts';
+import { builtAt, getItemsByCategory, href } from '../lib/items.ts';
+import { getPopular } from '../lib/popular.ts';
+import { getSummaries } from '../lib/summaries.ts';
+import { getGenreTemperature, getHotTopics, getTagItems, getTagTopics, tagPath, topicPath } from '../lib/topics.ts';
+
+const dayAgo = builtAt.getTime() - 24 * 60 * 60 * 1000;
+const temperature = new Map(getGenreTemperature().map((genre) => [genre.category, genre]));
+const genreCards = categories.map((category) => {
+  const items = getItemsByCategory(category.slug);
+  return {
+    category,
+    day: items.filter((item) => Date.parse(item.publishedAt) >= dayAgo).length,
+    topics: temperature.get(category.slug)?.topics ?? 0,
+    top: getHotTopics({ hours: 48, category: category.slug, limit: 1 })[0],
+  };
+});
+const themes = tags
+  .map((tag) => ({
+    tag,
+    day: getTagItems(tag.slug).filter((item) => Date.parse(item.publishedAt) >= dayAgo).length,
+    top: getTagTopics(tag.slug, { hours: 48, limit: 1 })[0],
+  }))
+  .sort((a, b) => b.day - a.day);
+const ways = [
+  { path: '/tag/ai/', icon: 'word', title: 'AIニュース', text: '生成AI・AIサービスのトピックを話題度の順に' },
+  ...(getSummaries().length > 0 ? [{ path: '/summaries/', icon: 'why', title: '10秒で把握', text: '要点を短くまとめたトピック（AIによる整理）' }] : []),
+  ...(getPopular('week', 1).length > 0 ? [{ path: '/popular/', icon: 'heat', title: 'よく読まれている', text: 'トピあつめで読まれている記事' }] : []),
+  { path: '/latest/', icon: 'time', title: '新着', text: 'すべての新しい記事を時間の順に' },
+  { path: '/daily/', icon: 'timeline', title: '日別アーカイブ', text: 'その日に話題になったトピック' },
+  { path: '/sources/', icon: 'media', title: 'メディア一覧', text: '掲載している媒体と、初報の多い媒体' },
+];
+---
+
+<BaseLayout
+  title="ジャンル・テーマから探す"
+  description="ニュース・経済・テクノロジー・ゲームなどのジャンル、AI・Apple・半導体などのテーマ、10秒で把握・新着・日別アーカイブ・メディア一覧から、トピックを探せます。"
+  current="genres"
+  breadcrumbs={[{ name: 'ジャンル' }]}
+>
+  <div class="page-head">
+    <h1>ジャンル・テーマから探す</h1>
+    <p>ジャンル（媒体の分野）とテーマ（ジャンルをまたぐ話題のまとまり）から、いまのトピックを探せます。</p>
+  </div>
+
+  <div class="stack">
+    <section class="panel" aria-labelledby="temp-title">
+      <div class="panel-head">
+        <h2 id="temp-title">
+          <Icon name="heat" class="h-icon is-heat" />
+          今日のニュースの温度
+        </h2>
+      </div>
+      <p class="definition">ジャンルごとのトピックの熱さ（報じた媒体の数・新しさ・広がりの合計）。矢印は昨日の同じ時刻との比較です。</p>
+      <NewsTemperature />
+    </section>
+
+    <section aria-labelledby="genre-title">
+      <h2 class="section-title" id="genre-title">ジャンル</h2>
+      <p class="section-note">数字は直近24時間のトピック（2つ以上の媒体が報じた出来事）と記事の数。下の見出しはいちばん話題のトピックです。</p>
+      <ul class="cards">
+        {
+          genreCards.map(({ category, day, topics, top }) => (
+            <li class="panel card">
+              <a class="card-name" href={href(`/category/${category.slug}/`)}>
+                <span class="dot" style={`--c:${category.color}`} />
+                {category.name}
+              </a>
+              <p class="card-count">
+                <b class="num">{topics}</b>トピック・<b class="num">{day}</b>記事
+              </p>
+              {top && (
+                <a class="card-top" href={href(topicPath(top.id))}>
+                  {top.lead.title}
+                </a>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="theme-title">
+      <div class="section-row">
+        <h2 class="section-title" id="theme-title">テーマ</h2>
+        <a class="more" href={href('/tags/')}>テーマ一覧 →</a>
+      </div>
+      <p class="section-note">ジャンルをまたぐ話題のまとまり。数字は直近24時間の記事の数です。</p>
+      <ul class="cards">
+        {
+          themes.map(({ tag, day, top }) => (
+            <li class="panel card">
+              <a class="card-name" href={href(tagPath(tag.slug))}>
+                <Icon name="word" class="h-icon" />
+                {tag.name}
+              </a>
+              <p class="card-count">
+                <b class="num">{day}</b>記事
+              </p>
+              {top && (
+                <a class="card-top" href={href(topicPath(top.id))}>
+                  {top.lead.title}
+                </a>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="ways-title">
+      <h2 class="section-title" id="ways-title">読み方から探す</h2>
+      <ul class="cards">
+        {
+          ways.map((way) => (
+            <li class="panel card">
+              <a class="card-name" href={href(way.path)}>
+                <Icon name={way.icon} class="h-icon" />
+                {way.title}
+              </a>
+              <p class="card-count">{way.text}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .section-title {
+    margin: 0 0 6px;
+    font-size: var(--fs-h2);
+  }
+  .section-note {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    line-height: 1.6;
+  }
+  .section-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .section-row .more {
+    color: var(--accent);
+    font-size: var(--fs-small);
+    text-decoration: none;
+  }
+  /* スマホでも2列にして、縦に長くなりすぎないようにする */
+  .cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  @media (min-width: 1000px) {
+    .cards {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+  }
+  .card {
+    position: relative;
+    padding: 12px 12px 14px;
+  }
+  @media (min-width: 640px) {
+    .card {
+      padding: 14px 16px;
+    }
+  }
+  .card:hover {
+    border-color: var(--accent);
+  }
+  .card-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text);
+    font-size: var(--fs-body);
+    font-weight: 800;
+    text-decoration: none;
+  }
+  @media (min-width: 640px) {
+    .card-name {
+      font-size: var(--fs-title);
+    }
+  }
+  /* カード全体を押せるように */
+  .card-name::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .card-count {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    line-height: 1.6;
+  }
+  .card-count b {
+    color: var(--text);
+  }
+  .card-top {
+    position: relative;
+    z-index: 1;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    margin-top: 6px;
+    color: var(--text-2);
+    font-size: var(--fs-caption);
+    line-height: 1.6;
+    text-decoration: none;
+  }
+  .card-top:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+</style>

@@ -79,7 +79,7 @@ function categoryName(slug: string): string {
 }
 
 function articleMeta(article: AdminArticleInfo): string {
-  return [article.site, categoryName(article.category), dateFormat.format(new Date(article.publishedAt)), article.coverage ? `${article.coverage}社が報道` : '']
+  return [article.site, categoryName(article.category), dateFormat.format(new Date(article.publishedAt)), article.coverage ? `${article.coverage}媒体が報道` : '']
     .filter(Boolean)
     .join(' ・ ');
 }

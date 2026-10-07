@@ -51,7 +51,7 @@ const base = href('');
   </div>
 
   <section id="suggest" class="suggest" hidden aria-labelledby="suggest-title">
-    <h2 id="suggest-title">いま話題のキーワード</h2>
+    <h2 id="suggest-title">いま多くの見出しに出ている言葉</h2>
     <ul id="suggest-list"></ul>
   </section>
 
@@ -195,7 +195,7 @@ const base = href('');
     if ((entry.v ?? 1) >= 2) {
       const coverage = el('span', 'coverage');
       coverage.title = 'この話題を報じた掲載元の数';
-      coverage.append(el('b', undefined, String(entry.v)), '社が報道');
+      coverage.append(el('b', undefined, String(entry.v)), '媒体が報道');
       meta.append(coverage);
     }
     if (entry.m) {

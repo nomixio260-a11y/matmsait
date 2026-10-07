@@ -406,48 +406,13 @@ a.pop-badge:hover {
   color: var(--muted);
 }
 
-/* ===== 話題度スコア・報じたメディアの数・急上昇の印（話題の一覧と話題のページ） ===== */
-.topic-stats {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  margin-top: 5px;
-  font-size: 0.72rem;
-  line-height: 1.6;
-}
-
-.heat {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-2);
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.heat-label {
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.heat b {
-  min-width: 1.3em;
-  color: var(--hot);
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-/* スコアの横棒（0〜100） */
+/* ===== 話題度の横棒・媒体の数の点（トピックのページの数字） ===== */
 .heat-meter {
   display: inline-block;
   width: 40px;
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(90deg, var(--hot) calc(var(--s, 0) * 1%), var(--surface-2) 0);
+  background: linear-gradient(90deg, var(--heat) calc(var(--s, 0) * 1%), var(--surface-2) 0);
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
@@ -461,27 +426,6 @@ a.pop-badge:hover {
   background: radial-gradient(circle at 3px 3px, currentColor 2.4px, transparent 2.9px) 0 0 / 7px 6px repeat-x;
 }
 
-/* 直近に新しく報じたメディアの数（急上昇） */
-.growth {
-  padding: 0 6px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
-  color: var(--accent-strong);
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.new-topic {
-  padding: 0 5px;
-  border-radius: 4px;
-  background: var(--hot);
-  color: var(--on-hot);
-  font-size: 0.62rem;
-  font-weight: 800;
-  line-height: 1.7;
-  letter-spacing: 0.04em;
-}
-
 .topics.unranked .topic {
   gap: 0;
 }
@@ -489,4 +433,252 @@ a.pop-badge:hover {
 .others-more a {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* ===== トピックのカード（TopicList。どの一覧でも同じ見た目） ===== */
+.tlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tc {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.tc + .tc {
+  border-top: 1px solid var(--border);
+}
+
+.tc:hover {
+  background: var(--surface-2);
+}
+
+.tc:hover .tc-title {
+  color: var(--accent);
+}
+
+.tlist.unranked .tc {
+  gap: 0;
+}
+
+.tc-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.tc-states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 4px;
+}
+
+.tc-title {
+  font-size: var(--fs-title);
+  line-height: 1.5;
+}
+
+.tlist:not(.detailed) .tc-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+/* 10秒で把握（要約の1文目） */
+.tc-lead {
+  margin: 4px 0 0;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  line-height: 1.65;
+}
+
+.tc-lead-label {
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* 数字（話題度・媒体の数・直近の増加）。行のリンクより上に重ねて、個別に押せるようにする */
+.tc-metrics {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin-top: 8px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  line-height: 1.6;
+}
+
+.tc-heat,
+.tc-media,
+.tc-rise {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.tc-heat summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 6px;
+}
+
+.tc-heat summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 押すと内訳が出ることを、点線の下線で示す */
+.tc-explain summary .tc-label {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.tc-heat-icon,
+.tc-score {
+  color: var(--heat);
+}
+
+.tc-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.tc-score {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.tc-media .icon {
+  color: var(--muted);
+}
+
+.tc-media b {
+  font-size: 0.9375rem;
+}
+
+.tc-rise {
+  color: var(--rise);
+  font-weight: 700;
+}
+
+/* 開いたら1行を使い、内訳を数字の下に出す */
+.tc-explain[open] {
+  display: block;
+  flex-basis: 100%;
+}
+
+.tc-breakdown {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  line-height: 1.7;
+  white-space: normal;
+}
+
+.tc-breakdown p {
+  margin: 0;
+}
+
+.tc-breakdown ul {
+  margin: 4px 0;
+  padding-left: 1.2em;
+}
+
+.tc-breakdown a {
+  color: var(--accent);
+}
+
+/* 急上昇の勢い（何媒体から何媒体に・ペース） */
+.tc-momentum {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 6px 0 0;
+  font-size: var(--fs-small);
+  line-height: 1.6;
+}
+
+.tc-momentum .icon {
+  color: var(--rise);
+}
+
+.tc-momentum b {
+  color: var(--rise);
+}
+
+.tc-momentum span {
+  color: var(--text-2);
+}
+
+/* なぜ話題？（ラベルに続けて文を流し込む。長い文でもラベルだけが1行にならないように） */
+.tc-why {
+  margin: 6px 0 0;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  line-height: 1.65;
+}
+
+.tc-why .icon {
+  margin-right: 3px;
+  vertical-align: -0.2em;
+  color: var(--muted);
+}
+
+.tc-why-label {
+  margin-right: 6px;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.tc-meta {
+  margin-top: 6px;
+}
+
+/* ===== 新着のタイムライン（時刻を左に並べる） ===== */
+.item-tl {
+  display: grid;
+  grid-template-columns: 3em minmax(0, 1fr);
+  column-gap: 10px;
+}
+
+.tl-time {
+  padding-top: 1px;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+}
+
+.tl-body {
+  min-width: 0;
+}
+
+.item-tl .item-title {
+  font-size: var(--fs-body);
 }

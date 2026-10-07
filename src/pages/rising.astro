@@ -2,6 +2,7 @@
 /** 急上昇: 直近の数時間に、新しく報じるメディアが増えている話題。報じられ始めたばかりの話題も載せる */
 import BaseLayout from '../layouts/BaseLayout.astro';
 import FollowCta from '../components/FollowCta.astro';
+import Icon from '../components/Icon.astro';
 import ShareButtons from '../components/ShareButtons.astro';
 import TopicList from '../components/TopicList.astro';
 import TrendWords from '../components/TrendWords.astro';
@@ -17,15 +18,15 @@ const risingIds = new Set(rising.topics.map((entry) => entry.topic.id));
 const fresh = getNewTopics({ hours: 6, limit: 20 }).filter((topic) => !risingIds.has(topic.id));
 const trends = getTrendWords(15);
 
-const title = '急上昇ニュース（いま報じるメディアが増えている話題）';
+const title = '急上昇のトピック（いま報じる媒体が増えているニュース）';
 const description = clampDescription(
   rising.topics.length > 0
-    ? `この${rising.hours}時間で報じるメディアが増えている急上昇ニュース。1位${headlineTeaser(
+    ? `この${rising.hours}時間で報じる媒体が増えている急上昇のトピック。1位${headlineTeaser(
         rising.topics.map((entry) => entry.topic.lead),
         1,
         30,
-      )}ほか、報じられ始めたばかりの話題と注目ワードを1時間ごとに更新。`
-    : '報じるメディアが増えている急上昇ニュースと、報じられ始めたばかりの話題を1時間ごとに更新しています。',
+      )}ほか、報じられ始めたばかりのトピックと注目ワードを1時間ごとに更新。`
+    : '報じる媒体が増えている急上昇のトピックと、報じられ始めたばかりのトピックを1時間ごとに更新しています。',
 );
 const url = new URL(Astro.url.pathname, Astro.site).toString();
 const jsonLd =
@@ -52,37 +53,40 @@ const jsonLd =
   sidebar={{ hideRanking: true }}
 >
   <div class="page-head">
-    <h1>急上昇ニュース</h1>
+    <h1>急上昇のトピック</h1>
     <p>
-      直近{rising.hours}時間に、新しく報じたメディアの多い話題です。話題になり始めたニュースをいち早く見つけられます（{formatDateTime(builtAt)}時点・1時間ごとに更新）。
+      <b>急上昇</b>＝どれくらいの速さで広がっているか。直近{rising.hours}時間に新しく報じた媒体の多いトピックを、何媒体から何媒体に増えたか・その前と比べたペースと一緒に並べています。「話題度」（今どれくらい話題か）とは別の物差しです（{formatDateTime(builtAt)}時点・1時間ごとに更新）。
     </p>
   </div>
 
   <div class="stack">
-    <ShareButtons url={url} text={`いま急上昇中のニュース｜${site.name}`} />
-    <FollowCta text="急上昇のニュースを、Bluesky のタイムラインでいち早くお届けします。" />
+    <ShareButtons url={url} text={`いま急上昇中のトピック｜${site.name}`} />
     <section class="panel" aria-labelledby="rising-title">
       <div class="panel-head">
         <h2 id="rising-title">
-          <span aria-hidden="true">🚀</span>急上昇
+          <Icon name="rise" class="h-icon is-rise" />
+          急上昇
         </h2>
-        <span class="note">直近{rising.hours}時間に増えたメディアの数</span>
+        <span class="note">直近{rising.hours}時間に増えた媒体の数</span>
       </div>
       {
         rising.topics.length > 0 ? (
-          <TopicList topics={rising.topics.map((entry) => entry.topic)} gained={gained} gainedHours={rising.hours} detailed />
+          <TopicList topics={rising.topics.map((entry) => entry.topic)} gained={gained} gainedHours={rising.hours} detailed momentum explain />
         ) : (
-          <p class="empty">いまは報じるメディアが増えている話題がありません。しばらくお待ちください。</p>
+          <p class="empty">いまは報じる媒体が増えているトピックがありません。しばらくお待ちください。</p>
         )
       }
     </section>
+
+    <FollowCta text="急上昇のニュースを、Bluesky のタイムラインでいち早くお届けします。" />
 
     {
       fresh.length > 0 && (
         <section class="panel" aria-labelledby="fresh-title">
           <div class="panel-head">
             <h2 id="fresh-title">
-              <span aria-hidden="true">🆕</span>報じられ始めた話題
+              <Icon name="new" class="h-icon is-rise" />
+              報じられ始めたトピック
             </h2>
             <span class="note">最初の報道から6時間以内</span>
           </div>
@@ -96,7 +100,8 @@ const jsonLd =
         <section class="panel" aria-labelledby="trends-title">
           <div class="panel-head">
             <h2 id="trends-title">
-              <span aria-hidden="true">🔎</span>注目ワード
+              <Icon name="word" class="h-icon" />
+              注目ワード
             </h2>
             <span class="note">24時間の見出しで急に増えた言葉</span>
           </div>
@@ -106,7 +111,7 @@ const jsonLd =
     }
 
     <p class="note-text">
-      多くのメディアが報じた順は<a href={href('/ranking/')}>話題のニュースランキング</a>、AI関連は<a href={href('/tag/ai/')}
+      今どれくらい話題かの順は<a href={href('/ranking/')}>話題のトピックランキング</a>、AI関連は<a href={href('/tag/ai/')}
         >AIニュースランキング</a
       >で見られます。
     </p>
@@ -117,9 +122,6 @@ const jsonLd =
   .note {
     color: var(--muted);
     font-size: 0.75rem;
-  }
-  .panel-head h2 span[aria-hidden] {
-    margin-right: 4px;
   }
   .note-text {
     margin: 0;

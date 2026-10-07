@@ -161,7 +161,7 @@ function socialDrafts(siteUrl: URL | undefined) {
     ...context.rising.filter((topic) => topic.gained >= 2).slice(0, 2).map((topic) => ({ kind: '急上昇', post: risingPost(topic, context) })),
     ...context.hot.slice(0, 2).map((topic) => ({ kind: 'いま話題', post: hotPost(topic, context) })),
     ...context.summaries.slice(0, 1).map((summary) => ({ kind: '10秒でわかるニュース', post: summaryPost(summary, context) })),
-    { kind: '今日の重要ニュース', post: morningPost(context.important, today, context) },
+    { kind: '今日の注目ニュース', post: morningPost(context.important, today, context) },
     { kind: 'AIニュース', post: aiPost(context.ai, today, context) },
     { kind: '今週のランキング', post: weeklyPost(context.weekly, today, context) },
     { kind: '今日のまとめ', post: snapshot ? digestPost(snapshot, context) : undefined },

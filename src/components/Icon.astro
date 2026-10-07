@@ -1,0 +1,20 @@
+---
+/** アイコン（IconSprite の symbol を使う）。label がなければ飾りとして読み上げない */
+interface Props {
+  name: string;
+  size?: number;
+  class?: string;
+  label?: string;
+}
+const { name, size = 16, class: className, label } = Astro.props;
+---
+
+<svg
+  class:list={['icon', className]}
+  width={size}
+  height={size}
+  aria-hidden={label ? undefined : 'true'}
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  focusable="false"><use href={`#i-${name}`}></use></svg
+>

@@ -2,6 +2,7 @@
  * 話題（同じ出来事を報じた記事のまとまり）。ビルド中に1回だけ計算する。
  * 話題度 = その出来事を報じた掲載元の数。話題度スコア・急上昇などの計算は topic-core.ts（テストできるよう分けている）
  */
+import { categories } from '../config/site.ts';
 import { tags as tagDefinitions, type TagDefinition } from '../config/tags.ts';
 import { builtAt, getItems, getSource } from './items.ts';
 import { getPopular } from './popular.ts';
@@ -11,12 +12,19 @@ import { tagsOf } from './tag-core.ts';
 import {
   HOUR,
   analyzeTopic,
+  genreTemperature,
+  momentumOf,
   newTopics,
   rankHot,
   rankImportant,
   rankRising,
+  scoreBreakdown,
   trendingWords,
+  whyTrending,
+  type GenreHeat,
+  type Momentum,
   type RisingResult,
+  type ScoreBreakdown,
   type TopicStats,
   type TrendWord,
 } from './topic-core.ts';
@@ -292,4 +300,190 @@ export function getMediaStats(hours = 24): MediaStat[] {
   return [...stats.values()].sort(
     (a, b) => b.firsts - a.firsts || b.topics - a.topics || b.articles - a.articles || a.name.localeCompare(b.name, 'ja'),
   );
+}
+
+// ===== トピックの説明（なぜ話題？・話題度の内訳・急上昇の勢い） =====
+
+const categoryName = (slug: string) => categories.find((category) => category.slug === slug)?.name;
+
+/** なぜ話題？（報道の状況から作る短い説明） */
+export function topicWhy(view: TopicStats): string {
+  return whyTrending(view, builtAt.getTime(), categoryName);
+}
+
+/** 話題度の内訳（「なぜこの話題度？」） */
+export function topicScoreBreakdown(view: TopicStats): ScoreBreakdown {
+  return scoreBreakdown(view.reports, builtAt.getTime(), { reads: view.reads });
+}
+
+/** 急上昇の勢い（何媒体から何媒体に増えたか・その前と比べたペース） */
+export function topicMomentum(view: TopicStats, hours = 3): Momentum {
+  return momentumOf(view.reports, builtAt.getTime(), hours);
+}
+
+/** 勢いの説明（「3時間で2→7媒体」「直前6時間の3.0倍のペース」） */
+export function momentumText(momentum: Momentum): { spread: string; pace?: string } {
+  const spread = momentum.before > 0 ? `${momentum.hours}時間で${momentum.before}→${momentum.after}媒体` : `${momentum.hours}時間で0→${momentum.after}媒体`;
+  if (momentum.ratio !== undefined && momentum.ratio >= 1.2) {
+    return { spread, pace: `直前${momentum.baselineHours}時間の${paceText(momentum.ratio)}のペース` };
+  }
+  if (momentum.before > 0 && momentum.baseline === 0 && momentum.gained > 0) {
+    return { spread, pace: `直前${momentum.baselineHours}時間は新しい報道がなく、再び広がり始めています` };
+  }
+  if (momentum.before === 0) return { spread, pace: 'この時間に報じられ始めました' };
+  return { spread };
+}
+
+// ===== 今日のトピあつめ（ダッシュボード） =====
+
+/** 「今話題」に数えるトピックの話題度の下限 */
+export const HOT_SCORE_MIN = 30;
+
+export interface GenreTemperatureView extends GenreHeat {
+  name: string;
+  color: string;
+  /** 昨日の同じ時刻と比べた増え方（up: 2割以上増えた / down: 2割以上減った / flat） */
+  trend: 'up' | 'down' | 'flat';
+}
+
+let temperatureCache: GenreTemperatureView[] | undefined;
+
+/** 今日のニュースの温度（ジャンルごとのトピックの熱さ。昨日の同じ時刻との比較つき）。すべてのジャンルを熱い順に */
+export function getGenreTemperature(): GenreTemperatureView[] {
+  if (!temperatureCache) {
+    const heats = new Map(genreTemperature(getTopicViews(), builtAt.getTime()).map((genre) => [genre.category, genre]));
+    temperatureCache = categories
+      .map((category) => {
+        const genre = heats.get(category.slug) ?? { category: category.slug, heat: 0, previous: 0, topics: 0, previousTopics: 0, outlets: 0, rising: 0 };
+        const trend: GenreTemperatureView['trend'] =
+          genre.heat >= genre.previous * 1.2 && genre.heat - genre.previous >= 0.5
+            ? 'up'
+            : genre.heat <= genre.previous * 0.8 && genre.previous - genre.heat >= 0.5
+              ? 'down'
+              : 'flat';
+        return { ...genre, name: category.name, color: category.color, trend };
+      })
+      .sort((a, b) => b.heat - a.heat || b.topics - a.topics);
+  }
+  return temperatureCache;
+}
+
+export interface TodayCounts {
+  /** 24時間の記事の数 */
+  articles: number;
+  /** 24時間に報道があったトピック（2媒体以上）の数 */
+  topics: number;
+  /** 24時間に記事のあった媒体の数 */
+  media: number;
+  /** 今話題（話題度 HOT_SCORE_MIN 以上）の数 */
+  hot: number;
+  /** 急上昇の数と、集計した時間 */
+  rising: number;
+  risingHours: number;
+  /** 今日の注目の数 */
+  focus: number;
+  /** 注目ワードの数 */
+  words: number;
+}
+
+/** 今日のトピあつめの数字 */
+export function getTodayCounts(): TodayCounts {
+  const since = builtAt.getTime() - 24 * HOUR;
+  const recent = getItems().filter((item) => Date.parse(item.publishedAt) >= since);
+  const topics = getTopicViews().filter((view) => Date.parse(view.latestAt) >= since);
+  const rising = getRisingTopics({ limit: 50 });
+  return {
+    articles: recent.length,
+    topics: topics.length,
+    media: new Set(recent.map((item) => item.sourceId)).size,
+    hot: topics.filter((view) => view.score >= HOT_SCORE_MIN).length,
+    rising: rising.topics.length,
+    risingHours: rising.hours,
+    focus: getImportantTopics({ hours: 24, limit: 10, perCategory: 3 }).length,
+    words: getTrendWords(30).length,
+  };
+}
+
+export interface TodayChange {
+  kind: 'genre-up' | 'genre-down' | 'word' | 'spread' | 'new' | 'total';
+  text: string;
+  href?: string;
+}
+
+const shortTitle = (title: string, max = 32) => (Array.from(title).length > max ? `${Array.from(title).slice(0, max - 1).join('')}…` : title);
+
+/** 見出しを「」で囲む（見出しがかぎかっこで始まっていれば、そのまま） */
+export function quoteTitle(title: string, max = 32): string {
+  const short = shortTitle(title, max);
+  return /^[「『【“"]/.test(short) ? short : `「${short}」`;
+}
+
+/** 「ふだんの◯倍」の表記（10倍以上は「10倍以上」にする。大げさに見せないため） */
+export function paceText(ratio: number): string {
+  return ratio >= 10 ? '10倍以上' : `${ratio.toFixed(1)}倍`;
+}
+
+/**
+ * 今日、変化したこと: 昨日の同じ時刻との比較や、直近の報道の増え方から、変化を短い文で並べる。
+ * 数字から機械的に作り、良い・悪い・重要といった判断はしない
+ */
+export function getTodayChanges(limit = 5): TodayChange[] {
+  const now = builtAt.getTime();
+  const changes: TodayChange[] = [];
+  const genres = getGenreTemperature();
+  // ジャンルのトピックの数が大きく増えた・減った
+  const up = genres
+    .filter((genre) => genre.topics >= genre.previousTopics + 3 && genre.topics >= genre.previousTopics * 1.3)
+    .sort((a, b) => b.topics - b.previousTopics - (a.topics - a.previousTopics))[0];
+  if (up) {
+    changes.push({
+      kind: 'genre-up',
+      text: `「${up.name}」のトピックが、昨日の同じ時刻の${up.previousTopics}件から${up.topics}件に増えています。`,
+      href: `/category/${up.category}/`,
+    });
+  }
+  // 話題が大きく広がっているトピック（直近6時間に新しく報じた媒体が多い）
+  const spread = getTopicViews()
+    .map((view) => ({ view, momentum: momentumOf(view.reports, now, 6) }))
+    .filter((entry) => entry.momentum.gained >= 2 && entry.momentum.before >= 1)
+    .sort((a, b) => b.momentum.gained - a.momentum.gained || b.view.score - a.view.score)[0];
+  if (spread) {
+    changes.push({
+      kind: 'spread',
+      text: `${quoteTitle(spread.view.lead.title)}の報道が、6時間で${spread.momentum.before}→${spread.momentum.after}媒体に増えました。`,
+      href: topicPath(spread.view.id),
+    });
+  }
+  // 急に増えた言葉
+  const word = getTrendWords(1)[0];
+  if (word) {
+    const pace = word.baseline > 0 ? `ふだん（それまでの6日間の平均）の${paceText(word.count / word.baseline)}です` : 'それまでの6日間はほとんど出てこなかった言葉です';
+    changes.push({
+      kind: 'word',
+      text: `「${word.word}」を含む見出しが、24時間で${word.count}件（${word.sources}媒体）。${pace}。`,
+      href: `/search/?q=${encodeURIComponent(word.word)}`,
+    });
+  }
+  // 報じられ始めたトピック
+  const fresh = newTopics(getTopicViews(), now, { hours: 6 });
+  if (fresh.length > 0) {
+    changes.push({ kind: 'new', text: `この6時間に、${fresh.length}件のトピックが新しく報じられ始めました。`, href: '/rising/' });
+  }
+  const down = genres
+    .filter((genre) => genre.previousTopics >= 4 && genre.topics <= genre.previousTopics * 0.6)
+    .sort((a, b) => b.previousTopics - b.topics - (a.previousTopics - a.topics))[0];
+  if (down) {
+    changes.push({
+      kind: 'genre-down',
+      text: `「${down.name}」のトピックは、昨日の同じ時刻の${down.previousTopics}件から${down.topics}件に減っています。`,
+      href: `/category/${down.category}/`,
+    });
+  }
+  // 全体のトピックの数（昨日の同じ時刻と比べて）
+  const today = genres.reduce((sum, genre) => sum + genre.topics, 0);
+  const yesterday = genres.reduce((sum, genre) => sum + genre.previousTopics, 0);
+  if (yesterday > 0) {
+    changes.push({ kind: 'total', text: `24時間のトピックは${today}件（昨日の同じ時刻は${yesterday}件）です。` });
+  }
+  return changes.slice(0, limit);
 }

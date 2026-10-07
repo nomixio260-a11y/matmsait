@@ -1,5 +1,5 @@
 ---
-/** メディア別: 直近24時間の記事数・話題になったニュースの数・初報（いちばん早く報じた）の数 */
+/** メディア別: 直近24時間の記事数・報じたトピックの数・初報（最初に確認できた報道）の数 */
 import { getCategory, href } from '../lib/items.ts';
 import type { MediaStat } from '../lib/topics.ts';
 
@@ -15,8 +15,8 @@ const { stats } = Astro.props;
       <tr>
         <th scope="col">メディア</th>
         <th scope="col" class="num" title="この24時間の記事数">記事</th>
-        <th scope="col" class="num" title="2つ以上のメディアが報じた話題のうち、このメディアも報じた数">話題</th>
-        <th scope="col" class="num" title="いちばん早く報じた話題の数">初報</th>
+        <th scope="col" class="num" title="2つ以上の媒体が報じたトピックのうち、この媒体も報じた数">トピック</th>
+        <th scope="col" class="num" title="最初に確認できた報道がこの媒体だったトピックの数">初報</th>
       </tr>
     </thead>
     <tbody>

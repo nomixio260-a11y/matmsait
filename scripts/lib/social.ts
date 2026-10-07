@@ -3,7 +3,7 @@
  * X は API が有料（2026年2月から無料枠がなく、URL つきの投稿は1件 0.2 ドル）なので使わない。
  *
  * 投稿の種類（日本時間）:
- * - 朝（7〜10時台）: 今日の重要ニュース
+ * - 朝（7〜10時台）: 今日の注目ニュース（多くの媒体が報じたトピック。重要度の判断はしない）
  * - 昼（12〜14時台）: AI ニュース
  * - 日曜の夕方（18〜20時台）: 今週の話題ランキング
  * - 夜（21時以降）: 今日の話題ニュース（日別まとめ）
@@ -171,7 +171,7 @@ export interface PlanContext {
   hot: SocialTopic[];
   /** 急上昇（直近3時間に新しく報じたメディアの多い順） */
   rising: SocialTopic[];
-  /** 今日の重要ニュース（ジャンルごとに1件） */
+  /** 今日の注目ニュース（ジャンルごとに1件） */
   important: SocialTopic[];
   /** AI の話題（話題度スコアの順） */
   ai: SocialTopic[];
@@ -250,13 +250,13 @@ export function morningPost(topics: SocialTopic[], date: string, { pageUrl, site
   return listPost(
     `morning:${date}`,
     'morning',
-    `【${month}/${day} 今日の重要ニュース】`,
-    topics.map((topic) => `${topic.title}（${topic.coverage}社）`),
+    `【${month}/${day} 今日の注目ニュース】`,
+    topics.map((topic) => `${topic.title}（${topic.coverage}媒体）`),
     url,
     hashtagLine(['ニュース']),
     {
       url,
-      title: `今日の重要ニュース｜${siteName}`,
+      title: `今日の注目ニュース｜${siteName}`,
       description: `「${truncate(topics[0].title, 60)}」ほか、多くのメディアが報じたニュースをジャンルごとに紹介します。`,
     },
   );
@@ -288,7 +288,7 @@ export function weeklyPost(topics: SocialTopic[], date: string, { pageUrl, siteN
     `weekly:${date}`,
     'weekly',
     '【今週の話題ニュース TOP5】',
-    topics.map((topic) => `${topic.title}（${topic.coverage}社）`),
+    topics.map((topic) => `${topic.title}（${topic.coverage}媒体）`),
     url,
     hashtagLine(['ニュースまとめ', '週間ランキング']),
     {
@@ -303,7 +303,7 @@ export function weeklyPost(topics: SocialTopic[], date: string, { pageUrl, siteN
 function topicPost(kind: 'rising' | 'hot', topic: SocialTopic, { pageUrl, siteName }: PlanContext): SocialPost {
   const url = pageUrl(`/topic/${topic.id}/`);
   const header =
-    kind === 'rising' ? `🚀 急上昇（3時間で+${topic.gained}社・計${topic.coverage}社が報道）` : `🔥 いま話題（${topic.coverage}社が報道・話題度${topic.score}）`;
+    kind === 'rising' ? `🚀 急上昇（3時間で+${topic.gained}媒体・計${topic.coverage}媒体が報道）` : `🔥 いま話題（${topic.coverage}媒体が報道・話題度${topic.score}）`;
   const tags = hashtagLine(['ニュース', ...(topic.hashtags ?? []).slice(0, 2)]);
   return {
     key: `${kind}:${topic.id}`,
@@ -317,7 +317,7 @@ function topicPost(kind: 'rising' | 'hot', topic: SocialTopic, { pageUrl, siteNa
     },
     link: {
       url,
-      title: truncate(`${topic.title}｜${topic.coverage}社の報道まとめ`, 100),
+      title: truncate(`${topic.title}｜${topic.coverage}媒体の報道を比較`, 100),
       description: `${topic.coverage}のメディアが報じたニュースを、報じた順に比べられます（${siteName}）。`,
     },
   };
@@ -334,7 +334,7 @@ export function nowPost(topics: SocialTopic[], now: Date, { pageUrl, siteName }:
     `now:${date}T${String(hour).padStart(2, '0')}`,
     'now',
     `【いま話題のニュース】${month}/${day} ${hour}時`,
-    topics.map((topic) => `${topic.title}（${topic.coverage}社）`),
+    topics.map((topic) => `${topic.title}（${topic.coverage}媒体）`),
     url,
     hashtagLine(['ニュース']),
     {

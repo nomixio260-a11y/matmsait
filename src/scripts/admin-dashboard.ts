@@ -49,7 +49,7 @@ interface SocialFile {
 
 const POST_KINDS: Record<string, string> = {
   digest: '今日のまとめ',
-  morning: '今日の重要ニュース',
+  morning: '今日の注目ニュース',
   ai: 'AIニュース',
   weekly: '今週のランキング',
   rising: '急上昇',
@@ -411,7 +411,7 @@ function dataTodos(data: DashboardData, now: number): Todo[] {
   if (hotTopics.length > 0) {
     todos.push({
       kind: 'info',
-      text: `3社以上が報じた話題で、AI要約がまだのものがあります（${hotTopics.length}件）。要約を載せると、検索や SNS から読まれやすくなります。`,
+      text: `3媒体以上が報じたトピックで、AI要約がまだのものがあります（${hotTopics.length}件）。要約を載せると、検索や SNS から読まれやすくなります。`,
       details: hotTopics.slice(0, 3).map((article) => `${shorten(article.title, 28)}（${article.coverage}社）`),
       link: { label: 'AI要約を作る', href: `${base}/admin/summaries/` },
     });

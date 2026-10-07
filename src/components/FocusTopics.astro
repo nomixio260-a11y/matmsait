@@ -1,0 +1,125 @@
+---
+/**
+ * 今日の5トピック（今日これだけ）: 忙しい人向けに、何が起きた・なぜ話題・何媒体が報じたかだけを短く。
+ * 選び方は「今日の注目」（24時間に多くの媒体が報じ、ジャンルの広いトピック。1ジャンル1件）
+ */
+import Icon from './Icon.astro';
+import { getCategory, href } from '../lib/items.ts';
+import { getSummary } from '../lib/summaries.ts';
+import { firstSentence } from '../lib/summary-view.ts';
+import { topicPath, topicWhy, type TopicView } from '../lib/topics.ts';
+
+interface Props {
+  topics: TopicView[];
+}
+const { topics } = Astro.props;
+---
+
+<ol class="focus">
+  {
+    topics.map((topic, index) => {
+      const summary = topic.summaries[0] ?? getSummary(topic.lead.id);
+      const category = getCategory(topic.categories[0] ?? topic.lead.category);
+      return (
+        <li class="focus-item">
+          <span class="focus-n num">{index + 1}</span>
+          <div class="focus-body">
+            <a class="item-title focus-title" href={href(topicPath(topic.id))}>
+              {topic.lead.title}
+            </a>
+            {summary && (
+              <p class="focus-line">
+                <span class="focus-label">何が起きた</span>
+                {firstSentence(summary.summary)}
+              </p>
+            )}
+            <p class="focus-line">
+              <span class="focus-label">なぜ話題</span>
+              {topicWhy(topic)}
+            </p>
+            <p class="focus-meta">
+              <span class="focus-media">
+                <Icon name="media" />
+                <b class="num">{topic.coverage}</b>媒体が報道
+              </span>
+              {category && (
+                <span>
+                  <span class="dot" style={`--c:${category.color}`} />
+                  {category.name}
+                </span>
+              )}
+            </p>
+          </div>
+        </li>
+      );
+    })
+  }
+</ol>
+
+<style>
+  .focus {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .focus-item {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .focus-item + .focus-item {
+    border-top: 1px solid var(--border);
+  }
+  .focus-item:hover {
+    background: var(--surface-2);
+  }
+  .focus-item:hover .focus-title {
+    color: var(--accent);
+  }
+  .focus-n {
+    flex: none;
+    width: 1.4em;
+    color: var(--accent);
+    font-size: var(--fs-h2);
+    line-height: 1.4;
+    text-align: center;
+  }
+  .focus-body {
+    min-width: 0;
+    flex: 1;
+  }
+  .focus-title {
+    font-size: var(--fs-title);
+  }
+  .focus-line {
+    margin: 4px 0 0;
+    color: var(--text-2);
+    font-size: var(--fs-small);
+    line-height: 1.65;
+  }
+  .focus-label {
+    margin-right: 6px;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .focus-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 12px;
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .focus-meta > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .focus-media {
+    color: var(--text-2);
+  }
+</style>

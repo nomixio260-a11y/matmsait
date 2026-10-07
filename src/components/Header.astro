@@ -1,24 +1,27 @@
 ---
 import Logo from './Logo.astro';
 import { categories, site } from '../config/site.ts';
+import { tags } from '../config/tags.ts';
 import { href } from '../lib/items.ts';
-import { getPopular } from '../lib/popular.ts';
-import { getSummaries } from '../lib/summaries.ts';
 
 interface Props {
-  /** 現在のタブ（'' は総合、'ranking'、またはカテゴリの slug） */
+  /** 現在のページ（'' はホーム、'ranking'・'rising'・'trends'・'genres'、カテゴリやタグの slug など） */
   current?: string;
 }
 const { current } = Astro.props;
+/**
+ * 主なメニューは5つまで（スマートフォンで横にスクロールしなくても見えるように）。
+ * カテゴリ・タグ・AI ニュース・AI 要約・人気・メディアは「ジャンル」から辿る
+ */
 const tabs = [
-  { key: '', name: '総合', path: '/' },
+  { key: '', name: 'ホーム', path: '/' },
   { key: 'ranking', name: '話題', path: '/ranking/' },
   { key: 'rising', name: '急上昇', path: '/rising/' },
-  { key: 'ai', name: 'AIニュース', path: '/tag/ai/' },
-  ...(getPopular('day', 1).length > 0 || getPopular('week', 1).length > 0 ? [{ key: 'popular', name: '人気', path: '/popular/' }] : []),
-  ...(getSummaries().length > 0 ? [{ key: 'summaries', name: 'AI要約', path: '/summaries/' }] : []),
-  ...categories.map((c) => ({ key: c.slug, name: c.name, path: `/category/${c.slug}/` })),
+  { key: 'trends', name: 'トレンド', path: '/trends/' },
+  { key: 'genres', name: 'ジャンル', path: '/genres/' },
 ];
+const genreKeys = new Set(['genres', 'ai', 'popular', 'summaries', 'sources', ...categories.map((c) => c.slug), ...tags.map((t) => t.slug)]);
+const active = current !== undefined && tabs.some((tab) => tab.key === current) ? current : current && genreKeys.has(current) ? 'genres' : undefined;
 ---
 
 <header class="masthead">
@@ -33,9 +36,9 @@ const tabs = [
         <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle>
         <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
       </svg>
-      <input type="search" name="q" placeholder="記事を検索" aria-label="記事を検索" autocomplete="off" />
+      <input type="search" name="q" placeholder="トピック・記事を検索" aria-label="トピック・記事を検索" autocomplete="off" />
     </form>
-    <a class="icon-btn search-link" href={href('/search/')} aria-label="記事を検索">
+    <a class="icon-btn search-link" href={href('/search/')} aria-label="トピック・記事を検索">
       <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle>
         <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
@@ -83,7 +86,7 @@ const tabs = [
       {
         tabs.map((tab) => (
           <li>
-            <a href={href(tab.path)} aria-current={current === tab.key ? 'page' : undefined}>
+            <a href={href(tab.path)} aria-current={active === tab.key ? 'page' : undefined}>
               {tab.name}
             </a>
           </li>
@@ -237,29 +240,27 @@ const tabs = [
     border-bottom: 1px solid var(--border);
     box-shadow: var(--shadow);
   }
+  /* 主なメニューは5つ。スマートフォンでは横幅いっぱいに均等に並べる（横スクロールなし） */
   .tabs ul {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
-    gap: 2px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
-  .tabs ul::-webkit-scrollbar {
-    display: none;
+  .tabs li {
+    flex: 1;
+    min-width: 0;
   }
   .tabs a {
     display: block;
     position: relative;
-    padding: 11px 12px;
+    padding: 11px 4px;
     line-height: 22px;
     white-space: nowrap;
+    text-align: center;
     text-decoration: none;
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--muted);
   }
   .tabs a:hover {
@@ -271,22 +272,27 @@ const tabs = [
   .tabs a[aria-current='page']::after {
     content: '';
     position: absolute;
-    left: 10px;
-    right: 10px;
+    left: 18%;
+    right: 18%;
     bottom: 0;
     height: 3px;
     border-radius: 3px 3px 0 0;
     background: var(--accent);
   }
-  /* カテゴリが増えて1行に収まらないときは横にスクロールする（右端のぼかしで続きがあることを示す）。
-     広い画面では余白を少し詰めて、なるべく1行に収める */
-  @media (min-width: 1000px) {
+  /* 広い画面では左に寄せて並べる */
+  @media (min-width: 720px) {
+    .tabs ul {
+      gap: 4px;
+    }
+    .tabs li {
+      flex: none;
+    }
     .tabs a {
-      padding: 11px 10px;
+      padding: 11px 16px;
     }
     .tabs a[aria-current='page']::after {
-      left: 8px;
-      right: 8px;
+      left: 12px;
+      right: 12px;
     }
   }
 </style>

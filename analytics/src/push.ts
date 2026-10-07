@@ -198,7 +198,7 @@ export function buildFollowMessage(settings: PushSettings, ctx: NotifyContext): 
   if (matches.length === 0) {
     const topic = hot[0];
     if (!topic) return undefined;
-    return { kind: 'hot', title: `いま話題（${topic.k}社が報道）`, body: truncate(topic.t, 90), url: fromPush(topic.u, ctx.base), tag: 'hot' };
+    return { kind: 'hot', title: `いま話題（${topic.k}媒体が報道）`, body: truncate(topic.t, 90), url: fromPush(topic.u, ctx.base), tag: 'hot' };
   }
   if (matches.length === 1 && hot.length === 0) {
     const [match] = matches;

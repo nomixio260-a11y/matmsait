@@ -43,7 +43,7 @@ const breakdown = categories
 const top = ranked[0];
 const summary = [
   `${shortLabel}は${isToday ? `${formatTime(builtAt.toISOString())}までに` : ''}合計${snapshot.total}件の記事を掲載${isToday ? 'しています' : 'しました'}（${breakdown}）。`,
-  top ? `最も多くのメディアが報じたのは「${top.title}」（${top.coverage}社が報道）です。` : '',
+  top ? `最も多くの媒体が報じたのは「${top.title}」（${top.coverage}媒体が報道）です。` : '',
 ].join('');
 
 const title = `${label}の話題のニュースまとめ`;

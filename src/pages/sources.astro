@@ -1,9 +1,16 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import MediaStats from '../components/MediaStats.astro';
 import { categories, site } from '../config/site.ts';
 import { faviconUrl, getItemsBySource, getSources, href } from '../lib/items.ts';
+import { getMediaStats } from '../lib/topics.ts';
 
 const sources = getSources();
+// メディア別（24時間。初報の多い順。トップページから移した）
+const media = getMediaStats(24)
+  .filter((stat) => stat.topics > 0)
+  .slice(0, 20);
 const groups = categories
   .map((category) => ({ category, sources: sources.filter((s) => s.category === category.slug) }))
   .filter((group) => group.sources.length > 0);
@@ -14,12 +21,29 @@ const hostOf = (url: string) => new URL(url).hostname.replace(/^www\./, '');
   title="掲載元一覧"
   description={`${site.name}が新着記事を掲載しているサイトの一覧です。`}
   breadcrumbs={[{ name: '掲載元一覧' }]}
+  current="sources"
 >
   <div class="page-head">
     <h1>掲載元一覧</h1>
     <p>以下のサイトが公開しているRSSフィードから、記事の見出しと冒頭の短い抜粋を掲載しています（全{sources.length}サイト）。</p>
   </div>
   <div class="stack">
+    {
+      media.length > 0 && (
+        <section class="panel" aria-labelledby="media-title">
+          <div class="panel-head">
+            <h2 id="media-title">
+              <Icon name="media" class="h-icon" />
+              24時間の報道（メディア別）
+            </h2>
+          </div>
+          <p class="definition">
+            24時間のトピックを、どの媒体が報じたか、最初に確認できた報道（<b>初報</b>）がどこだったかを数えています。初報の多い順です（最初に報じた媒体の内容が正しいとは限りません）。
+          </p>
+          <MediaStats stats={media} />
+        </section>
+      )
+    }
     {
       groups.map(({ category, sources }) => (
         <section class="panel">

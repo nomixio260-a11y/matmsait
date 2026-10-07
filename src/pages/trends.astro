@@ -1,0 +1,92 @@
+---
+/**
+ * トレンド: 今日、何が変わったか（昨日の同じ時刻との比較・急に増えた言葉・ジャンルの温度・報じられ始めたトピック）。
+ * ニュースの一覧ではなく「変化」を見るページ
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import NewsTemperature from '../components/NewsTemperature.astro';
+import TodayChanges from '../components/TodayChanges.astro';
+import TopicList from '../components/TopicList.astro';
+import TrendWords from '../components/TrendWords.astro';
+import { builtAt, formatDateTime, href } from '../lib/items.ts';
+import { getNewTopics, getTrendWords } from '../lib/topics.ts';
+
+const words = getTrendWords(30);
+const fresh = getNewTopics({ hours: 6, limit: 8 });
+---
+
+<BaseLayout
+  title="トレンド（今日、何が変わったか）"
+  description="昨日の同じ時刻と比べたジャンルごとのニュースの温度、24時間の見出しに急に増えた言葉、報じられ始めたトピックなど、今日のニュースの変化をまとめています。"
+  current="trends"
+  breadcrumbs={[{ name: 'トレンド' }]}
+>
+  <div class="page-head">
+    <h1>トレンド</h1>
+    <p>今日、何が変わったか。昨日の同じ時刻との比較と、急に増えた言葉から、ニュースの変化を見られます（{formatDateTime(builtAt)}時点・1時間ごとに更新）。</p>
+  </div>
+
+  <div class="stack">
+    <section class="panel" aria-labelledby="changes-title">
+      <div class="panel-head">
+        <h2 id="changes-title">
+          <Icon name="trend" class="h-icon" />
+          今日、変化したこと
+        </h2>
+      </div>
+      <TodayChanges limit={6} />
+    </section>
+
+    <section class="panel" aria-labelledby="temp-title">
+      <div class="panel-head">
+        <h2 id="temp-title">
+          <Icon name="heat" class="h-icon is-heat" />
+          今日のニュースの温度
+        </h2>
+        <a class="more" href={href('/genres/')}>ジャンル →</a>
+      </div>
+      <p class="definition">ジャンルごとのトピックの熱さ（報じた媒体の数・新しさ・広がりの合計）。矢印は昨日の同じ時刻との比較です。</p>
+      <NewsTemperature />
+    </section>
+
+    {
+      words.length > 0 && (
+        <section class="panel" aria-labelledby="words-title">
+          <div class="panel-head">
+            <h2 id="words-title">
+              <Icon name="word" class="h-icon" />
+              注目ワード
+            </h2>
+            <span class="note">24時間</span>
+          </div>
+          <p class="definition">24時間の見出しに、それまでの6日間より急に増えた言葉（×はふだんの何倍か、「新」はふだんほとんど出てこない言葉）。</p>
+          <TrendWords words={words} />
+        </section>
+      )
+    }
+
+    {
+      fresh.length > 0 && (
+        <section class="panel" aria-labelledby="fresh-title">
+          <div class="panel-head">
+            <h2 id="fresh-title">
+              <Icon name="new" class="h-icon is-rise" />
+              報じられ始めたトピック
+            </h2>
+            <a class="more" href={href('/rising/')}>急上昇 →</a>
+          </div>
+          <p class="definition">最初の報道から6時間以内に、すでに2つ以上の媒体が報じたトピックです。</p>
+          <TopicList topics={fresh} othersLimit={0} ranked={false} />
+        </section>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .note {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+</style>

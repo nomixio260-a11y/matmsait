@@ -285,7 +285,7 @@ function articleMeta(article: AdminArticle): string {
     article.site,
     categoryName(article.category),
     dateFormat.format(new Date(article.publishedAt)),
-    article.coverage ? `${article.coverage}社が報道` : '',
+    article.coverage ? `${article.coverage}媒体が報道` : '',
     read ? `${read}人が読んだ（7日間）` : '',
   ]
     .filter(Boolean)

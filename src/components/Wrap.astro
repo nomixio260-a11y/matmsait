@@ -1,0 +1,18 @@
+---
+/** when のときだけ中身を div で包む（タイムラインの形など、同じ中身を形だけ変えるとき） */
+interface Props {
+  when: boolean;
+  class?: string;
+}
+const { when, class: className } = Astro.props;
+---
+
+{
+  when ? (
+    <div class={className}>
+      <slot />
+    </div>
+  ) : (
+    <slot />
+  )
+}

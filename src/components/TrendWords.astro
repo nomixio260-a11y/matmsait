@@ -3,7 +3,7 @@
 import { tags } from '../config/tags.ts';
 import { href } from '../lib/items.ts';
 import { normalizeWord, type TrendWord } from '../lib/topic-core.ts';
-import { tagPath } from '../lib/topics.ts';
+import { paceText, tagPath } from '../lib/topics.ts';
 
 interface Props {
   words: TrendWord[];
@@ -20,11 +20,18 @@ const tagByWord = new Map(tags.flatMap((tag) => [tag.name, ...tag.words].map((wo
       const link = tag ? href(tagPath(tag)) : `${href('/search/')}?q=${encodeURIComponent(word.word)}`;
       return (
         <li>
-          <a href={link} title={`24時間で${word.count}件の見出しに登場（${word.sources}つのメディア）`}>
+          <a
+            href={link}
+            title={`24時間で${word.count}件の見出しに登場（${word.sources}媒体）。${word.baseline > 0 ? `ふだん（それまでの6日間の平均）の${paceText(word.count / word.baseline)}` : 'それまでの6日間はほとんど出てこなかった言葉'}`}
+          >
             <span class="trend-rank">{index + 1}</span>
             <span class="trend-word">{word.word}</span>
             <span class="trend-count">{word.count}件</span>
-            {word.baseline < 0.5 && <span class="trend-up" aria-label="急上昇">↑</span>}
+            {word.baseline > 0 ? (
+              <span class="trend-up">×{paceText(word.count / word.baseline).replace('倍', '')}</span>
+            ) : (
+              <span class="trend-up">新</span>
+            )}
           </a>
         </li>
       );
@@ -71,16 +78,19 @@ const tagByWord = new Map(tags.flatMap((tag) => [tag.name, ...tag.words].map((wo
     font-variant-numeric: tabular-nums;
   }
   .trend-words li:nth-child(-n + 3) .trend-rank {
-    background: var(--hot);
-    color: var(--on-hot);
+    background: var(--text);
+    color: var(--surface);
   }
   .trend-count {
     color: var(--muted);
     font-size: 0.72rem;
     font-weight: 600;
   }
+  /* ふだんと比べた増え方（急に増えた＝急上昇の色） */
   .trend-up {
-    color: var(--hot);
+    color: var(--rise);
+    font-size: 0.75rem;
     font-weight: 800;
+    font-variant-numeric: tabular-nums;
   }
 </style>

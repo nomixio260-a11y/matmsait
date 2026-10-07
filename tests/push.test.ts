@@ -119,7 +119,7 @@ describe('通知の中身', () => {
     expect(many?.body.split('\n')).toEqual(['・記事1', '・記事2', '・記事3', 'ほか2件', 'いま話題: 大きな出来事']);
     expect(many?.url).toBe('/following/?utm_source=push');
     const hotOnly = buildFollowMessage(settings({ notify: { hot: true } }), ctx({ hot: [topic] }));
-    expect(hotOnly).toMatchObject({ kind: 'hot', title: 'いま話題（6社が報道）', body: '大きな出来事', url: '/summary/00000000000000aa/?utm_source=push' });
+    expect(hotOnly).toMatchObject({ kind: 'hot', title: 'いま話題（6媒体が報道）', body: '大きな出来事', url: '/summary/00000000000000aa/?utm_source=push' });
     // 話題を受け取らない人・当てはまる記事がない人には送らない
     expect(buildFollowMessage(tech, ctx({ hot: [topic] }))).toBeUndefined();
     expect(buildFollowMessage(tech, ctx({ fresh: [entry(9, { c: 'sports' })] }))).toBeUndefined();
@@ -374,7 +374,7 @@ describe('通知のサーバー', () => {
     service.check(updates('b1', [], [topic, { i: ['00000000000000b1'], t: '小さな話題', k: 2, u: '/ranking/' }]), now + 60_000);
     while (await service.processJobs(now + 60_000));
     expect([...(await messagesOf(fake.received, [hotFan, techFan, quiet])).entries()]).toEqual([
-      ['hot', { kind: 'hot', title: 'いま話題（5社が報道）', body: '大きな出来事', url: '/ranking/?utm_source=push', tag: 'hot' }],
+      ['hot', { kind: 'hot', title: 'いま話題（5媒体が報道）', body: '大きな出来事', url: '/ranking/?utm_source=push', tag: 'hot' }],
     ]);
     // 同じ話題（記事が増えても）は2回目を送らない
     fake.received.length = 0;

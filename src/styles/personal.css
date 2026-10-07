@@ -221,10 +221,12 @@ button.chip:hover {
   cursor: pointer;
 }
 /* 記事の行では「…」を右下に固定し、ほかの情報が長くても「…」だけが次の行に回らないようにする */
-.item > .item-meta {
+.item > .item-meta,
+.item-tl > .tl-body > .item-meta {
   padding-right: 24px;
 }
-.item > .item-meta > .more-btn {
+.item > .item-meta > .more-btn,
+.item-tl > .tl-body > .item-meta > .more-btn {
   position: absolute;
   right: 10px;
   bottom: 8px;

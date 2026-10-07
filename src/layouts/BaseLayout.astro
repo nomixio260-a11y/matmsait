@@ -4,6 +4,7 @@ import '../styles/items.css';
 import '../styles/personal.css';
 import Breadcrumbs, { type Crumb } from '../components/Breadcrumbs.astro';
 import Footer from '../components/Footer.astro';
+import IconSprite from '../components/IconSprite.astro';
 import Header from '../components/Header.astro';
 import Sidebar from '../components/Sidebar.astro';
 import { site } from '../config/site.ts';
@@ -146,16 +147,7 @@ const noticeLink = notice?.url ? (notice.url.startsWith('/') ? href(notice.url) 
   </head>
   <body data-base={href('')} data-built={builtAt.toISOString()} data-analytics={analytics || undefined}>
     <a class="skip-link" href="#main">本文へスキップ</a>
-    <svg class="icon-sprite" width="0" height="0" aria-hidden="true" focusable="false">
-      <symbol id="i-save" viewBox="0 0 24 24">
-        <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
-      </symbol>
-      <symbol id="i-more" viewBox="0 0 24 24">
-        <circle cx="5" cy="12" r="1.8" fill="currentColor"></circle>
-        <circle cx="12" cy="12" r="1.8" fill="currentColor"></circle>
-        <circle cx="19" cy="12" r="1.8" fill="currentColor"></circle>
-      </symbol>
-    </svg>
+    <IconSprite />
     <Header current={current} />
     {
       notice && (
@@ -289,9 +281,7 @@ const noticeLink = notice?.url ? (notice.url.startsWith('/') ? href(notice.url) 
       }
       updateRelativeTimes();
       setInterval(updateRelativeTimes, MINUTE);
-
-      // ===== 選択中のタブが見えるようにスクロール =====
-      document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+      // （メニューは5つになり横にスクロールしないので、選択中のタブまでスクロールする処理は外した）
     </script>
   </body>
 </html>
