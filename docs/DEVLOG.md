@@ -25,7 +25,7 @@
 
 ---
 
-## 現在の状態（2026-10-06 時点）
+## 現在の状態（2026-10-07 時点）
 
 > **運営者の方針**: 費用のかかる AI API（Claude API など）は使わない。要約の JSON は運営者が管理画面のプロンプトをチャット AI に貼り付けて作り、管理画面に貼り付けて保存する。
 
@@ -41,11 +41,12 @@
 
 ### 自動で動いているもの
 
-- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「今すぐ更新」/ Actions の Run workflow）で、テスト → フィード取得 → データをコミット → ビルド → Pages へ公開 → IndexNow・WebSub へ通知 → SNS 投稿（設定時のみ）。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
+- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「今すぐ更新」/ Actions の Run workflow）で、テスト → フィード取得 → 本文の自動取得 → よく読まれている記事の取得 → データをコミット → ビルド → Pages へ公開 → IndexNow・WebSub へ通知 → SNS 投稿（設定時のみ）。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
 - **自動更新タイマー**（`timer.yml`）: 前回の `update.yml` の実行から60分（変数 `UPDATE_INTERVAL_MINUTES` で変更可）たつまで待ち、`update.yml` を実行して自分自身を次に予約する。GitHub の定期実行（schedule）は一度も動かなかったため、こちらで定期更新する。公開リポジトリでだけ動く（非公開にすると自動で止まる）。
 - 収集元は `sources.yaml` の66件（ニュース・経済・テクノロジー・サイエンス・エンタメ・ゲーム・アニメ・スポーツ・乗り物・ライフの9カテゴリ）。どれも利用規約で商用サイトからの利用が禁じられていないことを確認済みで、確認結果（登録を見送ったサイトと理由も）は `docs/SOURCES.md` にある。はてなブックマーク（収集元・ブックマーク数）は商用で使えないため使っていない。
-- **本文の自動取得**（`scripts/fetch-texts.ts`、`update.yml` の「AI が開けない記事の本文を取得」）: 管理画面が `data/text-requests.json` に書いた依頼（AI が開けなかった記事）について、TopiatsumeBot と名乗って記事のページを取得し、本文を運営者の公開鍵（`data/text-keys.json`）で暗号化して `data/texts.json` に置く。robots.txt（AI のクローラーの拒否を含む）・noai・アクセスの拒否を守り、1回15件まで。依頼がなければ何もしない。
-- 人気の目安は「話題度」＝同じ出来事を報じた掲載元の数（「N社が報道」）。見出しの似ている記事をまとめて数える（`src/lib/related.ts` の `clusterTopics`）。話題のニュース（トップ・「話題」ページ・サイドバー・カテゴリ）、日別まとめの並び、SNS 投稿（3社以上）、管理画面の「話題の順」に使う。
+- **本文の自動取得**（`scripts/fetch-texts.ts`、`update.yml` の「AI が開けない記事の本文を取得」）: 管理画面が `data/text-requests.json` に書いた依頼（AI が開けなかった記事）について、フィードと同じブラウザ相当の通信（ボットの名前は名乗らない）で記事のページを取得し、本文を運営者の公開鍵（`data/text-keys.json`）で暗号化して `data/texts.json` に置く。robots.txt（クローラー全般と AI のクローラーの拒否）・noai・アクセスの拒否を守り、1回15件まで。依頼がなければ何もしない。
+- **アクセス解析**（`analytics/`。Cloudflare Workers の無料プラン）: サイトのページが見たページ・開いた記事・検索・保存・閲覧時間などを送り（`src/scripts/analytics.ts`）、サーバー（1つの SQLite の Durable Object）が数える。管理画面の「アクセス解析」（`/admin/analytics/`）で見る。**ただし運営者が Cloudflare を設定するまでは動いていない**（「未解決の課題」1）。設定すると、`analytics.yml` がサーバーを公開して URL を `data/analytics.json` に書き、`update.yml` が毎回よく読まれている記事を `data/popular.json` に取り込む（`scripts/popular.ts`。未設定なら何もしない）。
+- 人気の目安は「話題度」＝同じ出来事を報じた掲載元の数（「N社が報道」）。見出しの似ている記事をまとめて数える（`src/lib/related.ts` の `clusterTopics`）。話題のニュース（トップ・「話題」ページ・サイドバー・カテゴリ）、日別まとめの並び、SNS 投稿（3社以上）、管理画面の「話題の順」に使う。アクセス解析を設定すると、読まれた人数による「よく読まれている記事」（`/popular/`・トップ・サイドバー・「人気N位」）と、管理画面の「よく読まれている順」も使える。
 - 記事は直近30日・最大12000件を `data/items.json` に保存（更新の多いサイトで上限が埋まっても、各掲載元の新しい20件は残す）。一覧ページは25ページ（1000件）まで、検索は新しい6000件まで。
 
 ### 運営者の設定状況
@@ -54,10 +55,11 @@
 | --- | --- |
 | GitHub Pages（Source: GitHub Actions） | 設定済み・公開中 |
 | AI 要約 | 運営者が管理画面で作成（有料の AI API は使わない）。AI が開けない記事は、運営者が本文を貼り付けて本文入りのプロンプトで依頼するか、同じ話題の別の記事に切り替える。長いプロンプトは分割・ファイルで渡せ、AI の回答はファイルでも読み込める |
-| 管理画面のログイン | 2026-10-06 の版から、管理画面を開くとログインページに移る。トークンはパスワードで暗号化して運営者のブラウザにだけ保存（Contents と Actions の Read and write が必要）。**運営者がパスワードを忘れたため、設定し直しが必要**（「未解決の課題」1） |
-| 本文の自動取得 | 公開済み。運営者の公開鍵（`data/text-keys.json`）は未登録で、登録されるまでは取得しない（設定し直してログインすると管理画面が登録する） |
+| 管理画面のログイン | 管理画面を開くとログインページに移る。トークンはパスワードで暗号化して運営者のブラウザにだけ保存（Contents と Actions の Read and write が必要）。2026-10-07 に運営者が設定し直した（パスワードを忘れたため） |
+| 本文の自動取得 | 公開済み。運営者の公開鍵は 2026-10-07 に登録済み（`data/text-keys.json`） |
+| アクセス解析（Cloudflare Workers） | **未設定**。Secrets に `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID` を登録して Actions の「アクセス解析のサーバーを公開」を実行すると動く（README の「アクセス解析」、管理画面の「アクセス解析」にも手順を表示）。管理画面にログインしたブラウザは自動で数えない |
 | SNS（X・Bluesky・Mastodon・Misskey） | 未設定 |
-| AdSense・アクセス解析・Search Console | 未設定（変数を設定すると有効になる） |
+| AdSense・Google アナリティクス・Search Console | 未設定（変数を設定すると有効になる。Google アナリティクスは上のアクセス解析と併用できる） |
 | 独自ドメイン | なし（収益化の段階で取得を推奨） |
 
 ### 主なファイル
@@ -83,6 +85,12 @@
 | `scripts/fetch-texts.ts`, `scripts/lib/text-fetcher.ts`, `scripts/lib/robots.ts`, `scripts/lib/article-text.ts` | 本文の自動取得（依頼の処理・robots.txt と AI の拒否の確認・本文の取り出し） |
 | `src/lib/text-crypto.ts`, `src/lib/article-texts.ts` | 取得した本文の暗号化（RSA-OAEP＋AES-GCM）と、依頼・結果・公開鍵のファイルの扱い（管理画面と共通） |
 | `data/text-requests.json`, `data/texts.json`, `data/text-keys.json` | 本文の自動取得の依頼（管理画面が書く）・結果（暗号化した本文。自動収集が書く）・運営者の公開鍵（管理画面が書く） |
+| `analytics/`（`src/index.ts`・`src/core.ts`・`src/store.ts`・`wrangler.jsonc`） | アクセス解析のサーバー（Cloudflare Workers・SQLite の Durable Object。受け取り・いま見ている人・今日の集計（メモリ）・日ごとの集計（毎時）・公開の人気記事・運営者用の API）。依存は wrangler だけで、`analytics/package.json` で別に入れる |
+| `.github/workflows/analytics.yml` | アクセス解析のサーバーの公開（Cloudflare の Secrets があるときだけ。URL を `data/analytics.json` に記録してサイトを更新） |
+| `src/scripts/analytics.ts` | サイトの計測（閲覧・記事を開いた・検索・保存・閲覧時間・表示中の合図、いま見ている人数の表示、除外・Do Not Track・GPC） |
+| `src/pages/admin/analytics.astro`, `src/scripts/admin-analytics.ts`, `src/scripts/charts.ts` | 管理画面のアクセス解析（グラフは SVG で自前に描く。管理画面の CSP で外部のスクリプトを読めないため） |
+| `src/lib/analytics-config.ts`, `src/lib/popular.ts`, `scripts/popular.ts`, `src/pages/popular.astro`, `src/components/PopularList.astro` | アクセス解析の接続先、よく読まれている記事（取り込み・ページ・一覧・「人気N位」の印） |
+| `data/analytics.json`, `data/popular.json` | アクセス解析のサーバーの URL（`analytics.yml` が書く）・よく読まれている記事（自動更新が書く）。どちらもアクセス解析を設定するまではない |
 | `src/lib/admin-auth.ts`, `src/scripts/admin-login.ts`, `src/scripts/admin-common.ts`, `src/pages/admin/login.astro` | 管理画面のログイン（トークンの暗号化・ログイン中の状態・自動ログアウト・続けて間違えたときの制限・枠の中での表示の禁止） |
 | `src/pages/admin/`, `src/scripts/admin.ts`, `src/layouts/AdminLayout.astro` | 管理画面（AdminLayout で接続先を制限する CSP を指定） |
 | `data/items.json` | 収集した記事（1行1記事） |
@@ -102,27 +110,51 @@ npx astro preview # ビルド結果の確認（Astro 7 の preview は常駐す�
 ```
 
 - 管理画面の動作（ログインを含む）は、Playwright で GitHub API をモックして確かめている（実際の GitHub には書き込まない）。ログインの確認には、Playwright の時計の早送り（`clock.fastForward`）で自動ログアウトや待ち時間を再現する。
+- アクセス解析は、`cd analytics && npm install && npx wrangler dev --var ALLOWED_ORIGINS:http://localhost:4321 --var GITHUB_API:<GitHub API のまね>` でサーバーを手元で動かし、`PUBLIC_ANALYTICS_URL=http://127.0.0.1:8787` を付けてサイトをビルドして確かめる（`npx tsc --noEmit` でサーバーの型チェック）。集計とデータの保存の中身は `tests/analytics.test.ts`（node:sqlite で SQL も実行）で確かめている。Playwright で数えさせるときは `navigator.webdriver` を false にする（自動操作のブラウザは数えないため）。
 - テストのために `data/` に作ったファイル（要約・非表示の設定など）は**コミットしない**。
 
 ---
 
 ## 未解決の課題・次にやること
 
-1. **運営者の作業: 管理画面の設定し直し。** 運営者がパスワードを忘れた（2026-10-06）。パスワードはどこにも保存していないので誰も設定し直せない。ログインページの「保存したトークンを消してやり直す」で、トークンと新しいパスワードを入れ直す（トークンの値がなければ GitHub の Fine-grained tokens で「Regenerate token」。以前チャットに貼ったトークンは漏えい扱いなので、作り直したものを使う。Contents と Actions の Read and write）。設定し直すと本文を読むための鍵も作られ、管理画面が公開鍵を登録する（本文の自動取得が使えるようになる）。ログインはブラウザごとなので、別の端末では改めて初回設定が必要。
+1. **運営者の作業: アクセス解析を使い始める。** Cloudflare に無料で登録し（ダッシュボードの「Workers & Pages」を一度開いて workers.dev のサブドメインを作る）、テンプレート「Edit Cloudflare Workers」の API トークンと Account ID を、GitHub の Secrets の `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID` に登録して、Actions の「アクセス解析のサーバーを公開」を実行する（README の「アクセス解析」）。公開されると `data/analytics.json` が作られ、サイトが更新されて計測が始まる。**初めて公開したときは本番で確かめること**: 公開のワークフローの成功、`data/analytics.json` の URL、サイトのページから `/collect` への送信（200）、管理画面のアクセス解析の表示、次の更新で `data/popular.json` ができること。トークンや Account ID はチャットやリポジトリに書かない。
 2. 収集元の利用条件は `docs/SOURCES.md` のとおり確認したが、最終確認は運営者が行う（規約は変わるので年1回程度見直す）。4Gamer.net と鉄道ファン（railf.jp）は「利用したら一報を」と歓迎しているので、収益化のときに連絡するとよい（任意）。
 3. 話題度（「N社が報道」）は見出しの似かたで同じ出来事をまとめているので、言い回しが大きく違う報道はまとまらないことがある（逆に別の出来事をまとめてしまう誤りは、本番のデータでは見つかっていない）。調整するときは `src/lib/related.ts` の `clusterTopics` の既定値（`minScore` など）を変え、テストと本番のデータで確かめる。
 4. 海外ニュースは、商用サイトで使えるフィードがほとんど見つからなかったため「海外」カテゴリは作っていない（BBC・CNN・AFPBB・聯合ニュースなどは NG）。使えるサイトが見つかったら `src/config/site.ts` にカテゴリを足す。
 5. SNS 自動投稿は未設定・未確認（X の署名は公式の例と一致することを確認済み）。
 6. 管理画面で編集できる要約は新しい300件まで。それより古い要約は `data/summaries/YYYY-MM.json` を直接編集する。
-7. 本文の自動取得で取得できるかはサイトしだい（アクセスを拒否するサイト・本文が動画だけのページ・JavaScript で本文を表示するページは取れない）。取得できない記事は、本文を貼り付けるか同じ話題の別の記事に切り替える。取得結果で断られることが多い掲載元があれば、`summary: false` にするかを考える。
+7. 本文の自動取得で取得できるかはサイトしだい（アクセスを拒否するサイト・本文が動画だけのページ・JavaScript で本文を表示するページは取れない。2026-10-07 からはボットの名前を名乗らずブラウザ相当の通信で取るが、robots.txt と拒否は守り、ボット対策のすり抜けはしない）。取得できない記事は、本文を貼り付けるか同じ話題の別の記事に切り替える。取得結果で断られることが多い掲載元があれば、`summary: false` にするかを考える。
 8. AI が開けない記事の記録（どのサイトがどれだけ開けなかったか）は運営者のブラウザにだけ残る（localStorage、14日間）。別の端末では記録がない状態から始まる。どのサイトを AI が開けないかが分かってきたら、`docs/SOURCES.md` に書き残しておくとよい。
 9. 収益化の前に: 独自ドメインの取得、AdSense の審査の前に AI 要約を増やす（話題の記事を中心に。審査では独自の内容が重視される）、`ads.txt` の設置、気になる記事の非表示、`src/config/site.ts` の運営者名・問い合わせ先の確認。
+10. アクセス解析の注意: Cloudflare の無料プランは1日にリクエスト10万回・SQLite の書き込み10万行・読み込み500万行が上限（ページを見るごとに1回、表示中は1分ごとに1回送る。1日に数千人くらいまで）。記録は1日4万件まで（`MAX_EVENTS_PER_DAY`）。足りなくなったら Workers の有料プラン（月5ドル）にするか、合図の間隔（`src/scripts/analytics.ts` の `PING_INTERVAL`）を延ばす。訪問者は「IP アドレス＋ブラウザの種類＋日ごとの塩」で数えるので、携帯電話の回線（多くの人が同じ IP を使う）で同じ機種・同じブラウザの人が1人に数えられることがある。人気の順位は同じ人を1回だけ数えるが、多くの IP から送れば操作はできる（おかしな順位に気づいたら、管理画面で記事を非表示にできる）。「いまN人が閲覧中」は2人以上のときだけ出す（`data-min`）。
 
-（解決済み: はてなブックマークの商用利用の問題と、外した収集元・要約を禁じている掲載元の要約は、2026-10-06 に削除して解決した。下の記録を参照）
+（解決済み: はてなブックマークの商用利用の問題と、外した収集元・要約を禁じている掲載元の要約は、2026-10-06 に削除して解決した。管理画面のパスワードの設定し直しは、2026-10-07 に運営者が行った（本文を読むための公開鍵も登録済み）。下の記録を参照）
 
 ---
 
 ## 開発の記録（新しい順）
+
+### 2026-10-07 本文の自動取得で名乗るのをやめた・アクセス解析（いま見ている人数・よく読まれている記事など）
+
+- 依頼・目的: 運営者から「（本文の自動取得で）別に名乗るな、ブロックされる可能性が上がる」「サイトに訪問者が来たアクセス解析などを実装。現在訪問しているユーザー数やどの記事が人気かなど、さまざまな機能を実装」。
+- やったこと（本文の自動取得）:
+  - TopiatsumeBot と名乗るのをやめ、フィードの取得と同じブラウザ相当のヘッダー（`scripts/lib/http.ts` の `browserHeaders('document')`）で取得する。名乗る名前がないので、robots.txt はクローラー全般（`User-agent: *`）のルールと、主な AI のクローラーの拒否に従う。noai・拒否されたら再試行しない・1回15件・同じサイトへは間隔を空ける、は変えていない。ボット対策のすり抜け（ヘッドレスブラウザ・CAPTCHA の突破・IP の切り替えなど）はしない。
+  - 運営者情報の TopiatsumeBot の節は、名前を出さない取得の方針の説明（`/about/#fetch`）に書き換えた（編集方針・管理画面・README・`docs/SOURCES.md` も）。
+- やったこと（アクセス解析）:
+  - **しくみ**: GitHub Pages では訪問の記録を受け取れないので、記録を受け取って集計する小さなサーバーを Cloudflare Workers の無料プランに置く（`analytics/`）。入口の Worker が送り元（サイトのオリジン）を確かめ、1つの Durable Object（SQLite）が数える。生のイベントは1件1行（主キーを時刻にして索引を作らず、書き込みを1行に）で14日残し、過去の日は毎時の処理（アラーム）で日ごとの集計（metric・日・内訳）にまとめて約400日残す。今日の分はメモリで数えるので、管理画面を開いても生のイベントを読み直さない。いま見ている人（3分以内に合図があった人）もメモリで数える。採らなかった案: Google アナリティクスだけ（サイトや管理画面に「いま見ている人数」「人気の記事」を出せない。GA4 は今までどおり変数で併用できる）、Supabase・Firebase（ブラウザ用のライブラリが重い・同時接続の上限）、D1（いま見ている人を数えるたびに書き込みが要る）。
+  - **数え方とプライバシー**: Cookie は使わず、ブラウザに新しく保存するものもない。IP アドレスは保存せず、「IP＋ブラウザの種類＋日ごとの塩」の SHA-256 で匿名の訪問者番号を作る（塩は翌日に消すので、日をまたいで同じ人かは分からない）。入口（サイトに来た）は、前の閲覧から30分以上空いた閲覧（「あとで読む」の新着の印と同じ訪問の記録を使う）。参照元はホスト名だけ（utm_source があればそれ）で、AI チャット・検索・SNS・ほか・直接に分ける。ボット（User-Agent）・自動操作のブラウザ（webdriver）・Do Not Track・GPC・管理画面で除外したブラウザ（ログインすると自動で除外）は数えない。1人1分60件まで、1日4万件まで。プライバシーポリシーに、送る情報・送り先・目的・保存期間を載せた（電気通信事業法の外部送信の公表を兼ねる）。
+  - **サイト**（`src/scripts/analytics.ts`）: 閲覧（ページの種類・カテゴリ・要約ページなら記事）・記事を開いた（見出し・元記事のリンク。`data-aid` などを記事のリンクに付けた）・サイト内検索（入力が止まってから、同じ言葉は1回）・あとで読むへの保存・閲覧時間（表示していた時間）・表示中は1分ごとの合図を送る。合図の応答の「いま見ている人数」を、トップと人気のページに「いまN人が閲覧中」として出す（2人以上のとき）。
+  - **よく読まれている記事**: サーバーの公開の API（`/popular`。24時間・1週間、記事を開いた・要約ページを読んだ・保存した人の数）を、自動更新のたびに `scripts/popular.ts` が `data/popular.json` に取り込む（順位が変わらなければ書かない）。ページ `/popular/`（データがなければ noindex・サイトマップから外す）、トップとサイドバーの一覧、ヘッダーの「人気」、フッターのリンク、上位10件の記事の「人気N位」の印。
+  - **管理画面**（`/admin/analytics/`）: リアルタイム（いま見ている人数・直近30分の1分ごとの閲覧数・見られているページ・最近の動き。15秒ごと）、期間（今日・昨日・7日間・30日間・90日間。選んだ期間を覚える）ごとの主な数字（訪問者・閲覧・来た回数・記事を開いた回数と人の割合・1ページの閲覧時間・1ページで離れた人・前にも来た人。前の期間と比べる。今日は昨日の値を並べる）、閲覧数と訪問者数の推移、よく読まれている記事（要約ありの印）・ページ・流入元と来たサイト・入口・検索された言葉（0件の回数）・カテゴリ・掲載元・時間帯・見たページ数・保存された記事・端末・OS・ブラウザ・国。グラフは SVG で自前に描き（CSP で外部のスクリプトを読めないため）、ポインターとキーボードで値を出し、「表で見る」も付けた。色は見分けやすさを検証した組み合わせ（ライト・ダーク）。サーバー未設定のときは設定の手順を出す。管理画面のページの切り替え（AI要約の管理・アクセス解析）を付けた。要約の候補の並び順に「よく読まれている順」（直近7日）を足した。
+  - **運営者の確認**: 管理画面がサーバーに問い合わせるときは、ログイン中の GitHub のトークンを送り、サーバーが GitHub API でサイトのリポジトリに書き込めるかを確かめる（トークンは保存せず、確かめた結果をトークンのハッシュで10分間覚える）。管理画面の CSP の接続先にサーバーを足した。
+  - **公開**: `.github/workflows/analytics.yml`（Secrets の `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID` があるときだけ。型チェック → `wrangler deploy`（受け付けるオリジンは Pages の設定から） → URL を `data/analytics.json` に書いてコミット → `update.yml` を実行）。`update.yml` に「よく読まれている記事を取得」を足し、`analytics/` だけの push では収集・公開をしないようにした。
+- 主な変更ファイル: `scripts/lib/http.ts`, `scripts/lib/text-fetcher.ts`, `scripts/fetch-texts.ts`, `analytics/`（新規: `src/index.ts`・`src/core.ts`・`src/store.ts`・`wrangler.jsonc`・`package.json`・`tsconfig.json`）, `.github/workflows/analytics.yml`（新規）, `.github/workflows/update.yml`, `scripts/popular.ts`（新規）, `src/scripts/analytics.ts`（新規）, `src/scripts/admin-analytics.ts`（新規）, `src/scripts/charts.ts`（新規）, `src/pages/admin/analytics.astro`（新規）, `src/pages/popular.astro`（新規）, `src/components/PopularList.astro`（新規）, `src/lib/popular.ts`（新規）, `src/lib/analytics-config.ts`（新規）, `src/layouts/BaseLayout.astro`, `src/layouts/AdminLayout.astro`, `src/components/ItemRow.astro`・`TopicList.astro`・`SummaryCard.astro`・`Sidebar.astro`・`Header.astro`・`Footer.astro`, `src/pages/index.astro`・`search.astro`・`saved.astro`・`summary/[id].astro`・`ranking.astro`・`privacy.astro`・`editorial.astro`・`about.astro`・`admin/index.astro`, `src/scripts/reader.ts`・`admin.ts`・`admin-login.ts`, `src/styles/global.css`・`items.css`, `astro.config.mjs`, `tsconfig.json`（`analytics/` を除外）, `README.md`, `docs/SOURCES.md`, `.env.example`
+- 確認したこと:
+  - ユニットテスト219件（新規: イベントの検証・ボット・OS とブラウザ・流入元・日本時間の日付・集計（訪問・入口・直帰・見たページ数・記事ごとの人数）・日をまたいだ合計と上位の取り出し・訪問者番号と塩、node:sqlite で保存・日ごとの集計・期間の読み出し・古いデータの削除・記事の名前、サイト側のページの種類・参照元・入口の判定・接続先の確認・人気のファイルの読み取り。本文の自動取得はブラウザ相当の通信と robots.txt の `*` で確かめるよう変更）、型チェック（サイトとサーバー）、actionlint、ビルド（接続先あり・なし）、`wrangler deploy --dry-run`（39 KiB）。
+  - 手元で `wrangler dev`（Cloudflare と同じ workerd）でサーバーを動かし、Playwright で: Google から来たパソコン・X から来たスマホの閲覧、記事を開く・カテゴリ・検索（入力が止まってから1回）・保存（外しても送らない）・要約ページ・元記事・閲覧時間を送り、「いま2人が閲覧中」が出る。GPC・除外したブラウザ・自動操作のブラウザからは送らない。運営者用の API で訪問者2人・来た回数2・クリック3・検索1・保存1・流入元（検索・SNS）・記事の名前・端末・OS を確認。書き込めないトークン（401）・ほかのサイトからの送信（403）は断る。人気の記事を取り込んで `/popular/`・トップ・サイドバー・ヘッダーの「人気」・「人気N位」の印が出る。管理画面のアクセス解析: ログインで自動で除外、数字・推移・時間帯・一覧・リアルタイムの表示、グラフの値（ポインター・キーボード）、期間の切り替えと記憶、「よく読まれている順」、CSP 違反なし、スマホ・ダークで横にはみ出さない、axe 違反なし（ライト・ダーク。公開ページ・設定の手順のページも）。
+  - 本物の Durable Object の SQLite（workerd）で、日ごとの集計・やり直しても同じ結果・古いイベントの削除・塩を確認（手元だけの確認用ワーカー）。
+  - これまでの E2E（ログイン・本文の貼り付け・ファイル・本文の自動取得・ブックマークレット）も通った。
+- 残った課題・注意点: 運営者が Cloudflare を設定するまでアクセス解析は動かない（「未解決の課題」1。初めて公開したら本番で確かめる）。無料の範囲と数え方の注意は「未解決の課題」10。テストで作った `data/popular.json` はコミットしていない。
 
 ### 2026-10-06 AI が開けない記事の本文の自動取得（TopiatsumeBot・サイトの拒否を守る・暗号化して運営者だけが読む）とパスワードの案内
 

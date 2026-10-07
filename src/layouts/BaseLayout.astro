@@ -8,10 +8,12 @@ import Sidebar from '../components/Sidebar.astro';
 import { site } from '../config/site.ts';
 import {
   adsenseClient,
+  analyticsUrlOverride,
   bingSiteVerification,
   gaMeasurementId,
   googleSiteVerification,
 } from '../config/services.ts';
+import { analyticsEndpoint } from '../lib/analytics-config.ts';
 import { href } from '../lib/items.ts';
 
 interface Props {
@@ -22,7 +24,7 @@ interface Props {
   noindex?: boolean;
   breadcrumbs?: Crumb[];
   /** サイドバーを出すか。カテゴリを渡すとランキングをそのカテゴリに絞る */
-  sidebar?: boolean | { category?: string; hideRanking?: boolean; rankingWideOnly?: boolean };
+  sidebar?: boolean | { category?: string; hideRanking?: boolean; rankingWideOnly?: boolean; hidePopular?: boolean };
   /** ページ固有の構造化データ */
   jsonLd?: Record<string, unknown>[];
   /** サイト全体のRSSに加えて案内するフィード */
@@ -44,6 +46,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 const ogImage = new URL(href('/og.png'), Astro.site).toString();
 const sidebarProps = typeof sidebar === 'object' ? sidebar : {};
 const toJson = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
+// アクセス解析のサーバー（設定されていなければ計測しない）
+const analytics = analyticsEndpoint(analyticsUrlOverride);
 ---
 
 <!doctype html>
@@ -117,7 +121,7 @@ const toJson = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
       )
     }
   </head>
-  <body>
+  <body data-analytics={analytics || undefined}>
     <a class="skip-link" href="#main">本文へスキップ</a>
     <Header current={current} />
     <div class:list={['container', 'layout', { 'has-sidebar': sidebar !== false }]}>
@@ -131,7 +135,25 @@ const toJson = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
 
     <script>
       // あとで読む・前回の訪問以降の新着（閲覧者のブラウザにだけ保存）
-      import '../scripts/reader.ts';
+      import { visitInfo } from '../scripts/reader.ts';
+      import { startAnalytics } from '../scripts/analytics.ts';
+
+      // ===== アクセス解析（運営者のサーバーに、見たページ・開いた記事などを送る。Cookie は使わない） =====
+      const analyticsEndpoint = document.body.dataset.analytics;
+      if (analyticsEndpoint) startAnalytics(analyticsEndpoint, visitInfo());
+
+      // ===== 期間などの切り替えタブ（話題のニュース・よく読まれている記事） =====
+      const segTabs = document.querySelectorAll<HTMLButtonElement>('.seg [role="tab"]');
+      for (const tab of segTabs) {
+        tab.addEventListener('click', () => {
+          for (const other of tab.closest('.seg')?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []) {
+            const selected = other === tab;
+            other.setAttribute('aria-selected', String(selected));
+            const panel = document.getElementById(other.getAttribute('aria-controls') ?? '');
+            if (panel) panel.hidden = !selected;
+          }
+        });
+      }
 
       // ===== 表示テーマの切り替え =====
       const root = document.documentElement;

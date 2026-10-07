@@ -27,7 +27,7 @@ const site = siteOf(record);
     <span class="ai-badge">AI要約</span>
   </p>
   <Heading class="card-title">
-    <a href={href(summaryPath(record.id))}>{record.title}</a>
+    <a href={href(summaryPath(record.id))} data-aid={record.id} data-src={record.sourceId} data-cat={record.category}>{record.title}</a>
   </Heading>
   <p class="card-text">{record.summary}</p>
   {

@@ -32,6 +32,17 @@ function summaryDates() {
 }
 const summarizedAt = summaryDates();
 
+/** よく読まれている記事のデータがあるか（なければ /popular/ は検索エンジンに出さない） */
+function hasPopular() {
+  try {
+    const data = JSON.parse(readFileSync('data/popular.json', 'utf8'));
+    return (data.day?.length ?? 0) + (data.week?.length ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+const popularReady = hasPopular();
+
 export default defineConfig({
   site,
   base,
@@ -48,7 +59,8 @@ export default defineConfig({
         !/\/\d+\/$/.test(page) &&
         !/\/(search|saved|latest)\/$/.test(page) &&
         !/\/(admin|source)\//.test(page) &&
-        (summarizedAt.size > 0 || !/\/summaries\/$/.test(page)),
+        (summarizedAt.size > 0 || !/\/summaries\/$/.test(page)) &&
+        (popularReady || !/\/popular\/$/.test(page)),
       // 更新されるページには最終更新日時を付け、検索エンジンに再クロールを促す
       serialize(item) {
         const path = new URL(item.url).pathname.slice(base.replace(/\/$/, '').length);
@@ -58,7 +70,7 @@ export default defineConfig({
           item.lastmod = dailyUpdatedAt(daily[1]);
         } else if (summary) {
           item.lastmod = summarizedAt.get(summary[1]);
-        } else if (/^\/(?:|latest\/|ranking\/|daily\/|summaries\/|category\/[^/]+\/|source\/[^/]+\/)$/.test(path)) {
+        } else if (/^\/(?:|latest\/|ranking\/|popular\/|daily\/|summaries\/|category\/[^/]+\/|source\/[^/]+\/)$/.test(path)) {
           item.lastmod = builtAt;
         }
         return item;

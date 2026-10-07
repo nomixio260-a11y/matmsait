@@ -1,0 +1,82 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PopularList from '../components/PopularList.astro';
+import ShareButtons from '../components/ShareButtons.astro';
+import { site } from '../config/site.ts';
+import { formatDateTime, href } from '../lib/items.ts';
+import { getPopular, popularUpdatedAt } from '../lib/popular.ts';
+import { clampDescription, collectionJsonLd, headlineTeaser } from '../lib/seo.ts';
+
+const day = getPopular('day', 30);
+const week = getPopular('week', 30);
+const updatedAt = popularUpdatedAt();
+const hasData = day.length > 0 || week.length > 0;
+
+const title = 'よく読まれている記事（アクセスランキング）';
+const description = clampDescription(
+  day.length > 0
+    ? `${site.name}でいまよく読まれているニュースのランキング。1位${headlineTeaser(
+        day.map((entry) => entry.item),
+        1,
+        30,
+      )}ほか、24時間・1週間の人気記事を1時間ごとに更新。`
+    : `${site.name}でよく読まれているニュースのランキング（24時間・1週間）。1時間ごとに更新しています。`,
+);
+const url = new URL(Astro.url.pathname, Astro.site).toString();
+const jsonLd = hasData ? [collectionJsonLd({ name: title, description, url, items: day.slice(0, 10).map((entry) => entry.item) })] : [];
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  jsonLd={jsonLd}
+  current="popular"
+  noindex={!hasData}
+  breadcrumbs={[{ name: 'よく読まれている記事' }]}
+  sidebar={{ hidePopular: true }}
+>
+  <div class="page-head">
+    <h1>よく読まれている記事</h1>
+    <p>
+      {site.name}で読まれた回数の多い記事のランキングです（記事を開いた人・AI要約を読んだ人・「あとで読む」に保存した人の数で並べ、同じ人は1回だけ数えます）。1時間ごとに更新しています。
+      {updatedAt && <span class="updated">集計 {formatDateTime(updatedAt)}</span>}
+      <span class="live-count" data-live-count hidden></span>
+    </p>
+  </div>
+
+  <div class="stack">
+    {hasData && <ShareButtons url={url} text={`いまよく読まれている記事｜${site.name}`} />}
+    <section class="panel">
+      <div class="panel-head">
+        <h2>人気の記事</h2>
+        <div class="seg" role="tablist" aria-label="集計期間">
+          <button type="button" role="tab" aria-selected="true" aria-controls="popular-day" id="tab-day">24時間</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="popular-week" id="tab-week">1週間</button>
+        </div>
+      </div>
+      <div id="popular-day" role="tabpanel" aria-labelledby="tab-day">
+        {day.length > 0 ? <PopularList entries={day} detailed /> : <p class="empty">集計中です。しばらくお待ちください。</p>}
+      </div>
+      <div id="popular-week" role="tabpanel" aria-labelledby="tab-week" hidden>
+        {week.length > 0 ? <PopularList entries={week} detailed /> : <p class="empty">集計中です。しばらくお待ちください。</p>}
+      </div>
+    </section>
+    <p class="note">
+      多くのメディアが報じたニュースは<a href={href('/ranking/')}>話題のニュース</a>、AI要約つきの記事は<a href={href('/summaries/')}>AI要約</a>で読めます。
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .updated {
+    display: inline-block;
+    margin-left: 6px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .note {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 0.85rem;
+  }
+</style>

@@ -1,10 +1,12 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ItemList from '../components/ItemList.astro';
+import PopularList from '../components/PopularList.astro';
 import SummaryCard from '../components/SummaryCard.astro';
 import TopicList from '../components/TopicList.astro';
 import { categories, site } from '../config/site.ts';
 import { builtAt, formatDateTime, getItems, getItemsByCategory, getSources, href, pickVaried } from '../lib/items.ts';
+import { getPopular } from '../lib/popular.ts';
 import { clampDescription, headlineTeaser } from '../lib/seo.ts';
 import { getSummaries } from '../lib/summaries.ts';
 import { getHotTopics } from '../lib/topics.ts';
@@ -13,6 +15,9 @@ import { getHotTopics } from '../lib/topics.ts';
 const latest = pickVaried(getItems(), 30, 3);
 const summaries = getSummaries().slice(0, 6);
 const hot = getHotTopics({ hours: 24, limit: 6 });
+// よく読まれている記事（24時間。まだ少なければ1週間）
+const popularDay = getPopular('day', 5);
+const popular = popularDay.length >= 3 ? popularDay : getPopular('week', 5);
 const sections = categories
   .map((category) => ({ category, items: pickVaried(getItemsByCategory(category.slug), 6, 2) }))
   .filter((section) => section.items.length > 0);
@@ -55,13 +60,14 @@ const jsonLd = [
 ];
 ---
 
-<BaseLayout current="" description={description} jsonLd={jsonLd} sidebar={{ hideRanking: true }}>
+<BaseLayout current="" description={description} jsonLd={jsonLd} sidebar={{ hideRanking: true, hidePopular: true }}>
   <div class="stack">
     <section class="intro">
       <h1>{site.seoTitle}</h1>
       <p>
         {site.name}は、{sourceCount}の人気ニュースサイトの新着記事を1時間ごとに自動で集め、多くのメディアが報じた話題とAI要約でポイントをまとめています。
         <span class="updated">最終更新 {formatDateTime(builtAt)}</span>
+        <span class="live-count" data-live-count hidden></span>
       </p>
       <p class="since" data-since-banner hidden></p>
     </section>
@@ -84,6 +90,20 @@ const jsonLd = [
             </a>
           </div>
           <TopicList topics={hot} />
+        </section>
+      )
+    }
+
+    {
+      popular.length > 0 && (
+        <section class="panel">
+          <div class="panel-head">
+            <h2>よく読まれている記事</h2>
+            <a class="more" href={href('/popular/')}>
+              すべて見る →
+            </a>
+          </div>
+          <PopularList entries={popular} />
         </section>
       )
     }

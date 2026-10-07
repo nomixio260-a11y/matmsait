@@ -1,6 +1,6 @@
 /**
  * AI が開けない記事の本文を自動で取得する（管理画面からの依頼 data/text-requests.json にもとづく）。
- * 取り方の決まり（TopiatsumeBot と名乗る・robots.txt と AI での利用の拒否を守る・拒否されたら再試行しない）は
+ * 取り方の決まり（ブラウザ相当の通信・robots.txt と AI での利用の拒否を守る・拒否されたら再試行しない）は
  * scripts/lib/text-fetcher.ts を参照。取得した本文は運営者の公開鍵（data/text-keys.json）で暗号化して data/texts.json に置く。
  *
  * 使い方: npm run texts                    （依頼を取得する）
@@ -20,7 +20,6 @@ import {
   serializeTextsFile,
   type TextResult,
 } from '../src/lib/article-texts.ts';
-import { site } from '../src/config/site.ts';
 import { getSummary } from '../src/lib/summaries.ts';
 import { closeConnections, httpGet } from './lib/http.ts';
 import { fetchTexts } from './lib/text-fetcher.ts';
@@ -28,12 +27,6 @@ import { fetchTexts } from './lib/text-fetcher.ts';
 const path = (file: string) => resolve(process.cwd(), file);
 const readText = (file: string) => (existsSync(path(file)) ? readFileSync(path(file), 'utf8') : undefined);
 const readResults = (file = TEXTS_PATH): TextResult[] => parseJsonList(readText(file), pickResults);
-
-/** ボットの説明のページ（サイトの運営者情報）。公開先が分からなければリポジトリ */
-function infoUrl(): string {
-  const base = process.env.SITE_BASE_URL?.replace(/\/+$/, '');
-  return base ? `${base}/about/#bot` : `https://github.com/${site.repository.owner}/${site.repository.repo}`;
-}
 
 /** 結果を書く（要約を保存した記事の結果は、もう要らないので外す）。中身が変わらなければ書かない（毎回コミットしないように） */
 function writeResults(lists: TextResult[][], now: Date) {
@@ -54,7 +47,6 @@ if (mergeIndex >= 0) {
     results,
     keys: parseJsonList(readText(TEXT_KEYS_PATH), pickKeys),
     now,
-    infoUrl: infoUrl(),
     get: httpGet,
     log: (message) => console.log(message),
   });

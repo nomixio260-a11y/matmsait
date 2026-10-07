@@ -17,7 +17,7 @@ describe('robots.txt', () => {
       'User-agent: PerplexityBot',
       'Disallow: /news/',
       '',
-      'User-agent: TopiatsumeBot',
+      'User-agent: ExampleBot',
       'Disallow: /members/',
     ].join('\n'),
   );
@@ -29,8 +29,8 @@ describe('robots.txt', () => {
     expect(isAllowed(robots, 'SomeBot', '/file.pdf')).toBe(false);
     expect(isAllowed(robots, 'SomeBot', '/file.pdf?x=1')).toBe(true);
     // 自分の名前のグループがあれば、* のルールは使わない
-    expect(isAllowed(robots, 'TopiatsumeBot', '/private/x')).toBe(true);
-    expect(isAllowed(robots, 'TopiatsumeBot', '/members/1')).toBe(false);
+    expect(isAllowed(robots, 'ExampleBot', '/private/x')).toBe(true);
+    expect(isAllowed(robots, 'ExampleBot', '/members/1')).toBe(false);
   });
 
   it('主な AI のエージェントを名前で挙げて断っていれば、AI での利用を断っているとみなす', () => {
@@ -43,9 +43,9 @@ describe('robots.txt', () => {
   });
 
   it('空の Disallow はすべて許可、空の robots.txt もすべて許可', () => {
-    expect(isAllowed(parseRobots('User-agent: *\nDisallow:'), 'TopiatsumeBot', '/a')).toBe(true);
-    expect(isAllowed(parseRobots(''), 'TopiatsumeBot', '/a')).toBe(true);
-    expect(isAllowed(parseRobots('User-agent: *\nDisallow: /'), 'TopiatsumeBot', '/a')).toBe(false);
+    expect(isAllowed(parseRobots('User-agent: *\nDisallow:'), 'ExampleBot', '/a')).toBe(true);
+    expect(isAllowed(parseRobots(''), 'ExampleBot', '/a')).toBe(true);
+    expect(isAllowed(parseRobots('User-agent: *\nDisallow: /'), 'ExampleBot', '/a')).toBe(false);
   });
 
   it('noai の指定（meta robots・X-Robots-Tag）を見分ける', () => {

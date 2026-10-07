@@ -1,0 +1,710 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { analyticsUrlOverride } from '../../config/services.ts';
+import { categories } from '../../config/site.ts';
+import { analyticsEndpoint } from '../../lib/analytics-config.ts';
+import { getSources, href } from '../../lib/items.ts';
+
+const endpoint = analyticsEndpoint(analyticsUrlOverride);
+// 画面に出す名前（カテゴリ・掲載元）
+const names = {
+  categories: Object.fromEntries(categories.map((category) => [category.slug, category.name])),
+  sources: Object.fromEntries(getSources().map((source) => [source.id, source.name])),
+};
+---
+
+<AdminLayout title="アクセス解析" current="analytics">
+  <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
+  <!-- ログインを確かめるまでは表示しない（admin-analytics.ts が表示する） -->
+  <div class="analytics" data-analytics-root data-endpoint={endpoint} data-names={JSON.stringify(names)} hidden>
+    <div class="intro">
+      <h1>アクセス解析</h1>
+      <p>
+        サイトに来た人の数、よく読まれている記事、どこから来たかなどです。Cookie は使わず、IP
+        アドレスも保存しません（訪問者は日ごとに変わる匿名の番号で数えます）。検索エンジンなどのボット、「追跡しないで」の設定のブラウザ、管理画面にログインしたブラウザは数えません。
+      </p>
+    </div>
+
+    {
+      !endpoint ? (
+        <section class="card setup">
+          <h2>アクセス解析のサーバーを用意する（最初に1回）</h2>
+          <div class="card-body">
+            <p>
+              訪問者の記録を受け取るサーバーを、Cloudflare の無料プラン（Workers）に置きます。お金はかかりません（無料の範囲を超えたときは記録が止まるだけで、サイトの表示には影響しません）。
+            </p>
+            <ol>
+              <li>
+                <a href="https://dash.cloudflare.com/sign-up" target="_blank" rel="noopener noreferrer">
+                  Cloudflare
+                </a>
+                に無料で登録し、ダッシュボードの「Workers &amp; Pages」を一度開きます（workers.dev のサブドメインが作られます）。
+              </li>
+              <li>
+                「My Profile」→「API Tokens」→「Create Token」で、テンプレート「Edit Cloudflare Workers」からトークンを作ります。あわせて、ダッシュボードの右側に出る「Account
+                ID」を控えます。
+              </li>
+              <li>
+                GitHub のリポジトリの「Settings」→「Secrets and variables」→「Actions」→「New repository secret」で、
+                <code>CLOUDFLARE_API_TOKEN</code>（トークン）と <code>CLOUDFLARE_ACCOUNT_ID</code>（Account ID）を登録します。
+              </li>
+              <li>
+                GitHub の「Actions」→「アクセス解析のサーバーを公開」→「Run workflow」を押します。数分でサーバーが公開され、サイトが自動で更新されてこのページにアクセス解析が出ます。
+              </li>
+            </ol>
+            <p class="note">
+              トークンや Account ID は、このページやチャットに貼らないでください（GitHub の Secrets にだけ登録します）。
+            </p>
+          </div>
+        </section>
+      ) : (
+        <>
+          <div class="toolbar">
+            <p class="optout" id="optout-status" aria-live="polite" />
+            <button type="button" class="ghost small" id="optout-toggle" />
+          </div>
+
+          <section class="card live" aria-labelledby="live-title">
+            <h2 id="live-title">
+              <span class="live-dot" aria-hidden="true" />
+              リアルタイム
+            </h2>
+            <div class="card-body live-body">
+              <div class="live-hero">
+                <p class="label">いま見ている人</p>
+                <p class="hero" id="live-online">-</p>
+                <p class="sub" id="live-today" />
+              </div>
+              <div class="live-chart">
+                <p class="label">直近30分の閲覧数（1分ごと）</p>
+                <div id="live-minutes" class="chart-box" />
+              </div>
+              <div class="live-pages">
+                <p class="label">いま見られているページ</p>
+                <div id="live-pages" />
+              </div>
+              <div class="live-feed">
+                <p class="label" id="live-recent-label">最近の動き</p>
+                <!-- 長いときはスクロールするので、キーボードでも選べるようにする -->
+                <ul id="live-recent" class="feed" tabindex="0" aria-labelledby="live-recent-label" />
+              </div>
+            </div>
+            <p class="status" id="live-status" aria-live="polite" />
+          </section>
+
+          <div class="filters" role="group" aria-label="集計の期間">
+            <div class="seg" id="period">
+              <button type="button" data-period="today" aria-pressed="true">今日</button>
+              <button type="button" data-period="yesterday" aria-pressed="false">昨日</button>
+              <button type="button" data-period="7" aria-pressed="false">7日間</button>
+              <button type="button" data-period="30" aria-pressed="false">30日間</button>
+              <button type="button" data-period="90" aria-pressed="false">90日間</button>
+            </div>
+            <span class="range" id="range" />
+            <button type="button" class="ghost small" id="refresh">更新</button>
+          </div>
+          <p class="status" id="stats-status" aria-live="polite" />
+
+          <div class="stats" id="stats">
+            <section class="kpis" id="kpis" aria-label="主な数字" />
+
+            <section class="card" aria-labelledby="trend-title">
+              <h2 id="trend-title">閲覧数と訪問者数の推移</h2>
+              <div class="card-body">
+                <div id="trend" class="chart-box" />
+                <details class="table-view">
+                  <summary>表で見る</summary>
+                  <div id="trend-table" />
+                </details>
+              </div>
+            </section>
+
+            <div class="grid">
+              <section class="card wide" aria-labelledby="articles-title">
+                <h2 id="articles-title">よく読まれている記事</h2>
+                <div class="card-body">
+                  <p class="note">記事を開いた人・AI要約のページを読んだ人・「あとで読む」に保存した人の数（同じ人は1回）。要約のない人気の記事は、要約すると読まれやすくなります。</p>
+                  <div id="list-articles" />
+                </div>
+              </section>
+              <section class="card" aria-labelledby="pages-title">
+                <h2 id="pages-title">よく見られているページ</h2>
+                <div class="card-body"><div id="list-pages" /></div>
+              </section>
+              <section class="card" aria-labelledby="channels-title">
+                <h2 id="channels-title">どこから来たか</h2>
+                <div class="card-body">
+                  <div id="list-channels" />
+                  <h3>来たサイト</h3>
+                  <div id="list-refs" />
+                </div>
+              </section>
+              <section class="card" aria-labelledby="landing-title">
+                <h2 id="landing-title">最初に開いたページ（入口）</h2>
+                <div class="card-body"><div id="list-landing" /></div>
+              </section>
+              <section class="card" aria-labelledby="search-title">
+                <h2 id="search-title">サイト内で検索された言葉</h2>
+                <div class="card-body">
+                  <p class="note">「0件」は記事が見つからなかった回数です。よく探されているのに見つからない言葉は、収集元を増やす手がかりになります。</p>
+                  <div id="list-search" />
+                </div>
+              </section>
+              <section class="card" aria-labelledby="cats-title">
+                <h2 id="cats-title">カテゴリ</h2>
+                <div class="card-body"><div id="list-cats" /></div>
+              </section>
+              <section class="card" aria-labelledby="sources-title">
+                <h2 id="sources-title">よく開かれた掲載元</h2>
+                <div class="card-body"><div id="list-sources" /></div>
+              </section>
+              <section class="card wide" aria-labelledby="hours-title">
+                <h2 id="hours-title">時間帯ごとの閲覧数</h2>
+                <div class="card-body">
+                  <div id="hours" class="chart-box" />
+                  <details class="table-view">
+                    <summary>表で見る</summary>
+                    <div id="hours-table" />
+                  </details>
+                </div>
+              </section>
+              <section class="card" aria-labelledby="depth-title">
+                <h2 id="depth-title">1人が見たページ数</h2>
+                <div class="card-body"><div id="list-depth" /></div>
+              </section>
+              <section class="card" aria-labelledby="saved-title">
+                <h2 id="saved-title">「あとで読む」に保存された記事</h2>
+                <div class="card-body"><div id="list-saved" /></div>
+              </section>
+              <section class="card" aria-labelledby="devices-title">
+                <h2 id="devices-title">端末・OS・ブラウザ</h2>
+                <div class="card-body">
+                  <div id="list-devices" />
+                  <h3>OS</h3>
+                  <div id="list-os" />
+                  <h3>ブラウザ</h3>
+                  <div id="list-browsers" />
+                </div>
+              </section>
+              <section class="card" aria-labelledby="countries-title">
+                <h2 id="countries-title">国・地域</h2>
+                <div class="card-body"><div id="list-countries" /></div>
+              </section>
+            </div>
+            <p class="note foot">
+              数え方: 訪問者数は1日ごとの人数で、複数の日をまとめた期間では日ごとの人数の合計です（日をまたいで同じ人かは分からないため）。「訪問」はサイトの外から来た回数、「記事を開いた」は記事の見出し・元記事のリンクを押した回数です。今日の分はすぐに、過去の日の分は1時間ごとにまとめています。
+            </p>
+          </div>
+        </>
+      )
+    }
+    <p class="note">サイトの<a href={href('/popular/')}>よく読まれている記事</a>のページ・トップ・サイドバーの「人気」は、この集計から1時間ごとに作っています。</p>
+  </div>
+</AdminLayout>
+
+<script>
+  import '../../scripts/admin-analytics.ts';
+</script>
+
+<style>
+  .analytics {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    /* グラフの系列の色（ライト）。色の組み合わせは見分けやすさを確かめてある */
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light'])) .analytics {
+      --series-1: #3987e5;
+      --series-2: #d95926;
+    }
+  }
+  :global(:root[data-theme='dark']) .analytics {
+    --series-1: #3987e5;
+    --series-2: #d95926;
+  }
+  .analytics[hidden] {
+    display: none;
+  }
+  .intro h1 {
+    margin: 0;
+    font-size: 1.4rem;
+  }
+  .intro p {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.7;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    min-width: 0;
+  }
+  .card > h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-body {
+    padding: 12px 16px 16px;
+  }
+  .card-body h3 {
+    margin: 14px 0 6px;
+    font-size: 0.8rem;
+    color: var(--text-2);
+  }
+  .setup ol {
+    margin: 10px 0;
+    padding-left: 1.4em;
+    font-size: 0.875rem;
+    line-height: 1.8;
+  }
+  .setup p {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.7;
+  }
+  .note {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .card-body > .note {
+    margin-bottom: 10px;
+  }
+  .note.foot {
+    margin-top: 4px;
+  }
+  .status {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .status:empty {
+    display: none;
+  }
+  .live .status {
+    padding: 0 16px 12px;
+  }
+  :global(.analytics .status.error) {
+    color: var(--hot);
+  }
+  .analytics button {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .analytics button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .analytics button.ghost {
+    background: transparent;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+  .optout {
+    flex: 1;
+    min-width: 220px;
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-2);
+  }
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--live);
+  }
+  .live-body {
+    display: grid;
+    gap: 16px;
+  }
+  @media (min-width: 760px) {
+    .live-body {
+      grid-template-columns: minmax(150px, 0.6fr) minmax(0, 1.4fr);
+    }
+  }
+  .label {
+    margin: 0 0 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-2);
+  }
+  .hero {
+    margin: 0;
+    font-size: 3.2rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .live-hero .sub {
+    margin: 6px 0 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .feed:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .feed {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 260px;
+    overflow-y: auto;
+    font-size: 0.8rem;
+  }
+  :global(.feed li) {
+    display: flex;
+    gap: 8px;
+    padding: 5px 0;
+    border-top: 1px solid var(--border);
+    line-height: 1.5;
+  }
+  :global(.feed time) {
+    flex: none;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.feed .what) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  :global(.feed .meta) {
+    color: var(--muted);
+  }
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+  .filters .seg button {
+    border: 0;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .filters .seg button[aria-pressed='true'] {
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: var(--shadow);
+  }
+  .range {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .stats {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: opacity 0.2s;
+  }
+  /* 読み込み中は前の表示を薄くして残す（表示が跳ねないように） */
+  .stats.loading {
+    opacity: 0.55;
+  }
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  @media (min-width: 640px) {
+    .kpis {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  :global(.kpi) {
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  :global(.kpi-label) {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-2);
+  }
+  :global(.kpi-value) {
+    margin: 4px 0 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  :global(.kpi-delta) {
+    margin: 4px 0 0;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  :global(.kpi-delta .good) {
+    color: #15803d;
+    font-weight: 700;
+  }
+  :global(.kpi-delta .bad) {
+    color: var(--hot);
+    font-weight: 700;
+  }
+  :global([data-theme='dark'] .kpi-delta .good) {
+    color: #4ade80;
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light']) .kpi-delta .good) {
+      color: #4ade80;
+    }
+  }
+  .grid {
+    display: grid;
+    gap: 16px;
+  }
+  @media (min-width: 760px) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .grid .wide {
+      grid-column: 1 / -1;
+    }
+  }
+  .table-view {
+    margin-top: 8px;
+    font-size: 0.8rem;
+  }
+  .table-view summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  :global(.table-view table) {
+    width: 100%;
+    margin-top: 6px;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.table-view th),
+  :global(.table-view td) {
+    padding: 4px 6px;
+    border-top: 1px solid var(--border);
+    text-align: right;
+  }
+  :global(.table-view th:first-child),
+  :global(.table-view td:first-child) {
+    text-align: left;
+  }
+
+  /* ===== グラフ（src/scripts/charts.ts） ===== */
+  :global(.chart) {
+    position: relative;
+    min-width: 0;
+  }
+  :global(.chart svg) {
+    display: block;
+    max-width: 100%;
+    overflow: visible;
+  }
+  :global(.chart svg:focus-visible) {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  :global(.chart-grid) {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+  :global(.chart-baseline) {
+    stroke: var(--border-strong);
+    stroke-width: 1;
+  }
+  :global(.chart-axis) {
+    fill: var(--muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.chart-value) {
+    fill: var(--text);
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.chart-col) {
+    fill: var(--series-1);
+  }
+  :global(.chart-col.is-active) {
+    opacity: 0.75;
+  }
+  :global(.chart-line) {
+    fill: none;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  :global(.chart-line.series-1) {
+    stroke: var(--series-1);
+  }
+  :global(.chart-line.series-2) {
+    stroke: var(--series-2);
+  }
+  :global(.chart-dot) {
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+  :global(.chart-dot.series-1) {
+    fill: var(--series-1);
+  }
+  :global(.chart-dot.series-2) {
+    fill: var(--series-2);
+  }
+  :global(.chart-crosshair) {
+    stroke: var(--border-strong);
+    stroke-width: 1;
+  }
+  :global(.chart-legend) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin-bottom: 6px;
+    font-size: 0.78rem;
+    color: var(--text-2);
+  }
+  :global(.chart-legend-item) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  :global(.chart-key) {
+    display: inline-block;
+    width: 14px;
+    height: 2px;
+    border-radius: 1px;
+    flex: none;
+  }
+  :global(.chart-key.series-1) {
+    background: var(--series-1);
+  }
+  :global(.chart-key.series-2) {
+    background: var(--series-2);
+  }
+  :global(.chart-tip) {
+    position: absolute;
+    top: 0;
+    z-index: 2;
+    min-width: 120px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+    font-size: 0.75rem;
+    pointer-events: none;
+  }
+  :global(.chart-tip[hidden]) {
+    display: none;
+  }
+  :global(.chart-tip-title) {
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  :global(.chart-tip-row) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  :global(.chart-tip-row strong) {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.chart-tip-row span:last-child) {
+    color: var(--text-2);
+  }
+  :global(.chart-empty) {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  :global(.bar-list) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+  }
+  :global(.bar-head) {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 0.82rem;
+  }
+  :global(.bar-label) {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+  }
+  :global(.bar-label a) {
+    color: var(--text);
+    text-decoration: none;
+  }
+  :global(.bar-label a:hover) {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  :global(.bar-value) {
+    flex: none;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.bar-track) {
+    height: 6px;
+    margin-top: 3px;
+  }
+  :global(.bar-fill) {
+    display: block;
+    height: 100%;
+    border-radius: 0 3px 3px 0;
+    background: var(--series-1);
+  }
+  :global(.bar-sub) {
+    margin-top: 2px;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  :global(.bar-badge) {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 0 6px;
+    border-radius: 4px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1.7;
+    vertical-align: 0.1em;
+  }
+  :global(.more-rows) {
+    margin-top: 8px;
+  }
+</style>

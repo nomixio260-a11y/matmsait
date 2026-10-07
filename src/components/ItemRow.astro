@@ -1,5 +1,6 @@
 ---
 import { faviconUrl, formatDateTime, formatTime, getCategory, href, siteOf } from '../lib/items.ts';
+import { popularRank } from '../lib/popular.ts';
 import { getSummary, summaryPath } from '../lib/summaries.ts';
 import { coverageOf } from '../lib/topics.ts';
 import type { Item } from '../lib/types.ts';
@@ -21,16 +22,18 @@ const summary = getSummary(item.id);
 const link = summary ? href(summaryPath(item.id)) : item.url;
 // 「あとで読む」に保存する内容（ブラウザにだけ保存する）
 const saved = JSON.stringify({ id: item.id, title: item.title, url: link, site: site.label, at: item.publishedAt });
+// 24時間でよく読まれている記事の順位（上位10件）
+const rank = popularRank(item.id);
 ---
 
 <li class="item" data-id={item.id} data-at={item.publishedAt}>
   {
     summary ? (
-      <a class="item-title" href={link}>
+      <a class="item-title" href={link} data-aid={item.id} data-src={item.sourceId} data-cat={item.category}>
         {item.title}
       </a>
     ) : (
-      <a class="item-title" href={link} target="_blank" rel="noopener">
+      <a class="item-title" href={link} target="_blank" rel="noopener" data-aid={item.id} data-src={item.sourceId} data-cat={item.category}>
         {item.title}
       </a>
     )
@@ -69,10 +72,17 @@ const saved = JSON.stringify({ id: item.id, title: item.title, url: link, site: 
         </a>
       )
     }
+    {
+      rank && (
+        <a class="pop-badge" href={href('/popular/')} title="24時間でよく読まれている記事の順位">
+          人気{rank}位
+        </a>
+      )
+    }
     {summary && !showExcerpt && <span class="ai-badge">AI要約</span>}
     {
       summary && (
-        <a class="item-orig" href={item.url} target="_blank" rel="noopener">
+        <a class="item-orig" href={item.url} target="_blank" rel="noopener" data-aid={item.id} data-src={item.sourceId} data-cat={item.category}>
           元記事 ↗
         </a>
       )

@@ -2,18 +2,24 @@
 import '../styles/global.css';
 import '../styles/items.css';
 import { site } from '../config/site.ts';
+import { analyticsUrlOverride } from '../config/services.ts';
+import { analyticsEndpoint } from '../lib/analytics-config.ts';
 import { href } from '../lib/items.ts';
 
 interface Props {
   title: string;
   /** ログイン中の表示（ログイン名・ログアウト）を出すか */
   showUser?: boolean;
+  /** 管理画面のページの切り替えで強調するもの */
+  current?: 'summaries' | 'analytics';
 }
-const { title, showUser = true } = Astro.props;
+const { title, showUser = true, current } = Astro.props;
+// アクセス解析のサーバー（設定されていれば、管理画面からの通信先に加える）
+const analytics = analyticsEndpoint(analyticsUrlOverride);
 
 /**
- * 管理画面のコンテンツセキュリティポリシー。読み込めるのは自分のサイトのファイルだけで、通信先は GitHub API だけにする
- * （万一、外部から入った文字列がスクリプトとして動いても、トークンをほかへ送れないようにするため）。
+ * 管理画面のコンテンツセキュリティポリシー。読み込めるのは自分のサイトのファイルだけで、通信先は GitHub API と
+ * 運営者のアクセス解析のサーバーだけにする（万一、外部から入った文字列がスクリプトとして動いても、トークンをほかへ送れないようにするため）。
  * GitHub Pages ではレスポンスヘッダーを設定できないので meta で指定する（枠への埋め込みの禁止はスクリプトで行う）
  */
 const csp = [
@@ -23,7 +29,7 @@ const csp = [
   // （画像の読み込み先を制限しているので、スタイルから外へ情報を送ることもできない）
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://www.google.com https://*.gstatic.com",
-  "connect-src 'self' https://api.github.com",
+  `connect-src 'self' https://api.github.com${analytics ? ` ${analytics}` : ''}`,
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
@@ -41,7 +47,7 @@ const csp = [
     <title>{title}｜{site.name} 管理画面</title>
     <link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
   </head>
-  <body data-base={href('')}>
+  <body data-base={href('')} data-analytics={analytics || undefined}>
     <header class="admin-bar">
       <div class="container admin-bar-inner">
         <a class="admin-brand" href={href('/')}>{site.name}</a>
@@ -58,6 +64,18 @@ const csp = [
         }
         <a class="admin-back" href={href('/')}>サイト<span class="wide">を見る</span> →</a>
       </div>
+      {
+        current && (
+          <nav class="container admin-nav" aria-label="管理画面のページ">
+            <a href={href('/admin/')} aria-current={current === 'summaries' ? 'page' : undefined}>
+              AI要約の管理
+            </a>
+            <a href={href('/admin/analytics/')} aria-current={current === 'analytics' ? 'page' : undefined}>
+              アクセス解析
+            </a>
+          </nav>
+        )
+      }
     </header>
     <main class="container admin-main">
       <slot />
@@ -146,6 +164,27 @@ const csp = [
     .admin-back .wide {
       display: none;
     }
+  }
+  .admin-nav {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  .admin-nav a {
+    padding: 8px 14px;
+    border-bottom: 3px solid transparent;
+    color: var(--text-2);
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .admin-nav a:hover {
+    color: var(--accent);
+  }
+  .admin-nav a[aria-current='page'] {
+    border-bottom-color: var(--accent);
+    color: var(--accent);
   }
   .admin-main {
     max-width: 1000px;

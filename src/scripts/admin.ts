@@ -280,12 +280,19 @@ const undecryptable = new Set<string>();
 
 const categoryName = (slug: string) => data?.categories.find((c) => c.slug === slug)?.name ?? slug;
 
+/** アクセス解析のサーバー（設定されていれば、要約の候補を「よく読まれている順」に並べられる） */
+const analyticsEndpoint = document.body.dataset.analytics ?? '';
+/** 記事ごとの読まれた人数（直近7日。アクセス解析のサーバーから） */
+let readCounts = new Map<string, number>();
+
 function articleMeta(article: AdminArticle): string {
+  const read = readCounts.get(article.id);
   return [
     article.site,
     categoryName(article.category),
     dateFormat.format(new Date(article.publishedAt)),
     article.coverage ? `${article.coverage}社が報道` : '',
+    read ? `${read}人が読んだ（7日間）` : '',
   ]
     .filter(Boolean)
     .join(' ・ ');
@@ -306,10 +313,13 @@ function pendingArticles(): AdminArticle[] {
   const list = [...data.pending, ...restored].filter(
     (article) => !saved.has(article.id) && !hidden.has(article.id) && (!category || article.category === category),
   );
+  const byCoverage = (a: AdminArticle, b: AdminArticle) => (b.coverage ?? 1) - (a.coverage ?? 1) || b.publishedAt.localeCompare(a.publishedAt);
   const sorted =
     ui.sort.value === 'latest'
       ? list.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-      : list.sort((a, b) => (b.coverage ?? 1) - (a.coverage ?? 1) || b.publishedAt.localeCompare(a.publishedAt));
+      : ui.sort.value === 'read'
+        ? list.sort((a, b) => (readCounts.get(b.id) ?? 0) - (readCounts.get(a.id) ?? 0) || byCoverage(a, b))
+        : list.sort(byCoverage);
   if (!ui.includeSummarized.checked) return sorted;
   // 作り直しのときは、要約済みの記事を先に並べる（多数の記事に埋もれないように）
   const summarizedIds = new Set(data.summarized.map((article) => article.id));
@@ -1321,7 +1331,8 @@ function restoreOptions() {
     if (typeof options.points === 'boolean') ui.points.checked = options.points;
     if (typeof options.maxChars === 'string') ui.maxChars.value = options.maxChars;
     if (typeof options.answer === 'string') ui.answerMode.value = options.answer;
-    // 選択肢にない値が残っていたら既定に戻す
+    // 選択肢にない値（アクセス解析を使わなくなったときの「よく読まれている順」など）が残っていたら既定に戻す
+    if (!ui.sort.value || ui.sort.selectedOptions[0]?.disabled) ui.sort.value = 'popular';
     if (!ui.maxChars.value) ui.maxChars.value = '15000';
     if (!ui.answerMode.value) ui.answerMode.value = 'codeblock';
   } catch {
@@ -2101,6 +2112,24 @@ function setupConnection() {
   });
 }
 
+// ===== よく読まれている記事（アクセス解析） =====
+
+/** 記事ごとの読まれた人数（直近7日）を読み込み、要約の候補の並びと表示に使う（選んだ記事はそのまま） */
+async function loadReadCounts() {
+  if (!analyticsEndpoint || !token) return;
+  try {
+    const res = await fetch(`${analyticsEndpoint}/admin/articles?days=7`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+    if (!res.ok) return;
+    const body = (await res.json()) as { items?: { id?: unknown; n?: unknown }[] };
+    readCounts = new Map(
+      (body.items ?? []).flatMap((item) => (typeof item.id === 'string' && typeof item.n === 'number' ? [[item.id, item.n] as const] : [])),
+    );
+    renderPickList();
+  } catch {
+    // アクセス解析が使えなくても、要約の作業には影響させない
+  }
+}
+
 // ===== 起動 =====
 
 async function main() {
@@ -2112,6 +2141,12 @@ async function main() {
   watchSession(session);
   root.hidden = false;
 
+  // アクセス解析が使えるときだけ「よく読まれている順」を選べるようにする
+  const readOption = ui.sort.querySelector<HTMLOptionElement>('option[value="read"]');
+  if (readOption && analyticsEndpoint) {
+    readOption.hidden = false;
+    readOption.disabled = false;
+  }
   restoreOptions();
   setupConnection();
   setupPaste();
@@ -2194,6 +2229,7 @@ async function main() {
     refresh();
   }
   renderPasteList();
+  void loadReadCounts();
   void ensureTextKey();
   void loadTexts();
   if (!textKey) {

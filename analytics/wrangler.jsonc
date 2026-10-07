@@ -1,0 +1,21 @@
+// トピあつめのアクセス解析のサーバー（Cloudflare Workers）の設定。
+// 公開は GitHub Actions（.github/workflows/analytics.yml）が行う。ALLOWED_ORIGINS と REPOSITORY は公開のときに上書きする
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "topiatsume-analytics",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [{ "name": "ANALYTICS", "class_name": "Analytics" }]
+  },
+  // 無料プランで使える SQLite の Durable Object
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Analytics"] }],
+  "vars": {
+    "ALLOWED_ORIGINS": "https://nomixio260-a11y.github.io",
+    "REPOSITORY": "nomixio260-a11y/matmsait",
+    "MAX_EVENTS_PER_DAY": "40000"
+  }
+}

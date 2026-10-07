@@ -4,10 +4,12 @@ name: フィード更新とデプロイ
 # （GitHub の定期実行 schedule は新しいリポジトリだと動かないことがあるため使わない）
 on:
   push:
-    # 開発記録や説明書きだけの変更では、収集・公開をやり直さない（自動更新タイマーの間隔も崩さない）
+    # 開発記録や説明書きだけの変更では、収集・公開をやり直さない（自動更新タイマーの間隔も崩さない）。
+    # アクセス解析のサーバー（analytics/）は別のワークフロー（analytics.yml）で公開する
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - 'analytics/**'
   # 自動更新タイマー、管理画面の「今すぐ更新」ボタン、Actions 画面の Run workflow から実行
   workflow_dispatch:
 
@@ -49,13 +51,18 @@ jobs:
       - name: フィードを取得
         run: npm run fetch
 
-      # 管理画面から依頼された「AI が開けない記事」の本文を取得する（TopiatsumeBot と名乗り、robots.txt・AI での利用の
-      # 拒否・アクセスの拒否を守る。本文は運営者の公開鍵で暗号化して data/texts.json に置く）。失敗しても収集・公開は続ける
+      # 管理画面から依頼された「AI が開けない記事」の本文を取得する（フィードと同じブラウザ相当の通信で、robots.txt・AI での
+      # 利用の拒否・アクセスの拒否を守る。本文は運営者の公開鍵で暗号化して data/texts.json に置く）。失敗しても収集・公開は続ける
       - name: AI が開けない記事の本文を取得
         continue-on-error: true
         run: npm run texts
+
+      # アクセス解析のサーバー（設定していれば）から、よく読まれている記事を取ってくる（data/popular.json）
+      - name: よく読まれている記事を取得
+        continue-on-error: true
+        run: npm run popular
         env:
-          SITE_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          PUBLIC_ANALYTICS_URL: ${{ vars.PUBLIC_ANALYTICS_URL }}
 
       - name: 取得したデータをコミット
         id: commit
@@ -69,6 +76,8 @@ jobs:
           cp data/feeds.json "$RUNNER_TEMP/feeds.json"
           # 本文の自動取得の結果は、最新の data/texts.json にまとめる（同じ記事は新しく取得した方を残す）
           if [ -f data/texts.json ]; then cp data/texts.json "$RUNNER_TEMP/texts.json"; fi
+          # よく読まれている記事は、今回取ってきたもので上書きする
+          if [ -f data/popular.json ]; then cp data/popular.json "$RUNNER_TEMP/popular.json"; fi
           for attempt in 1 2 3; do
             git fetch --quiet origin "$GITHUB_REF_NAME"
             git reset --quiet --hard "origin/$GITHUB_REF_NAME"
@@ -76,6 +85,7 @@ jobs:
             npm run --silent merge -- "$RUNNER_TEMP/fetched-items.json"
             cp "$RUNNER_TEMP/feeds.json" data/feeds.json
             if [ -f "$RUNNER_TEMP/texts.json" ]; then npm run --silent texts -- --merge "$RUNNER_TEMP/texts.json"; fi
+            if [ -f "$RUNNER_TEMP/popular.json" ]; then cp "$RUNNER_TEMP/popular.json" data/popular.json; fi
             git add data
             if git diff --cached --quiet; then
               echo '更新なし'
@@ -102,6 +112,7 @@ jobs:
           PUBLIC_GA_ID: ${{ vars.PUBLIC_GA_ID }}
           PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}
           PUBLIC_BING_SITE_VERIFICATION: ${{ vars.PUBLIC_BING_SITE_VERIFICATION }}
+          PUBLIC_ANALYTICS_URL: ${{ vars.PUBLIC_ANALYTICS_URL }}
 
       - uses: actions/upload-pages-artifact@v5
         with:

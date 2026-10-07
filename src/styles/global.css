@@ -19,6 +19,8 @@
   --on-hot: #ffffff;
   --visited: #6b4aa6;
   --focus: #2563eb;
+  /* いま見ている人数の印 */
+  --live: #15803d;
   --shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.04);
   --radius: 12px;
   color-scheme: light;
@@ -44,6 +46,7 @@
     --on-hot: #2a0710;
     --visited: #b9a3ea;
     --focus: #60a5fa;
+    --live: #4ade80;
     --shadow: none;
     color-scheme: dark;
   }
@@ -68,6 +71,7 @@
   --on-hot: #2a0710;
   --visited: #b9a3ea;
   --focus: #60a5fa;
+  --live: #4ade80;
   --shadow: none;
   color-scheme: dark;
 }
@@ -239,6 +243,73 @@ h3 {
 }
 .panel-foot a:hover {
   background: var(--surface-2);
+}
+
+/* 期間などの切り替えタブ（話題のニュース・よく読まれている記事） */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.seg button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.seg button[aria-selected='true'] {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+/* いま見ている人数（アクセス解析のサーバーが設定されていて、2人以上のときだけ表示） */
+.live-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.8;
+  white-space: nowrap;
+}
+.live-count[hidden] {
+  display: none;
+}
+.live-count::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--live);
+  animation: live-pulse 2s ease-out infinite;
+}
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-count::before {
+    animation: none;
+  }
 }
 
 .dot {

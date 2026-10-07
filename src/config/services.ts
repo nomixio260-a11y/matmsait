@@ -10,3 +10,8 @@ export const gaMeasurementId: string = import.meta.env.PUBLIC_GA_ID ?? '';
 export const googleSiteVerification: string = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION ?? '';
 /** Bing Web マスターツールの所有権確認用コード */
 export const bingSiteVerification: string = import.meta.env.PUBLIC_BING_SITE_VERIFICATION ?? '';
+/**
+ * アクセス解析のサーバー（analytics/ の Cloudflare Worker）の URL。通常は公開のワークフローが data/analytics.json に書くので
+ * 設定しなくてよい（独自ドメインで動かすときなどに上書きする）。実際に使う値は src/lib/analytics-config.ts の analyticsEndpoint
+ */
+export const analyticsUrlOverride: string = import.meta.env.PUBLIC_ANALYTICS_URL ?? '';

@@ -17,7 +17,8 @@
     "notify": "tsx scripts/notify.ts",
     "summaries": "tsx scripts/summaries.ts",
     "timer": "tsx scripts/timer.ts",
-    "texts": "tsx scripts/fetch-texts.ts"
+    "texts": "tsx scripts/fetch-texts.ts",
+    "popular": "tsx scripts/popular.ts"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.19",

@@ -5,7 +5,7 @@ import { COPY_ARTICLE_BOOKMARKLET } from '../../lib/bookmarklet.ts';
 import { href } from '../../lib/items.ts';
 ---
 
-<AdminLayout title="AI要約の管理">
+<AdminLayout title="AI要約の管理" current="summaries">
   <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
   <!-- ログインを確かめるまでは表示しない（admin.ts が表示する） -->
   <div class="admin" data-admin data-base={href('')} hidden>
@@ -76,6 +76,7 @@ import { href } from '../../lib/items.ts';
             <span>並び順</span>
             <select id="sort">
               <option value="popular">話題の順（報じたサイトが多い順）</option>
+              <option value="read" hidden disabled>よく読まれている順（アクセス解析）</option>
               <option value="latest">新しい順</option>
             </select>
           </label>
@@ -108,7 +109,7 @@ import { href } from '../../lib/items.ts';
         </p>
         <div class="auto-text">
           <p class="hint">
-            <b>本文の自動取得:</b> AI が開けなかった記事は、自動収集（約1時間ごと・依頼した直後にも実行）が本文を取りに行き、取得できた本文がここに入ります（数分かかります）。取得するときは「TopiatsumeBot」と名乗り、robots.txt で断っているサイト、AI での利用を断っているサイト（robots.txt・noai）、アクセスを拒否したサイトからは取得しません。その場合は本文を貼り付けてください。取得した本文は、管理画面にログインした人だけが読めるよう暗号化して保存し、公開しません。
+            <b>本文の自動取得:</b> AI が開けなかった記事は、自動収集（約1時間ごと・依頼した直後にも実行）が本文を取りに行き、取得できた本文がここに入ります（数分かかります）。取得はブラウザと同じ通信で行い（ボットの名前は名乗りません）、robots.txt で断っているサイト、AI での利用を断っているサイト（robots.txt・noai）、アクセスを拒否したサイトからは取得しません。その場合は本文を貼り付けてください。取得した本文は、管理画面にログインした人だけが読めるよう暗号化して保存し、公開しません。
           </p>
           <div class="actions">
             <button type="button" id="request-texts" class="small">一覧の記事の本文を自動で取得する</button>

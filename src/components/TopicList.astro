@@ -27,11 +27,19 @@ const { topics, detailed = false, othersLimit = 2 } = Astro.props;
           <span class:list={['rank', `rank-${index + 1}`]}>{index + 1}</span>
           <div class="topic-body">
             {summary ? (
-              <a class="item-title" href={href(summaryPath(lead.id))}>
+              <a class="item-title" href={href(summaryPath(lead.id))} data-aid={lead.id} data-src={lead.sourceId} data-cat={lead.category}>
                 {lead.title}
               </a>
             ) : (
-              <a class="item-title" href={lead.url} target="_blank" rel="noopener">
+              <a
+                class="item-title"
+                href={lead.url}
+                target="_blank"
+                rel="noopener"
+                data-aid={lead.id}
+                data-src={lead.sourceId}
+                data-cat={lead.category}
+              >
                 {lead.title}
               </a>
             )}
@@ -69,7 +77,7 @@ const { topics, detailed = false, othersLimit = 2 } = Astro.props;
                   const otherSite = siteOf(other);
                   return (
                     <li>
-                      <a href={other.url} target="_blank" rel="noopener">
+                      <a href={other.url} target="_blank" rel="noopener" data-aid={other.id} data-src={other.sourceId} data-cat={other.category}>
                         <span class="others-site">{otherSite.label}</span>
                         <span class="others-title">{other.title}</span>
                       </a>

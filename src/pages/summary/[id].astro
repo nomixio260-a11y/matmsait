@@ -82,7 +82,15 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
     { name: shortTitle },
   ]}
 >
-  <article class="stack">
+  <article
+    class="stack"
+    data-article-view
+    data-aid={record.id}
+    data-src={record.sourceId}
+    data-cat={record.category}
+    data-title={record.title}
+    data-url={record.url}
+  >
     <header class="article-head">
       <p class="kicker">
         {
@@ -146,7 +154,7 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
       <p class="ai-note">
         この要約はAIが元記事をもとに作成し、運営者が確認して掲載しています。正確な内容や詳細は元記事でご確認ください。要約の作り方は<a href={href('/editorial/')}>編集方針</a>をご覧ください。
       </p>
-      <a class="read-original" href={record.url} target="_blank" rel="noopener">
+      <a class="read-original" href={record.url} target="_blank" rel="noopener" data-aid={record.id} data-src={record.sourceId} data-cat={record.category}>
         元記事を読む（{source.label}）↗
       </a>
     </section>

@@ -179,6 +179,22 @@ a.coverage:hover {
   color: var(--on-hot);
 }
 
+/* よく読まれている記事（24時間の上位10件）の印 */
+.pop-badge {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--on-accent) !important;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+a.pop-badge:hover {
+  text-decoration: none !important;
+  background: var(--accent-strong);
+}
+
 /* 「あとで読む」ボタン（行全体のリンクの上に重ねて押せるようにする） */
 .save-btn {
   position: relative;

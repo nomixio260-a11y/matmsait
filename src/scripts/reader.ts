@@ -1,7 +1,8 @@
 /**
- * 閲覧者のブラウザにだけ保存する機能（サーバーには何も送らない）
+ * 閲覧者のブラウザにだけ保存する機能（保存した内容はサーバーに送らない）
  * - あとで読む: 記事を保存して /saved/ で読み返せる
  * - 前回の訪問以降の新着: 前回見に来たときより後に追加された記事に印を付け、トップページに件数を出す
+ * アクセス解析（src/scripts/analytics.ts）は訪問の記録を、前にも来たか・同じ訪問の続きかの判定にだけ使う（日時そのものは送らない）
  */
 
 const SAVED_KEY = 'matmsait:saved';
@@ -82,12 +83,29 @@ function syncSavedCount(): void {
   }
 }
 
+/** このページを開く前の訪問の記録（アクセス解析で、同じ訪問の続きか・前にも来た人かを見分けるのに使う） */
+let visitBefore: { lastView?: number; returning: boolean; available: boolean } = { returning: false, available: false };
+
+export function visitInfo(): { lastView?: number; returning: boolean; available: boolean } {
+  return visitBefore;
+}
+
+function storageAvailable(): boolean {
+  try {
+    localStorage.getItem(VISIT_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** 今回の訪問を記録し、前回の訪問の日時を返す（初めての訪問なら undefined） */
 export function recordVisit(now: number): number | undefined {
   const visit = readJson<Visit>(VISIT_KEY, {});
   let previous = visit.previous;
   if (!visit.last) previous = undefined;
   else if (now - visit.last > SESSION_GAP) previous = visit.last;
+  visitBefore = { lastView: visit.last, returning: previous !== undefined, available: storageAvailable() };
   writeJson(VISIT_KEY, { previous, last: now } satisfies Visit);
   return previous;
 }
@@ -110,7 +128,10 @@ function setupSaveButtons(): void {
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      sync(toggleSaved(data));
+      const on = toggleSaved(data);
+      sync(on);
+      // アクセス解析に「あとで読む」に保存したことを知らせる（外したときは知らせない）
+      if (on) button.dispatchEvent(new CustomEvent('tp:save', { bubbles: true, detail: { id: data.id } }));
     });
   }
   syncSavedCount();

@@ -22,6 +22,7 @@ import {
 import { createGitHubClient, GitHubError } from '../lib/github-commit.ts';
 import { generateTextKeyPair, type TextKeyPair } from '../lib/text-crypto.ts';
 import { base } from './admin-common.ts';
+import { optOutByDefault } from './analytics.ts';
 
 const root = document.querySelector<HTMLElement>('[data-login]')!;
 const repository = { owner: root.dataset.owner ?? '', repo: root.dataset.repo ?? '' };
@@ -70,6 +71,8 @@ function showNotice(text: string, kind: '' | 'error' = '') {
 }
 
 function finish(token: string, login: string, textKey: TextKeyPair) {
+  // 運営者自身の閲覧をアクセス解析で数えないよう、このブラウザを除外する（アクセス解析のページで戻せる）
+  optOutByDefault();
   clearFailures(localStorage);
   startSession(sessionStorage, token, login, Date.now(), textKey);
   location.replace(nextUrl());

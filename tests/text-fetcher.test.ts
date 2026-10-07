@@ -8,9 +8,9 @@ const articleHtml = (extra = '') =>
   `<html><head>${extra}</head><body><h1>見出し</h1><article>${[1, 2, 3, 4, 5, 6].map((n) => `<p>${para(n)}</p>`).join('')}</article></body></html>`;
 
 function fakeSite(pages: Record<string, { status?: number; body?: string; headers?: Record<string, string> }>) {
-  const calls: { url: string; userAgent?: string }[] = [];
+  const calls: { url: string; options: HttpGetOptions }[] = [];
   const get = async (url: string, options: HttpGetOptions): Promise<HttpResponse> => {
-    calls.push({ url, userAgent: options.baseHeaders?.find(([name]) => name === 'User-Agent')?.[1] });
+    calls.push({ url, options });
     const page = pages[url] ?? { status: 404, body: 'not found' };
     return {
       url,
@@ -27,9 +27,9 @@ describe('fetchTexts', async () => {
   const now = new Date();
   const request = (id: string, url: string) => ({ id, url, sourceId: 's', requestedAt: new Date(now.getTime() - 1000).toISOString() });
 
-  it('ボットとして名乗って取得し、本文を運営者の鍵で暗号化する', async () => {
+  it('ブラウザと同じ通信で取得し（ボットの名前は名乗らない）、本文を運営者の鍵で暗号化する', async () => {
     const { get, calls } = fakeSite({
-      'https://ok.example.jp/robots.txt': { body: 'User-agent: *\nDisallow: /private/' },
+      'https://ok.example.jp/robots.txt': { body: 'User-agent: *\nDisallow: /private/\n\nUser-agent: OtherBot\nDisallow: /' },
       'https://ok.example.jp/news/1': { body: articleHtml() },
     });
     const [result] = await fetchTexts({
@@ -37,18 +37,19 @@ describe('fetchTexts', async () => {
       results: [],
       keys: [key],
       now,
-      infoUrl: 'https://site.example/about/',
       get,
       wait: async () => {},
     });
     expect(result.status).toBe('ok');
     expect(await decryptText(result.enc!, key)).toContain(para(2));
-    expect(calls.every((call) => call.userAgent === 'Mozilla/5.0 (compatible; TopiatsumeBot/1.0; +https://site.example/about/)')).toBe(true);
+    // ページを開くときのブラウザのヘッダー（httpGet の既定）で送り、User-Agent などを差し替えない
+    expect(calls.map((call) => call.url)).toEqual(['https://ok.example.jp/robots.txt', 'https://ok.example.jp/news/1']);
+    expect(calls.every((call) => call.options.kind === 'document' && !call.options.headers?.length)).toBe(true);
   });
 
   it('robots.txt・AI での利用の拒否・noai・アクセスの拒否・本文なしを守って取得しない', async () => {
     const { get, calls } = fakeSite({
-      'https://robots.example.jp/robots.txt': { body: 'User-agent: TopiatsumeBot\nDisallow: /' },
+      'https://robots.example.jp/robots.txt': { body: 'User-agent: *\nDisallow: /' },
       'https://ai.example.jp/robots.txt': { body: 'User-agent: GPTBot\nDisallow: /' },
       'https://noai.example.jp/robots.txt': { status: 404 },
       'https://noai.example.jp/1': { body: articleHtml('<meta name="robots" content="noai">') },
@@ -70,7 +71,6 @@ describe('fetchTexts', async () => {
       results: [],
       keys: [key],
       now,
-      infoUrl: 'https://site.example/about/',
       get,
       wait: async () => {},
     });
@@ -92,7 +92,6 @@ describe('fetchTexts', async () => {
       results: [],
       keys: [],
       now,
-      infoUrl: 'x',
       get,
     });
     expect(results).toEqual([]);

@@ -1,9 +1,11 @@
 ---
 import AdSlot from './AdSlot.astro';
+import PopularList from './PopularList.astro';
 import TopicList from './TopicList.astro';
 import { categories, site } from '../config/site.ts';
 import { dailyPath, formatDay, getDailySnapshots } from '../lib/daily.ts';
 import { countByCategory, getCategory, href } from '../lib/items.ts';
+import { getPopular } from '../lib/popular.ts';
 import { getHotTopics } from '../lib/topics.ts';
 
 interface Props {
@@ -13,13 +15,19 @@ interface Props {
   hideRanking?: boolean;
   /** ランキングを広い画面でだけ表示する（狭い画面ではページ本体側で見せる場合） */
   rankingWideOnly?: boolean;
+  /** よく読まれている記事を表示しない（ページ本体にある場合） */
+  hidePopular?: boolean;
 }
-const { category, hideRanking = false, rankingWideOnly = false } = Astro.props;
+const { category, hideRanking = false, rankingWideOnly = false, hidePopular = false } = Astro.props;
 const hours = category ? 72 : 24;
 const ranking = hideRanking ? [] : getHotTopics({ hours, category, limit: 8 });
 const categoryName = category ? getCategory(category)?.name : undefined;
 const counts = countByCategory();
 const recentDays = getDailySnapshots().slice(0, 7);
+// よく読まれている記事（24時間。まだ少なければ1週間）
+const popularDay = hidePopular ? [] : getPopular('day', 5);
+const popular = popularDay.length >= 3 || hidePopular ? popularDay : getPopular('week', 5);
+const popularWindow = popular === popularDay ? '24時間' : '1週間';
 ---
 
 <aside class="sidebar stack" aria-label="サイドバー">
@@ -41,6 +49,21 @@ const recentDays = getDailySnapshots().slice(0, 7);
         <TopicList topics={ranking} othersLimit={0} />
         <div class="panel-foot">
           <a href={href('/ranking/')}>話題のニュースをもっと見る</a>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    popular.length > 0 && (
+      <section class="panel">
+        <div class="panel-head">
+          <h2>よく読まれている記事</h2>
+          <span class="window">{popularWindow}</span>
+        </div>
+        <PopularList entries={popular} />
+        <div class="panel-foot">
+          <a href={href('/popular/')}>人気の記事をもっと見る</a>
         </div>
       </section>
     )

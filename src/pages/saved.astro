@@ -52,6 +52,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     const li = el('li', 'item');
     const title = el('a', 'item-title', item.title);
     title.href = item.url;
+    title.dataset.aid = item.id;
     // 元記事（外部サイト）は別のタブで開く
     if (/^https?:\/\//.test(item.url)) {
       title.target = '_blank';

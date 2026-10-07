@@ -1,0 +1,71 @@
+---
+import { faviconUrl, formatDateTime, getCategory, href, siteOf } from '../lib/items.ts';
+import type { PopularEntry } from '../lib/popular.ts';
+import { getSummary, summaryPath } from '../lib/summaries.ts';
+
+interface Props {
+  entries: PopularEntry[];
+  /** 抜粋・カテゴリも表示する（よく読まれている記事のページ用） */
+  detailed?: boolean;
+}
+const { entries, detailed = false } = Astro.props;
+---
+
+<ol class:list={['topics', { detailed }]}>
+  {
+    entries.map(({ item }, index) => {
+      const site = siteOf(item);
+      const category = getCategory(item.category);
+      const summary = getSummary(item.id);
+      return (
+        <li class="topic">
+          <span class:list={['rank', `rank-${index + 1}`]}>{index + 1}</span>
+          <div class="topic-body">
+            {summary ? (
+              <a class="item-title" href={href(summaryPath(item.id))} data-aid={item.id} data-src={item.sourceId} data-cat={item.category}>
+                {item.title}
+              </a>
+            ) : (
+              <a
+                class="item-title"
+                href={item.url}
+                target="_blank"
+                rel="noopener"
+                data-aid={item.id}
+                data-src={item.sourceId}
+                data-cat={item.category}
+              >
+                {item.title}
+              </a>
+            )}
+            {detailed &&
+              (summary ? (
+                <p class="item-excerpt item-summary">
+                  <span class="ai-badge">AI要約</span>
+                  {summary.summary}
+                </p>
+              ) : (
+                item.excerpt && <p class="item-excerpt">{item.excerpt}</p>
+              ))}
+            <div class="item-meta">
+              <span class="item-site">
+                <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                {site.label}
+              </span>
+              {detailed && category && (
+                <a class="item-cat" href={href(`/category/${category.slug}/`)}>
+                  <span class="dot" style={`--c:${category.color}`} />
+                  {category.name}
+                </a>
+              )}
+              <time datetime={item.publishedAt} data-rel>
+                {formatDateTime(item.publishedAt)}
+              </time>
+              {summary && !detailed && <span class="ai-badge">AI要約</span>}
+            </div>
+          </div>
+        </li>
+      );
+    })
+  }
+</ol>

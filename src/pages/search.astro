@@ -122,6 +122,9 @@ const base = href('');
   function renderRow(entry: SearchEntry, terms: string[]): HTMLLIElement {
     const li = el('li', 'item');
     const title = el('a', 'item-title');
+    // アクセス解析で、どの記事が開かれたかを数えるための印
+    title.dataset.aid = entry.i;
+    title.dataset.cat = entry.c;
     if (entry.m) {
       // AI 要約がある記事は当サイトの要約ページへ
       title.href = `${base}/summary/${entry.i}/`;
@@ -175,6 +178,8 @@ const base = href('');
     }
     if (entry.m) {
       const original = el('a', 'item-orig', '元記事 ↗');
+      original.dataset.aid = entry.i;
+      original.dataset.cat = entry.c;
       original.href = entry.u;
       original.target = '_blank';
       original.rel = 'noopener';
@@ -241,6 +246,8 @@ const base = href('');
       sort: fSort.value === 'new' ? 'new' : 'relevance',
     });
     const label = words.length > 0 ? `「${words.join(' ')}」の検索結果` : '絞り込みの結果';
+    // アクセス解析に検索した言葉と件数を知らせる（よく検索される言葉・見つからなかった言葉の把握に使う）
+    if (words.length > 0) document.dispatchEvent(new CustomEvent('tp:search', { detail: { q: words.join(' '), n: hits.length } }));
     status.textContent = hits.length === 0 ? `${label}: 一致する記事は見つかりませんでした。` : `${label}: ${hits.length}件`;
     list.replaceChildren(...hits.slice(0, shown).map((entry) => renderRow(entry, terms)));
     panel.hidden = hits.length === 0;
