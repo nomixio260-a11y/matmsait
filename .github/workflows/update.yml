@@ -282,6 +282,8 @@ jobs:
       - name: 投稿の記録をコミット
         run: |
           [ -f data/social.json ] || exit 0
+          # 今回投稿していなければ（記録が変わっていなければ）何もしない（ほかで更新された記録を古い内容で上書きしないため）
+          [ -z "$(git status --porcelain -- data/social.json)" ] && exit 0
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           cp data/social.json "$RUNNER_TEMP/social.json"
