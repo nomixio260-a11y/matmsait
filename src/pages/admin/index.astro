@@ -1,23 +1,40 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { ANSWER_FILE_NAME, ARTICLE_TEXT_MAX, SUMMARY_LENGTHS } from '../../lib/summary-core.ts';
-import { COPY_ARTICLE_BOOKMARKLET } from '../../lib/bookmarklet.ts';
 import { href } from '../../lib/items.ts';
 ---
 
-<AdminLayout title="AI要約の管理" current="summaries">
+<AdminLayout title="概要" current="overview">
   <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
-  <!-- ログインを確かめるまでは表示しない（admin.ts が表示する） -->
+  <!-- ログインを確かめるまでは表示しない（admin-dashboard.ts が表示する） -->
   <div class="admin" data-admin data-base={href('')} hidden>
     <div class="intro">
-      <h1>AI要約の管理</h1>
-      <p>
-        要約のない記事を選んでAI用のプロンプトを作り、AIの回答（JSON）を貼り付けて保存すると、サイトの各記事に要約が載ります。
-      </p>
-      <p class="data-info" id="data-info" aria-live="polite">記事データを読み込んでいます…</p>
+      <h1>概要</h1>
+      <p>サイトの状態・きょうの数字・やることをまとめて確認できます。</p>
+      <p class="note" id="data-info" aria-live="polite">読み込んでいます…</p>
     </div>
 
-    <section class="card connection" aria-label="GitHub との連携">
+    <section class="card" aria-labelledby="todo-title">
+      <div class="card-head"><h2 id="todo-title">やること・お知らせ</h2></div>
+      <div class="card-body">
+        <ul class="todo-list" id="todo-list">
+          <li class="info"><span class="todo-text">確認しています…</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="numbers-title">
+      <div class="card-head">
+        <h2 id="numbers-title">きょうの数字</h2>
+        <a href={href('/admin/analytics/')} id="analytics-link">アクセス解析 →</a>
+      </div>
+      <div class="card-body">
+        <div class="stat-grid" id="stats"></div>
+        <p class="note" id="stats-note"></p>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="update-title" id="update">
+      <div class="card-head"><h2 id="update-title">サイトの更新</h2></div>
       <div class="card-body">
         <div class="connection-row">
           <span class="badge ok" id="token-badge">ログイン中</span>
@@ -26,947 +43,75 @@ import { href } from '../../lib/items.ts';
         </div>
         <p class="status" id="token-status" aria-live="polite"></p>
         <p class="note">
-          GitHub のトークンは、ログインのパスワードで暗号化してこのブラウザにだけ保存しています。しばらく操作がないと自動でログアウトします。トークンを作り直したときは、ログアウトしてログインページの「保存したトークンを消してやり直す」から設定し直してください。
-        </p>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2><span class="step" aria-hidden="true">⚡</span>サイトの更新</h2>
-      <div class="card-body">
-        <p class="note">
-          記事の収集とサイトの更新は「自動更新タイマー」が約1時間ごとに行います。すぐに最新の記事を集めて更新したいときに使います（GitHub
+          記事の収集とサイトの更新は「自動更新タイマー」が約1時間ごとに行います。すぐに最新の記事を集めて更新したいときは「今すぐ更新」を押してください（GitHub
           Actions で動くので費用はかかりません）。
         </p>
         <p class="timer-status" id="timer-status" aria-live="polite"></p>
-        <div class="controls run-controls">
+        <div class="actions">
           <button type="button" id="run-update" class="primary">今すぐ更新</button>
         </div>
         <p class="status" id="run-status" aria-live="polite"></p>
-        <div class="runs">
-          <div class="runs-head">
-            <h3>最近の実行</h3>
-            <button type="button" id="refresh-runs" class="ghost small">状況を更新</button>
-          </div>
-          <ul class="run-list" id="run-list">
-            <li class="pick-meta">読み込んでいます…</li>
-          </ul>
+        <div class="runs-head">
+          <h3>最近の実行</h3>
+          <button type="button" id="refresh-runs" class="ghost small">状況を更新</button>
         </div>
+        <ul class="run-list" id="run-list">
+          <li class="pick-meta">読み込んでいます…</li>
+        </ul>
       </div>
     </section>
 
-    <section class="card">
-      <h2><span class="step">1</span>要約する記事を選ぶ</h2>
+    <section class="card" aria-labelledby="shortcut-title">
+      <div class="card-head"><h2 id="shortcut-title">よく使う操作</h2></div>
       <div class="card-body">
-        <div class="controls">
-          <label class="field inline">
-            <span>件数</span>
-            <select id="count">
-              <option value="10">10件</option>
-              <option value="20" selected>20件</option>
-              <option value="30">30件</option>
-              <option value="50">50件</option>
-            </select>
-          </label>
-          <label class="field inline">
-            <span>カテゴリ</span>
-            <select id="category"><option value="">すべて</option></select>
-          </label>
-          <label class="field inline">
-            <span>並び順</span>
-            <select id="sort">
-              <option value="popular">話題の順（報じたサイトが多い順）</option>
-              <option value="read" hidden disabled>よく読まれている順（アクセス解析）</option>
-              <option value="latest">新しい順</option>
-            </select>
-          </label>
-          <button type="button" id="reselect" class="ghost">上から選び直す</button>
-        </div>
-        <label class="check">
-          <input id="include-summarized" type="checkbox" />
-          要約済みの記事も選べるようにする（AI で要約を作り直す）
-        </label>
-        <p class="counter" id="pick-counter"></p>
-        <ul class="pick-list" id="pick-list"></ul>
-        <div class="actions">
-          <button type="button" id="hide-selected" class="danger small">選んだ記事をサイトから非表示</button>
-          <span class="note">広告の規約に触れそうな記事など、載せたくない記事を外せます（あとで戻せます）</span>
-        </div>
-        <p class="status" id="hide-status" aria-live="polite"></p>
+        <ul class="shortcuts">
+          <li><a href={href('/admin/summaries/')}><b>AI要約を作る</b><span>要約する記事を選んでプロンプトを作る</span></a></li>
+          <li><a href={href('/admin/content/#picks')}><b>ピックアップを選ぶ</b><span>トップページで編集部のおすすめを紹介する</span></a></li>
+          <li><a href={href('/admin/content/#notice')}><b>お知らせを出す</b><span>サイトの上部に短いお知らせを出す</span></a></li>
+          <li><a href={href('/admin/notify/')}><b>通知を送る</b><span>通知を受け取っている読者にお知らせする</span></a></li>
+          <li><a href={href('/admin/summaries/#blocklist-card')}><b>記事を非表示にする</b><span>NGワード・サイト・個別の記事</span></a></li>
+          <li><a href={href('/admin/summaries/#sources-card')}><b>収集元の状況</b><span>取得できていない収集元を確かめる</span></a></li>
+        </ul>
       </div>
     </section>
-
-    <details class="card" id="paste-card">
-      <summary>
-        <span class="summary-title">AI が開けない記事（本文を貼り付けて要約）</span><span class="badge" id="paste-count">0件</span>
-      </summary>
-      <div class="card-body">
-        <p class="hint">
-          サイトのボット対策などで AI が記事を開けず「unavailable」になった記事は、ここに集まります。自分のブラウザで記事を開いて本文をコピーし、ここに貼り付けると、いちばん下に<b>本文入りのプロンプト</b>ができます。それをコピー（またはファイルで保存）して AI に渡すと、AI は URL を開かずに本文から要約の JSON を書きます。回答は手順3で確認・保存します。同じ話題を別のサイトも報じていれば、そちらの記事に切り替えることもできます。
-        </p>
-        <p class="hint">
-          貼り付けた本文はこのタブの中でプロンプトを作るのに使うだけで、サイトや GitHub には保存・公開しません（タブを閉じると消えます）。本文は1記事{ARTICLE_TEXT_MAX.toLocaleString()}字までを使います。
-        </p>
-        <div class="auto-text">
-          <p class="hint">
-            <b>本文の自動取得:</b> AI が開けなかった記事は、自動収集（約1時間ごと・依頼した直後にも実行）が本文を取りに行き、取得できた本文がここに入ります（数分かかります）。取得はブラウザと同じ通信で行い（ボットの名前は名乗りません）、robots.txt で断っているサイト、AI での利用を断っているサイト（robots.txt・noai）、アクセスを拒否したサイトからは取得しません。その場合は本文を貼り付けてください。取得した本文は、管理画面にログインした人だけが読めるよう暗号化して保存し、公開しません。
-          </p>
-          <div class="actions">
-            <button type="button" id="request-texts" class="small">一覧の記事の本文を自動で取得する</button>
-            <span class="note" id="auto-text-status" aria-live="polite"></span>
-          </div>
-        </div>
-        <div class="bookmarklet-row">
-          <a class="bookmarklet" id="bookmarklet" href={COPY_ARTICLE_BOOKMARKLET} draggable="true">本文をコピー（トピあつめ）</a>
-          <span class="note">
-            このボタンをブックマークバーにドラッグして登録しておくと、記事のページで押すだけで本文をコピーできます。うまく取れないときは、本文を選んでから押すか、本文を選んでコピーしてください。
-          </span>
-        </div>
-        <div class="bulk-paste">
-          <label class="field" for="bulk-text">本文をまとめて貼り付け（ページの URL で記事に自動で振り分けます）</label>
-          <textarea
-            id="bulk-text"
-            rows="3"
-            spellcheck="false"
-            placeholder="「本文をコピー」でコピーした本文をここに貼り付けます（いくつ続けて貼ってもかまいません）"></textarea>
-          <div class="actions">
-            <button type="button" id="bulk-assign" class="small">振り分ける</button>
-            <button type="button" id="text-file-button" class="small">本文のファイルを読み込む</button>
-            <input type="file" id="text-file" accept=".txt,.md,text/plain" multiple hidden />
-            <span class="note">「本文をコピー」の「ファイルで保存」で保存した本文を、まとめて読み込めます（この欄にドラッグしても読み込めます）。</span>
-          </div>
-        </div>
-        <p class="note" id="paste-flagged" hidden></p>
-        <ul class="paste-list" id="paste-list"></ul>
-        <p class="status" id="paste-status" aria-live="polite"></p>
-        <div class="prompt-panel" id="paste-prompt-panel" hidden>
-          <h3>本文入りのプロンプト（本文を貼った記事の要約を AI に依頼する）</h3>
-          <div class="prompt-parts" id="paste-prompt-parts" hidden></div>
-          <textarea id="paste-prompt" rows="8" readonly aria-label="本文入りのプロンプト"></textarea>
-          <div class="actions">
-            <button type="button" id="paste-prompt-copy" class="primary">プロンプトをコピー</button>
-            <button type="button" id="paste-prompt-download">ファイルで保存</button>
-            <button type="button" id="paste-prompt-download-all" hidden>全部を1つのファイルで保存</button>
-            <span class="note" id="paste-prompt-info"></span>
-          </div>
-          <div class="status" id="paste-prompt-status" aria-live="polite"></div>
-        </div>
-      </div>
-    </details>
-
-    <section class="card">
-      <h2><span class="step">2</span>プロンプトをコピーしてAIに渡す</h2>
-      <div class="card-body">
-        <div class="controls">
-          <label class="field inline">
-            <span>要約の長さ</span>
-            <select id="length">
-              {
-                Object.entries(SUMMARY_LENGTHS).map(([key, value]) => (
-                  <option value={key} selected={key === 'normal'}>
-                    {value.label}（{value.min}〜{value.max}字）
-                  </option>
-                ))
-              }
-            </select>
-          </label>
-          <label class="field inline">
-            <span>1回に貼り付ける長さの上限</span>
-            <select id="max-chars">
-              <option value="0">上限なし</option>
-              <option value="8000">8,000字</option>
-              <option value="15000" selected>15,000字</option>
-              <option value="30000">30,000字</option>
-              <option value="60000">60,000字</option>
-            </select>
-          </label>
-          <label class="field inline">
-            <span>AI の回答のしかた</span>
-            <select id="answer-mode">
-              <option value="codeblock" selected>コードブロック（コピー）</option>
-              <option value="file">JSON ファイル（ダウンロード）</option>
-            </select>
-          </label>
-          <label class="check">
-            <input id="points" type="checkbox" checked />
-            要点（箇条書き）も作る
-          </label>
-        </div>
-        <div class="prompt-parts" id="prompt-parts" hidden></div>
-        <textarea id="prompt" rows="12" readonly aria-label="AIに渡すプロンプト"></textarea>
-        <div class="actions">
-          <button type="button" id="copy-prompt" class="primary">プロンプトをコピー</button>
-          <button type="button" id="download-prompt">ファイルで保存</button>
-          <button type="button" id="download-prompt-all" hidden>全部を1つのファイルで保存</button>
-          <span class="note" id="prompt-info"></span>
-        </div>
-        <div class="status" id="prompt-status" aria-live="polite"></div>
-        <p class="hint">
-          プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けてください。チャット AI に貼り付けられる長さには上限があるので、上限を超えるプロンプトは何回かに分けます（1回ずつコピーして渡し、回答をそれぞれ確認・保存します）。貼り付けられないときは「ファイルで保存」して AI にファイルとして添付できます。「AI の回答のしかた」を「JSON ファイル」にすると、AI に {ANSWER_FILE_NAME} を作ってもらい、ダウンロードしたファイルを手順3で読み込めます（ファイルを作れる AI で使えます。作れない AI はコードブロックで答えます）。AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残って「AI が開けない記事」に移ります（次からは自動で選ばれません）。
-        </p>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2><span class="step">3</span>AIの回答（JSON）を貼り付けて確認する</h2>
-      <div class="card-body">
-        <textarea
-          id="response"
-          rows="10"
-          spellcheck="false"
-          aria-label="AIの回答"
-          placeholder='[{"id": "...", "status": "ok", "summary": "...", "points": ["..."]}]'></textarea>
-        <div class="actions">
-          <button type="button" id="check" class="primary">内容を確認する</button>
-          <button type="button" id="response-file-button">ファイルから読み込む</button>
-          <input type="file" id="response-file" accept=".json,.txt,.md,application/json,text/plain" multiple hidden />
-          <button type="button" id="clear-response" class="ghost">クリア</button>
-        </div>
-        <p class="note">
-          AI が作った JSON ファイル（{ANSWER_FILE_NAME}）や、回答を保存したファイル・「保存用JSON」も読み込めます（複数のファイルを一度に選べます。この欄にドラッグしても読み込めます）。
-        </p>
-        <p class="status" id="response-file-status" aria-live="polite"></p>
-        <div id="check-result" aria-live="polite"></div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2><span class="step">4</span>保存して公開する</h2>
-      <div class="card-body">
-        <p class="note" id="save-info">確認できた要約はまだありません。</p>
-        <div class="actions">
-          <button type="button" id="save" class="primary" disabled>保存して公開</button>
-          <button type="button" id="download-json" disabled>保存用JSONをダウンロード</button>
-        </div>
-        <p class="status" id="save-status" aria-live="polite"></p>
-      </div>
-    </section>
-
-    <details class="card">
-      <summary><span class="summary-title">保存済みの要約</span><span class="badge" id="saved-count">0件</span></summary>
-      <div class="card-body">
-        <p class="hint">
-          「編集」で要約・要点を直接直せます。内容に問題がある要約は、選んで削除できます（削除した記事は要約待ちに戻ります）。AI で作り直したいときは、手順1の「要約済みの記事も選べるようにする」を使ってください。
-        </p>
-        <input id="saved-filter" class="filter" type="search" placeholder="タイトル・要約で絞り込み" aria-label="保存済みの要約を絞り込む" />
-        <ul class="pick-list" id="saved-list"></ul>
-        <div class="actions">
-          <button type="button" id="delete-selected" class="danger" disabled>選んだ要約を削除</button>
-        </div>
-        <p class="status" id="delete-status" aria-live="polite"></p>
-      </div>
-    </details>
-
-    <details class="card" id="sources-card">
-      <summary>
-        <span class="summary-title">収集元の状況</span><span class="badge" id="sources-badge">-</span>
-      </summary>
-      <div class="card-body">
-        <p class="hint">
-          収集のたびに記録している取得の状態と、直近に集めた記事の数・いちばん新しい記事の日時です。取得の失敗が3回以上続いている収集元や、新しい記事が3日以上ない収集元は、フィードの URL が変わったか配信が止まっている可能性があります（<code>sources.yaml</code>で修正・削除できます）。
-        </p>
-        <div class="table-wrap">
-          <table class="result-table" id="sources-table"></table>
-        </div>
-      </div>
-    </details>
-
-    <details class="card" id="blocklist-card">
-      <summary>
-        <span class="summary-title">記事の非表示（NGワード・サイト）</span><span class="badge" id="hidden-count">0件</span>
-      </summary>
-      <div class="card-body">
-        <p class="hint">
-          広告の規約に触れそうな記事（成人向け・暴力的な内容など）や、載せたくない記事をサイトから外します。収集は続けるので、条件を消せば元に戻ります。
-        </p>
-        <div class="block-fields">
-          <label class="field">
-            <span>NGワード（1行に1つ。見出しに含む記事を非表示）</span>
-            <textarea id="block-words" rows="5" spellcheck="false"></textarea>
-          </label>
-          <label class="field">
-            <span>非表示にするサイト（1行に1つ。例: example.com）</span>
-            <textarea id="block-hosts" rows="5" spellcheck="false"></textarea>
-          </label>
-        </div>
-        <div class="actions">
-          <button type="button" id="save-blocklist" class="primary">保存して反映</button>
-        </div>
-        <p class="status" id="blocklist-status" aria-live="polite"></p>
-        <h3 class="sub">非表示中の記事</h3>
-        <ul class="pick-list" id="hidden-list"></ul>
-        <div class="actions">
-          <button type="button" id="unhide-selected" disabled>選んだ記事を再表示</button>
-        </div>
-        <p class="status" id="unhide-status" aria-live="polite"></p>
-      </div>
-    </details>
   </div>
 </AdminLayout>
 
 <script>
-  import '../../scripts/admin.ts';
+  import '../../scripts/admin-dashboard.ts';
 </script>
 
 <style>
-  .intro h1 {
-    margin: 0;
-    font-size: 1.4rem;
-  }
-  .intro p {
-    margin: 6px 0 0;
-    color: var(--muted);
-    font-size: 0.875rem;
-  }
-  :global(.stale-warning) {
-    margin: 10px 0 0;
-    padding: 10px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--hot);
-    color: var(--hot);
-    background: var(--surface);
-    font-size: 0.85rem;
-    font-weight: 700;
-  }
-  .admin {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .admin[hidden] {
-    display: none;
-  }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-  }
-  .card > h2,
-  .card > summary {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0;
-    padding: 14px 16px;
-    font-size: 1rem;
-    border-bottom: 1px solid var(--border);
-  }
-  .card > summary {
-    cursor: pointer;
-    font-weight: 700;
-  }
-  .card:not([open]) > summary {
-    border-bottom: 0;
-  }
-  .connection-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
-  }
-  .connection-text {
-    flex: 1;
-    min-width: 0;
-    font-size: 0.85rem;
-    color: var(--text-2);
-    overflow-wrap: anywhere;
-  }
-  .connection .note {
-    margin: 4px 0 0;
-  }
-  :global(.admin .note.warn) {
-    color: var(--hot);
-  }
-  :global(.unavailable-note) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 10px;
-    margin-top: 10px;
-    padding: 10px 12px;
-    border: 1px solid var(--hot);
-    border-radius: 10px;
-  }
-  :global(.unavailable-note .note) {
-    flex: 1;
-    min-width: 220px;
-    margin: 0;
-  }
-  .auto-text {
-    margin: 0 0 12px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-  }
-  .auto-text .hint {
-    margin-top: 0;
-  }
-  .auto-text .actions {
-    margin-top: 6px;
-  }
-  :global(.auto-info) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 8px;
-    margin: 0;
-    font-size: 0.78rem;
-    color: var(--text-2);
-  }
-  :global(.auto-info.warn) {
-    color: var(--hot);
-  }
-  .bulk-paste {
-    display: grid;
-    gap: 6px;
-    margin: 0 0 12px;
-    padding: 10px 12px;
-    border: 1px dashed var(--border-strong);
-    border-radius: 10px;
-  }
-  .bulk-paste .actions {
-    margin-top: 0;
-  }
-  .prompt-panel {
-    display: grid;
-    gap: 8px;
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
-  .prompt-panel[hidden] {
-    display: none;
-  }
-  .prompt-panel h3 {
-    margin: 0;
-    font-size: 0.95rem;
-  }
-  .prompt-panel .actions {
-    margin-top: 0;
-  }
-  :global(.prompt-parts) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 8px;
-  }
-  :global(.prompt-parts[hidden]) {
-    display: none;
-  }
-  :global(.admin .prompt-parts button[aria-pressed='true']) {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--on-accent);
-  }
-  :global(.admin textarea.dragging) {
-    outline: 2px dashed var(--accent);
-    outline-offset: 2px;
-  }
-  :global(.file-message) {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-  }
-  .bookmarklet-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
-    margin: 4px 0 12px;
-  }
-  .bookmarklet {
-    display: inline-block;
-    padding: 6px 12px;
-    border: 1px dashed var(--accent);
-    border-radius: 8px;
-    color: var(--accent);
-    font-size: 0.85rem;
-    font-weight: 700;
-    text-decoration: none;
-    cursor: grab;
-  }
-  .bookmarklet-row .note {
-    flex: 1;
-    min-width: 220px;
-  }
-  .paste-list {
-    display: grid;
-    gap: 10px;
+  .shortcuts {
+    list-style: none;
     margin: 0;
     padding: 0;
-    list-style: none;
-  }
-  :global(.paste-item) {
     display: grid;
-    gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 8px;
+  }
+  .shortcuts a {
+    display: block;
+    height: 100%;
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    background: var(--surface-2);
-  }
-  :global(.paste-item .pick-title) {
     color: var(--text);
     text-decoration: none;
   }
-  :global(.paste-item .pick-title:hover) {
-    color: var(--accent);
-    text-decoration: underline;
-  }
-  :global(.admin .paste-item textarea) {
-    font-family: inherit;
-    font-size: 0.82rem;
-  }
-  :global(.paste-info) {
-    margin: 0;
-    font-size: 0.78rem;
-    color: var(--muted);
-  }
-  :global(.paste-info.warn) {
-    color: var(--hot);
-  }
-  :global(.paste-actions) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 8px;
-  }
-  :global(.paste-actions .alt) {
-    font-size: 0.78rem;
-    color: var(--text-2);
-  }
-  :global(.pick-row) {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-  }
-  :global(.pick-row > label) {
-    flex: 1;
-    min-width: 0;
-  }
-  :global(.pick-row > button) {
-    flex-shrink: 0;
-    margin-top: 6px;
-  }
-  :global(.badge-inline.warn) {
-    color: var(--hot);
-    border-color: var(--hot);
-  }
-  :global(.badge-inline.ok) {
-    color: #15803d;
-    border-color: #15803d;
-  }
-  .summary-title {
-    flex: 1;
-  }
-  .card-body {
-    padding: 14px 16px 16px;
-  }
-  .step {
-    display: inline-grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: var(--on-accent);
-    font-size: 0.8rem;
-  }
-  .badge {
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    color: var(--muted);
-  }
-  :global(.badge.ok) {
-    background: #e7f6ec;
-    border-color: #b7e2c4;
-    color: #1d6b3a;
-  }
-  :global(.admin .controls) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 10px 16px;
-    margin-bottom: 10px;
-  }
-  :global(.admin .field) {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 0.8rem;
-    color: var(--text-2);
-    font-weight: 600;
-  }
-  :global(.admin .field input) {
-    width: 100%;
-  }
-  :global(.admin .check) {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-  }
-  :global(.admin input[type='password']),
-  :global(.admin select) {
-    max-width: 100%;
-  }
-  :global(.admin select),
-  :global(.admin textarea) {
-    font: inherit;
-    font-size: 0.875rem;
-    color: var(--text);
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    padding: 8px 10px;
-  }
-  :global(.admin textarea) {
-    width: 100%;
-    resize: vertical;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.78rem;
-    line-height: 1.6;
-  }
-  :global(.admin button) {
-    font: inherit;
-    font-size: 0.85rem;
-    font-weight: 700;
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--border-strong);
-    background: var(--surface);
-    color: var(--text);
-    cursor: pointer;
-  }
-  :global(.admin button:hover:not(:disabled)) {
+  .shortcuts a:hover {
     border-color: var(--accent);
-    color: var(--accent);
-  }
-  :global(.admin button:disabled) {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  :global(.admin button.primary) {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--on-accent);
-  }
-  :global(.admin button.primary:hover:not(:disabled)) {
-    background: var(--accent-strong);
-    color: var(--on-accent);
-  }
-  :global(.admin button.ghost) {
-    background: transparent;
-  }
-  :global(.admin button.danger) {
-    color: var(--hot);
-    border-color: var(--hot);
-  }
-  :global(.admin .actions) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin-top: 10px;
-  }
-  :global(.admin .note),
-  :global(.admin .counter),
-  :global(.admin .hint) {
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
-  :global(.admin .counter) {
-    margin: 0 0 8px;
-  }
-  :global(.admin .hint) {
-    margin: 10px 0 0;
-  }
-  :global(.admin .status) {
-    margin: 10px 0 0;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-  :global(.status.error) {
-    color: var(--hot);
-  }
-  :global(.status.ok) {
-    color: #1d6b3a;
-  }
-  .run-controls {
-    margin-top: 10px;
-  }
-  .timer-status {
-    margin: 8px 0 0;
-    font-size: 0.85rem;
-    font-weight: 700;
-  }
-  :global(.timer-status.ok) {
-    color: #1d6b3a;
-  }
-  :global(.timer-status.error) {
-    color: var(--hot);
-  }
-  :global(.admin input.filter) {
-    width: 100%;
-    margin-bottom: 8px;
-    font: inherit;
-    font-size: 0.875rem;
-    color: var(--text);
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    padding: 8px 10px;
-  }
-  :global(.saved-row) {
-    position: relative;
-  }
-  :global(.saved-row .edit-button) {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-  }
-  :global(.saved-row label) {
-    padding-right: 64px !important;
-  }
-  :global(.editor) {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 4px 12px 12px 36px;
-  }
-  :global(.editor textarea) {
-    font-family: inherit;
-    font-size: 0.85rem;
-    font-weight: 400;
-    line-height: 1.7;
-  }
-  :global(.editor .field span) {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  :global(.badge-inline) {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 0 6px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    font-size: 0.68rem;
-    color: var(--muted);
-  }
-  .table-wrap {
-    overflow-x: auto;
-  }
-  :global(#sources-table td.num) {
-    text-align: right;
-    white-space: nowrap;
-  }
-  :global(#sources-table a) {
-    color: var(--text);
-  }
-  .block-fields {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
-    margin-top: 10px;
-  }
-  .sub {
-    margin: 16px 0 6px;
-    font-size: 0.85rem;
-  }
-  :global(.pick-reason) {
-    grid-column: 2;
-    font-size: 0.72rem;
-    color: var(--hot);
-    font-weight: 700;
-  }
-  .runs {
-    margin-top: 12px;
-  }
-  .runs-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-  .runs-head h3 {
-    margin: 0;
-    font-size: 0.85rem;
-  }
-  :global(.admin button.small) {
-    padding: 4px 10px;
-    font-size: 0.78rem;
-  }
-  .run-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-  }
-  :global(.run-list li) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 10px;
-    padding: 8px 12px;
-    font-size: 0.8rem;
-  }
-  :global(.run-list li + li) {
-    border-top: 1px solid var(--border);
-  }
-  :global(.run-list a) {
-    color: var(--accent);
-    margin-left: auto;
-  }
-  :global(.run-state) {
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  :global(.run-state.ok) {
-    color: #1d6b3a;
-  }
-  :global(.run-state.error) {
-    color: var(--hot);
-  }
-  :global(.run-state.active) {
-    color: var(--accent);
-  }
-  details.help > summary {
-    cursor: pointer;
-    font-weight: 700;
-  }
-  .help {
-    margin-top: 14px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background: var(--surface-2);
-    font-size: 0.8rem;
-    color: var(--text-2);
-  }
-  .help p {
-    margin: 4px 0;
-  }
-  .help ol {
-    margin: 4px 0;
-    padding-left: 1.4em;
-  }
-  .help a {
-    color: var(--accent);
-  }
-  .pick-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    max-height: 460px;
-    overflow-y: auto;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-  }
-  :global(.pick-list li + li) {
-    border-top: 1px solid var(--border);
-  }
-  :global(.pick-list label) {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 2px 10px;
-    padding: 8px 12px;
-    cursor: pointer;
-  }
-  :global(.pick-list label:hover) {
     background: var(--surface-2);
   }
-  :global(.pick-list input) {
-    grid-row: span 2;
-    margin-top: 4px;
+  .shortcuts b {
+    display: block;
+    color: var(--accent);
+    font-size: 0.9rem;
   }
-  :global(.pick-title) {
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1.5;
-  }
-  :global(.pick-meta) {
-    font-size: 0.72rem;
+  .shortcuts span {
+    display: block;
+    margin-top: 2px;
     color: var(--muted);
-  }
-  :global(.pick-summary) {
-    grid-column: 2;
-    font-size: 0.78rem;
-    color: var(--text-2);
-  }
-  :global(.result-summary) {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 12px 0 8px;
-  }
-  :global(.result-table) {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8rem;
-  }
-  :global(.result-table th),
-  :global(.result-table td) {
-    padding: 8px;
-    border-top: 1px solid var(--border);
-    vertical-align: top;
-    text-align: left;
-  }
-  :global(.result-table th) {
-    font-size: 0.72rem;
-    color: var(--muted);
-    border-top: 0;
-  }
-  :global(.result-table .points) {
-    margin: 4px 0 0;
-    padding-left: 1.2em;
-    color: var(--text-2);
-  }
-  :global(.result-state) {
-    white-space: nowrap;
-    font-weight: 700;
-  }
-  :global(.result-state.ok) {
-    color: #1d6b3a;
-  }
-  :global(.result-state.skip) {
-    color: var(--muted);
-  }
-  :global(.result-state.error) {
-    color: var(--hot);
-  }
-  @media (prefers-color-scheme: dark) {
-    :global(:root:not([data-theme='light']) .badge.ok) {
-      background: #12301d;
-      border-color: #1f5a35;
-      color: #7ee2a1;
-    }
-    :global(:root:not([data-theme='light']) .status.ok),
-    :global(:root:not([data-theme='light']) .result-state.ok),
-    :global(:root:not([data-theme='light']) .run-state.ok),
-    :global(:root:not([data-theme='light']) .badge-inline.ok) {
-      color: #7ee2a1;
-      border-color: #1f5a35;
-    }
-  }
-  :global(:root[data-theme='dark'] .badge.ok) {
-    background: #12301d;
-    border-color: #1f5a35;
-    color: #7ee2a1;
-  }
-  :global(:root[data-theme='dark'] .status.ok),
-  :global(:root[data-theme='dark'] .result-state.ok),
-  :global(:root[data-theme='dark'] .run-state.ok),
-  :global(:root[data-theme='dark'] .badge-inline.ok) {
-    color: #7ee2a1;
-    border-color: #1f5a35;
+    font-size: 0.75rem;
   }
 </style>

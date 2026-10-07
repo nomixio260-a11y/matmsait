@@ -191,6 +191,14 @@ h3 {
   color: var(--muted);
   font-size: 0.85rem;
 }
+/* 見出しとボタン（フォローする など）を横に並べる */
+.page-head .title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
 
 /* ===== パネル（カード） ===== */
 .panel {

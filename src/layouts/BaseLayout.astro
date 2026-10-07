@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import '../styles/items.css';
+import '../styles/personal.css';
 import Breadcrumbs, { type Crumb } from '../components/Breadcrumbs.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
@@ -14,7 +15,8 @@ import {
   googleSiteVerification,
 } from '../config/services.ts';
 import { analyticsEndpoint } from '../lib/analytics-config.ts';
-import { href } from '../lib/items.ts';
+import { getNotice } from '../lib/editorial.ts';
+import { builtAt, href } from '../lib/items.ts';
 
 interface Props {
   title?: string;
@@ -48,6 +50,9 @@ const sidebarProps = typeof sidebar === 'object' ? sidebar : {};
 const toJson = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
 // アクセス解析のサーバー（設定されていなければ計測しない）
 const analytics = analyticsEndpoint(analyticsUrlOverride);
+// 運営からのお知らせ（掲載期間のうちだけ。管理画面から設定する）
+const notice = getNotice();
+const noticeLink = notice?.url ? (notice.url.startsWith('/') ? href(notice.url) : notice.url) : undefined;
 ---
 
 <!doctype html>
@@ -90,9 +95,15 @@ const analytics = analyticsEndpoint(analyticsUrlOverride);
     {bingSiteVerification && <meta name="msvalidate.01" content={bingSiteVerification} />}
     {jsonLd.map((data) => <script type="application/ld+json" set:html={toJson(data)} />)}
     <script is:inline>
+      // 表示テーマと表示の設定（文字の大きさ・抜粋・既読）を、表示が始まる前に反映する（ちらつかないように）
       try {
+        var root = document.documentElement;
         var theme = localStorage.getItem('theme');
-        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+        if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
+        var display = JSON.parse(localStorage.getItem('matmsait:display') || '{}');
+        if (display.font === 'l' || display.font === 'xl') root.dataset.font = display.font;
+        if (display.excerpt === false) root.dataset.excerpt = 'off';
+        root.dataset.read = display.read === 'hide' || display.read === 'off' ? display.read : 'mark';
       } catch (e) {}
     </script>
     {
@@ -121,9 +132,50 @@ const analytics = analyticsEndpoint(analyticsUrlOverride);
       )
     }
   </head>
-  <body data-analytics={analytics || undefined}>
+  <body data-base={href('')} data-built={builtAt.toISOString()} data-analytics={analytics || undefined}>
     <a class="skip-link" href="#main">本文へスキップ</a>
     <Header current={current} />
+    {
+      notice && (
+        <aside
+          class:list={['notice-bar', { 'is-important': notice.level === 'important' }]}
+          aria-label="運営からのお知らせ"
+          data-notice={notice.id}
+          data-end={notice.end}
+        >
+          <div class="container notice-inner">
+            <span class="notice-label">{notice.level === 'important' ? '重要' : 'お知らせ'}</span>
+            <p class="notice-text">
+              {notice.text}
+              {noticeLink && (
+                <>
+                  {' '}
+                  <a href={noticeLink} {...(noticeLink.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
+                    詳しく見る
+                  </a>
+                </>
+              )}
+            </p>
+            <button type="button" class="notice-close" data-notice-close aria-label="お知らせを閉じる">
+              ×
+            </button>
+          </div>
+        </aside>
+      )
+    }
+    {
+      notice && (
+        <script is:inline>
+          // 閉じたお知らせ・掲載期間の終わったお知らせは、表示する前に隠す
+          (function () {
+            var bar = document.currentScript && document.currentScript.previousElementSibling;
+            try {
+              if (bar && (localStorage.getItem('matmsait:notice-dismissed') === JSON.stringify(bar.dataset.notice) || Date.parse(bar.dataset.end) < Date.now())) bar.hidden = true;
+            } catch (e) {}
+          })();
+        </script>
+      )
+    }
     <div class:list={['container', 'layout', { 'has-sidebar': sidebar !== false }]}>
       <main id="main" class="main">
         {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
@@ -136,6 +188,8 @@ const analytics = analyticsEndpoint(analyticsUrlOverride);
     <script>
       // あとで読む・前回の訪問以降の新着（閲覧者のブラウザにだけ保存）
       import { visitInfo } from '../scripts/reader.ts';
+      // フォロー・表示しない設定・既読・表示の設定・お知らせ（閲覧者のブラウザにだけ保存）
+      import '../scripts/personal.ts';
       import { startAnalytics } from '../scripts/analytics.ts';
 
       // ===== アクセス解析（運営者のサーバーに、見たページ・開いた記事などを送る。Cookie は使わない） =====

@@ -1,0 +1,433 @@
+/* ===== 読者向けの機能（フォロー・表示しない設定・既読・表示の設定・お知らせ・通知の操作） ===== */
+
+/* ----- 表示の設定（<html> の data-* 属性。BaseLayout の head と personal.ts が付ける） ----- */
+:root[data-font='l'] {
+  font-size: 109.375%;
+}
+:root[data-font='xl'] {
+  font-size: 121.875%;
+}
+:root[data-excerpt='off'] .item .item-excerpt {
+  display: none;
+}
+/* 読んだ記事 */
+.item-title.is-read {
+  color: var(--visited);
+}
+:root[data-read='off'] .item-title.is-read {
+  color: var(--text);
+}
+:root[data-read='off'] .item-title.is-read:visited {
+  color: var(--visited);
+}
+:root[data-read='hide'] .item.is-read {
+  display: none;
+}
+/* 表示しない設定（ミュート）の記事 */
+.item.is-muted,
+.day-group.is-muted {
+  display: none;
+}
+
+/* ----- ボタン ----- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.btn.primary:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--on-accent);
+}
+.btn.danger {
+  color: var(--hot);
+}
+.btn.danger:hover {
+  border-color: var(--hot);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.link-button {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* フォローのボタン（ジャンル・掲載元のページの見出しなど） */
+.follow-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.follow-btn:hover {
+  background: var(--accent-soft);
+}
+.follow-btn .icon-on {
+  display: none;
+}
+.follow-btn[data-on='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.follow-btn[data-on='true'] .icon-on {
+  display: inline;
+}
+.follow-btn[data-on='true'] .icon-off {
+  display: none;
+}
+
+/* ----- チップ（フォロー中・表示しないものの一覧、ジャンルの切り替え） ----- */
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0 12px;
+  white-space: nowrap;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+button.chip {
+  cursor: pointer;
+}
+button.chip:hover {
+  border-color: var(--accent);
+}
+.chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+.chip[aria-pressed='true']::after {
+  content: '✓';
+  font-weight: 800;
+}
+.chip .dot {
+  margin: 0;
+}
+/* フォロー中・表示しないものの一覧では、長いキーワードを折り返す */
+.chips .chip-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.chip-kind {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.chip-count {
+  min-width: 1.4em;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: center;
+}
+.chip-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-right: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.chip-remove:hover {
+  background: var(--hot-soft);
+  color: var(--hot);
+}
+
+/* ----- 記事ごとのメニュー（…） ----- */
+.more-btn {
+  position: relative;
+  z-index: 1;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  margin: -2px -6px -2px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.save-btn + .more-btn {
+  margin-left: -8px;
+}
+.more-btn:hover,
+.more-btn[aria-expanded='true'] {
+  background: var(--surface);
+  color: var(--accent);
+}
+.item-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 220px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(16 24 40 / 0.16);
+}
+.item-menu[hidden] {
+  display: none;
+}
+.item-menu-entry {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+.item-menu-entry:hover,
+.item-menu-entry:focus-visible {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+/* フォロー中の一覧で、当てはまった理由 */
+.follow-reason {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 0.68rem;
+  line-height: 1.6;
+}
+/* 通知から開いた記事 */
+.item.is-target {
+  animation: target-flash 2.4s ease-out;
+}
+@keyframes target-flash {
+  0%,
+  40% {
+    background: var(--accent-soft);
+  }
+  100% {
+    background: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .item.is-target {
+    animation: none;
+    background: var(--accent-soft);
+  }
+}
+
+/* ----- 画面の下に出る短い知らせ ----- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.85rem;
+  box-shadow: 0 8px 24px rgb(16 24 40 / 0.24);
+  transform: translate(-50%, 150%);
+  opacity: 0;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+  pointer-events: none;
+}
+.toast.is-shown {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.toast-action {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    transition: none;
+  }
+}
+
+/* ----- 表示しない設定で隠した記事の数 ----- */
+.mute-note {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* ----- ページの先頭に戻る ----- */
+.to-top {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-2);
+  box-shadow: 0 4px 12px rgb(16 24 40 / 0.14);
+  cursor: pointer;
+}
+.to-top:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.to-top[hidden] {
+  display: none;
+}
+
+/* ----- 運営からのお知らせ（サイトの上部） ----- */
+.notice-bar {
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+.notice-bar.is-important {
+  background: var(--hot-soft);
+}
+.notice-bar[hidden] {
+  display: none;
+}
+.notice-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.notice-label {
+  flex: none;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.8;
+}
+.notice-bar.is-important .notice-label {
+  background: var(--hot);
+  color: var(--on-hot);
+}
+.notice-text {
+  flex: 1;
+  min-width: 0;
+}
+.notice-text a {
+  color: inherit;
+  font-weight: 700;
+}
+.notice-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.notice-close:hover {
+  background: var(--surface);
+  color: var(--text);
+}

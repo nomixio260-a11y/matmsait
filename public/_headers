@@ -14,3 +14,7 @@
 # 名前に中身のハッシュが入るファイルは、長く保存してよい
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+# 通知のサービスワーカー: 更新をすぐに確かめる（ブラウザに古いものを使い続けさせない）
+/sw.js
+  Cache-Control: no-cache

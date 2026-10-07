@@ -1,9 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { categories } from '../config/site.ts';
-import { href } from '../lib/items.ts';
+import { getSources, href } from '../lib/items.ts';
 
 const categoryData = JSON.stringify(categories.map(({ slug, name, color }) => ({ slug, name, color })));
+// 掲載元のホスト名 → ID（検索結果の「表示しない設定」と記事のメニューに使う）
+const sourceHosts = JSON.stringify(Object.fromEntries(getSources().map((source) => [new URL(source.siteUrl).hostname.replace(/^www\./, ''), source.id])));
 const base = href('');
 ---
 
@@ -54,14 +56,22 @@ const base = href('');
   </section>
 
   <p id="search-status" class="search-status" aria-live="polite"></p>
+  <p id="search-follow" class="search-follow" hidden>
+    <button type="button" class="follow-btn" id="follow-query" data-on="false">
+      <span class="icon-off" aria-hidden="true">＋</span><span class="icon-on" aria-hidden="true">✓</span>
+      <span class="follow-label">フォローする</span>
+    </button>
+    <span>この言葉が見出しに入った新着を「フォロー中」にまとめます（通知でも受け取れます）</span>
+  </p>
   <div id="results-panel" class="panel" hidden>
-    <ul id="results" class="items detailed" data-base={base} data-categories={categoryData}></ul>
+    <ul id="results" class="items detailed" data-base={base} data-categories={categoryData} data-sources={sourceHosts}></ul>
   </div>
   <p id="more-wrap" class="more-wrap" hidden><button id="more" type="button">さらに表示</button></p>
 </BaseLayout>
 
 <script>
   import { highlightParts, parseQuery, rankEntries, suggestKeywords, type SearchEntry } from '../lib/search-core.ts';
+  import { moreButton as itemMenuButton, syncFollowButtons } from '../scripts/personal.ts';
 
   interface CategoryData {
     slug: string;
@@ -87,6 +97,9 @@ const base = href('');
   const categoryBySlug = new Map(
     (JSON.parse(list.dataset.categories ?? '[]') as CategoryData[]).map((c) => [c.slug, c]),
   );
+  const sourceByHost = new Map(Object.entries(JSON.parse(list.dataset.sources ?? '{}') as Record<string, string>));
+  const followWrap = document.querySelector<HTMLElement>('#search-follow')!;
+  const followButton = document.querySelector<HTMLButtonElement>('#follow-query')!;
   const dateFormat = new Intl.DateTimeFormat('ja-JP', {
     timeZone: 'Asia/Tokyo',
     month: 'numeric',
@@ -121,6 +134,15 @@ const base = href('');
 
   function renderRow(entry: SearchEntry, terms: string[]): HTMLLIElement {
     const li = el('li', 'item');
+    // 記事のメニュー（…）と「表示しない設定」に使う
+    li.dataset.id = entry.i;
+    li.dataset.at = entry.d;
+    li.dataset.cat = entry.c;
+    li.dataset.srcName = entry.s;
+    const sourceId = sourceByHost.get(entry.h);
+    if (sourceId) li.dataset.src = sourceId;
+    const categoryName = categoryBySlug.get(entry.c)?.name;
+    if (categoryName) li.dataset.catName = categoryName;
     const title = el('a', 'item-title');
     // アクセス解析で、どの記事が開かれたかを数えるための印
     title.dataset.aid = entry.i;
@@ -185,14 +207,27 @@ const base = href('');
       original.rel = 'noopener';
       meta.append(original);
     }
+    if (sourceId) meta.append(itemMenuButton());
     li.append(meta);
     return li;
+  }
+
+  /** 検索した言葉をフォローするボタン（30文字まで） */
+  function syncFollowQuery(words: string[]) {
+    const word = words.join(' ');
+    if (!word || Array.from(word).length > 30) {
+      followWrap.hidden = true;
+      return;
+    }
+    followButton.dataset.follow = JSON.stringify({ kind: 'word', value: word, label: word });
+    followWrap.hidden = false;
+    syncFollowButtons(followWrap);
   }
 
   async function showSuggestions() {
     try {
       const index = await loadIndex();
-      const keywords = suggestKeywords(index, Date.now());
+      const keywords = suggestKeywords(index, Date.now(), { minSources: 2 });
       suggestList.replaceChildren(
         ...keywords.map((keyword) => {
           const li = el('li');
@@ -221,6 +256,7 @@ const base = href('');
     const { words, terms } = parseQuery(query);
     const filtered = Boolean(fCategory.value || fPeriod.value || fSummary.checked);
     suggest.hidden = words.length > 0 || suggestList.children.length === 0;
+    if (words.length === 0) followWrap.hidden = true;
     if (words.length === 0 && !filtered) {
       list.replaceChildren();
       panel.hidden = true;
@@ -249,6 +285,7 @@ const base = href('');
     // アクセス解析に検索した言葉と件数を知らせる（よく検索される言葉・見つからなかった言葉の把握に使う）
     if (words.length > 0) document.dispatchEvent(new CustomEvent('tp:search', { detail: { q: words.join(' '), n: hits.length } }));
     status.textContent = hits.length === 0 ? `${label}: 一致する記事は見つかりませんでした。` : `${label}: ${hits.length}件`;
+    syncFollowQuery(words);
     list.replaceChildren(...hits.slice(0, shown).map((entry) => renderRow(entry, terms)));
     panel.hidden = hits.length === 0;
     moreWrap.hidden = hits.length <= shown;
@@ -304,6 +341,18 @@ const base = href('');
 </script>
 
 <style>
+  .search-follow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin: -4px 0 12px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .search-follow[hidden] {
+    display: none;
+  }
   .search-box {
     display: flex;
     gap: 8px;

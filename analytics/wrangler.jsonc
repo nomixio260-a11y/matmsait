@@ -17,6 +17,9 @@
   "vars": {
     "ALLOWED_ORIGINS": "http://localhost:4321",
     "REPOSITORY": "nomixio260-a11y/matmsait",
-    "MAX_EVENTS_PER_DAY": "40000"
+    "MAX_EVENTS_PER_DAY": "40000",
+    // 公開しているサイト（通知の送り主の連絡先。独自ドメインにしたら analytics.yml が変数 SITE_URL で上書きする）
+    "SITE_URL": "https://topiatsume.pages.dev",
+    "MAX_PUSH_SUBSCRIBERS": "20000"
   }
 }

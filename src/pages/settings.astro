@@ -1,0 +1,223 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { categories } from '../config/site.ts';
+import { getSources, href } from '../lib/items.ts';
+
+const sources = getSources()
+  .map((source) => ({ id: source.id, name: source.name, cat: source.category }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+const pageData = JSON.stringify({ categories: categories.map(({ slug, name }) => ({ slug, name })), sources });
+---
+
+<BaseLayout
+  title="表示の設定"
+  description="文字の大きさ・抜粋の表示・既読の記事の表示、表示しない掲載元やキーワード（ミュート）を設定できます。"
+  noindex
+  breadcrumbs={[{ name: '表示の設定' }]}
+>
+  <div class="page-head" data-settings-page data-page={pageData}>
+    <h1>表示の設定</h1>
+    <p>ここでの設定は、このブラウザにだけ保存されます（ほかの端末では、下の「設定を書き出す・読み込む」で移せます）。</p>
+  </div>
+
+  <div class="stack">
+    <section class="panel" aria-labelledby="display-title">
+      <div class="panel-head"><h2 id="display-title">表示</h2></div>
+      <form class="panel-body settings-form" id="display-form">
+        <fieldset class="options">
+          <legend>文字の大きさ</legend>
+          <div class="seg-options">
+            <label><input type="radio" name="font" value="m" checked /> 標準</label>
+            <label><input type="radio" name="font" value="l" /> 大きめ</label>
+            <label><input type="radio" name="font" value="xl" /> とても大きい</label>
+          </div>
+        </fieldset>
+        <fieldset class="options">
+          <legend>記事の一覧</legend>
+          <label><input type="checkbox" name="excerpt" checked /> 見出しの下に抜粋・AI要約を出す</label>
+        </fieldset>
+        <fieldset class="options">
+          <legend>読んだ記事（開いた記事）</legend>
+          <label><input type="radio" name="read" value="mark" checked /> 見出しの色を変える</label>
+          <label><input type="radio" name="read" value="hide" /> 一覧から隠す</label>
+          <label><input type="radio" name="read" value="off" /> 何もしない</label>
+        </fieldset>
+        <fieldset class="options">
+          <legend>画面の色</legend>
+          <div class="seg-options">
+            <label><input type="radio" name="theme" value="" checked /> 端末の設定に合わせる</label>
+            <label><input type="radio" name="theme" value="light" /> ライト</label>
+            <label><input type="radio" name="theme" value="dark" /> ダーク</label>
+          </div>
+        </fieldset>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="mute-title" id="mute">
+      <div class="panel-head"><h2 id="mute-title">表示しない（ミュート）</h2></div>
+      <div class="panel-body stack-sm">
+        <p class="note">
+          選んだ掲載元・キーワード・ジャンルの記事を、一覧（トップ・新着・カテゴリ・検索・フォロー中など）に出さないようにします。ジャンルは、そのジャンルのページでは表示します。記事の右下の「…」からも設定できます。
+        </p>
+        <div>
+          <h3 class="sub-title">表示しないもの</h3>
+          <ul class="chips" id="mute-chips"></ul>
+          <p class="note" id="mute-chips-empty">まだありません。</p>
+        </div>
+        <div>
+          <h3 class="sub-title">ジャンル</h3>
+          <div class="chip-row" id="mute-cats">
+            {
+              categories.map((category) => (
+                <button type="button" class="chip toggle-chip" style={`--c:${category.color}`} data-mute={category.slug} aria-pressed="false">
+                  <span class="dot" />
+                  {category.name}
+                </button>
+              ))
+            }
+          </div>
+        </div>
+        <form class="add-row" id="mute-word-form">
+          <label for="mute-word-input" class="sub-title">キーワード</label>
+          <div class="add-controls">
+            <input id="mute-word-input" type="text" maxlength="30" placeholder="例: 芸能人の名前、ネタバレ" autocomplete="off" />
+            <button type="submit" class="btn">表示しない</button>
+          </div>
+          <p class="note">見出しにその言葉が入った記事を隠します。</p>
+        </form>
+        <form class="add-row" id="mute-src-form">
+          <label for="mute-src-select" class="sub-title">掲載元</label>
+          <div class="add-controls">
+            <select id="mute-src-select">
+              <option value="">掲載元を選ぶ</option>
+              {
+                categories.map((category) => (
+                  <optgroup label={category.name}>
+                    {sources
+                      .filter((source) => source.cat === category.slug)
+                      .map((source) => (
+                        <option value={source.id}>{source.name}</option>
+                      ))}
+                  </optgroup>
+                ))
+              }
+            </select>
+            <button type="submit" class="btn">表示しない</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="data-title">
+      <div class="panel-head"><h2 id="data-title">このブラウザに保存しているもの</h2></div>
+      <div class="panel-body stack-sm">
+        <ul class="data-summary" id="data-summary" aria-live="polite"></ul>
+        <div>
+          <h3 class="sub-title">ほかの端末に移す</h3>
+          <div class="add-controls">
+            <button type="button" class="btn" id="export">設定を書き出す（ファイル）</button>
+            <button type="button" class="btn" id="import">書き出したファイルを読み込む</button>
+            <input type="file" id="import-file" accept=".json,application/json" hidden />
+          </div>
+          <p class="note">フォロー・表示しない設定・表示の設定・「あとで読む」をまとめて書き出します。通知の設定は移せないので、移した端末でオンにしてください。</p>
+        </div>
+        <div class="analytics-optout" id="analytics-optout" hidden>
+          <h3 class="sub-title">アクセス解析</h3>
+          <label class="check-line"><input type="checkbox" id="optout-check" /> このブラウザの閲覧をアクセス解析で数えない</label>
+          <p class="note">アクセス解析については<a href={href('/privacy/#analytics')}>プライバシーポリシー</a>をご覧ください。</p>
+        </div>
+        <div>
+          <h3 class="sub-title">消す</h3>
+          <div class="add-controls">
+            <button type="button" class="btn" id="clear-read">既読の記録を消す</button>
+            <button type="button" class="btn danger" id="clear-all">このサイトの設定をすべて消す</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import '../scripts/settings.ts';
+</script>
+
+<style>
+  .panel-body {
+    padding: 14px 16px;
+  }
+  .stack-sm,
+  .settings-form {
+    display: grid;
+    gap: 18px;
+  }
+  .sub-title {
+    display: block;
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-2);
+  }
+  .note {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  .note a {
+    color: var(--accent);
+  }
+  .options {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: grid;
+    gap: 6px;
+  }
+  .options legend {
+    padding: 0;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-2);
+  }
+  .options label,
+  .check-line {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+  .options input,
+  .check-line input {
+    accent-color: var(--accent);
+  }
+  .seg-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+  .add-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .add-controls input[type='text'],
+  .add-controls select {
+    flex: 1 1 220px;
+    min-width: 0;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.9rem;
+  }
+  .data-summary {
+    margin: 0;
+    padding-left: 1.2em;
+    font-size: 0.875rem;
+    color: var(--text-2);
+  }
+</style>

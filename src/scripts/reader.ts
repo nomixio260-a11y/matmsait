@@ -56,9 +56,13 @@ const isSavedItem = (value: unknown): value is SavedItem =>
   typeof (value as SavedItem).url === 'string' &&
   /^(https?:\/\/|\/)/.test((value as SavedItem).url);
 
-export function loadSaved(): SavedItem[] {
-  const list = readJson<unknown>(SAVED_KEY, []);
+/** 形の正しい「あとで読む」だけを残す（設定のファイルを読み込むときにも使う） */
+export function cleanSavedList(list: unknown): SavedItem[] {
   return Array.isArray(list) ? list.filter(isSavedItem) : [];
+}
+
+export function loadSaved(): SavedItem[] {
+  return cleanSavedList(readJson<unknown>(SAVED_KEY, []));
 }
 
 export function storeSaved(list: SavedItem[]): void {
@@ -110,30 +114,43 @@ export function recordVisit(now: number): number | undefined {
   return previous;
 }
 
-function setupSaveButtons(): void {
-  const saved = new Set(loadSaved().map((item) => item.id));
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-save]')) {
-    let data: Omit<SavedItem, 'savedAt'>;
-    try {
-      data = JSON.parse(button.dataset.save ?? '') as Omit<SavedItem, 'savedAt'>;
-    } catch {
-      continue;
-    }
-    const sync = (on: boolean) => {
-      button.setAttribute('aria-pressed', String(on));
-      button.setAttribute('aria-label', on ? 'あとで読むから外す' : 'あとで読む');
-      button.title = on ? 'あとで読むから外す' : 'あとで読む';
-    };
-    sync(saved.has(data.id));
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const on = toggleSaved(data);
-      sync(on);
-      // アクセス解析に「あとで読む」に保存したことを知らせる（外したときは知らせない）
-      if (on) button.dispatchEvent(new CustomEvent('tp:save', { bubbles: true, detail: { id: data.id } }));
-    });
+function parseSaveData(button: HTMLButtonElement): Omit<SavedItem, 'savedAt'> | undefined {
+  try {
+    return JSON.parse(button.dataset.save ?? '') as Omit<SavedItem, 'savedAt'>;
+  } catch {
+    return undefined;
   }
+}
+
+function syncSaveButton(button: HTMLButtonElement, on: boolean): void {
+  button.setAttribute('aria-pressed', String(on));
+  button.setAttribute('aria-label', on ? 'あとで読むから外す' : 'あとで読む');
+  button.title = on ? 'あとで読むから外す' : 'あとで読む';
+}
+
+/** 「あとで読む」のボタンの表示を、保存した記事に合わせる（後から加えた一覧のボタンにも使う） */
+export function syncSaveButtons(root: ParentNode = document): void {
+  const saved = new Set(loadSaved().map((item) => item.id));
+  for (const button of root.querySelectorAll<HTMLButtonElement>('[data-save]')) {
+    const data = parseSaveData(button);
+    if (data) syncSaveButton(button, saved.has(data.id));
+  }
+}
+
+function setupSaveButtons(): void {
+  // 後から加わる一覧（フォロー中のページなど）のボタンも扱えるよう、ページ全体で受ける
+  document.addEventListener('click', (event) => {
+    const button = (event.target as Element | null)?.closest?.<HTMLButtonElement>('[data-save]');
+    const data = button && parseSaveData(button);
+    if (!button || !data) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const on = toggleSaved(data);
+    syncSaveButton(button, on);
+    // アクセス解析に「あとで読む」に保存したことを知らせる（外したときは知らせない）
+    if (on) button.dispatchEvent(new CustomEvent('tp:save', { bubbles: true, detail: { id: data.id } }));
+  });
+  syncSaveButtons();
   syncSavedCount();
 }
 

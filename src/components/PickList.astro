@@ -1,0 +1,106 @@
+---
+import type { EditorPick } from '../lib/editorial-core.ts';
+import { faviconUrl, formatDateTime, getCategory, href, siteOf } from '../lib/items.ts';
+import { getSummary, summaryPath } from '../lib/summaries.ts';
+import type { Item } from '../lib/types.ts';
+
+interface Props {
+  picks: (EditorPick & { item: Item })[];
+}
+const { picks } = Astro.props;
+---
+
+<ul class="picks">
+  {
+    picks.map(({ item, comment }) => {
+      const site = siteOf(item);
+      const category = getCategory(item.category);
+      const summary = getSummary(item.id);
+      const link = summary ? href(summaryPath(item.id)) : item.url;
+      return (
+        <li class="pick" data-id={item.id}>
+          <a
+            class="item-title"
+            href={link}
+            data-aid={item.id}
+            data-src={item.sourceId}
+            data-cat={item.category}
+            {...(summary ? {} : { target: '_blank', rel: 'noopener' })}
+          >
+            {item.title}
+          </a>
+          {comment && (
+            <p class="pick-comment">
+              <span class="pick-label">編集部のひとこと</span>
+              {comment}
+            </p>
+          )}
+          <div class="item-meta">
+            <span class="item-site">
+              <img src={faviconUrl(site.host)} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+              {site.label}
+            </span>
+            {category && (
+              <span class="item-cat">
+                <span class="dot" style={`--c:${category.color}`} />
+                {category.name}
+              </span>
+            )}
+            <time datetime={item.publishedAt}>{formatDateTime(item.publishedAt)}</time>
+            {summary && <span class="ai-badge">AI要約</span>}
+          </div>
+        </li>
+      );
+    })
+  }
+</ul>
+
+<style>
+  .picks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .pick {
+    position: relative;
+    padding: 12px 16px;
+  }
+  .pick + .pick {
+    border-top: 1px solid var(--border);
+  }
+  .pick:hover {
+    background: var(--surface-2);
+  }
+  .pick .item-title {
+    display: block;
+    color: var(--text);
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-decoration: none;
+  }
+  .pick .item-title::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .pick:hover .item-title {
+    color: var(--accent);
+  }
+  .pick-comment {
+    margin: 6px 0 0;
+    padding: 6px 10px;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 6px 6px 0;
+    color: var(--text-2);
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+  .pick-label {
+    display: block;
+    color: var(--accent-strong);
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+</style>

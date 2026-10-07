@@ -201,6 +201,23 @@ const STOP_WORDS = new Set(
     '写真',
     '一覧',
     '解説',
+    '万円',
+    '時代',
+    'メディア',
+    'オリジナル',
+    '理由',
+    '最大',
+    '衝撃',
+    '世界',
+    '搭載',
+    'ファン',
+    'digital',
+    '本当',
+    '令和',
+    'アクセス',
+    '選手',
+    '監督',
+    'ゲーム',
     'the',
     'and',
     'for',
@@ -213,9 +230,13 @@ const STOP_WORDS = new Set(
  * 直近の見出しによく出てくる言葉（カタカナ語・英数字の語・漢字の熟語）を、話題のキーワードとして返す。
  * 単語に区切る仕組みがないので、文字の種類で切り出す簡易な方法
  */
-export function suggestKeywords(entries: SearchEntry[], now: number, { hours = 48, limit = 12, minCount = 3 } = {}): string[] {
+export function suggestKeywords(
+  entries: Pick<SearchEntry, 't' | 'd' | 's'>[],
+  now: number,
+  { hours = 48, limit = 12, minCount = 3, minSources = 1 } = {},
+): string[] {
   const cutoff = now - hours * 60 * 60 * 1000;
-  const counts = new Map<string, { label: string; count: number }>();
+  const counts = new Map<string, { label: string; count: number; sources: Set<string> }>();
   const pattern = /[ァ-ヴー]{3,12}|[A-Za-z][A-Za-z0-9.+-]{2,15}|[一-龠々]{2,6}/g;
   for (const entry of entries) {
     if (Date.parse(entry.d) < cutoff) continue;
@@ -226,12 +247,17 @@ export function suggestKeywords(entries: SearchEntry[], now: number, { hours = 4
       if (label.length < 2 || STOP_WORDS.has(key) || /^ー/.test(label) || seen.has(key)) continue;
       seen.add(key);
       const current = counts.get(key);
-      if (current) current.count++;
-      else counts.set(key, { label, count: 1 });
+      if (current) {
+        current.count++;
+        current.sources.add(entry.s);
+      } else {
+        counts.set(key, { label, count: 1, sources: new Set([entry.s]) });
+      }
     }
   }
   return [...counts.values()]
-    .filter((entry) => entry.count >= minCount)
+    // 1つの掲載元だけの決まり文句（サイト名など）を除くため、いくつの掲載元の見出しに出たかも見る
+    .filter((entry) => entry.count >= minCount && entry.sources.size >= minSources)
     .sort((a, b) => b.count - a.count || b.label.length - a.label.length)
     .slice(0, limit)
     .map((entry) => entry.label);

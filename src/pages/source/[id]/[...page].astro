@@ -40,8 +40,19 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.da
   noindex
   breadcrumbs={[{ name: '掲載元一覧', path: '/sources/' }, { name: source.name }]}
 >
-  <div class="page-head">
-    <h1>{source.name}の最新記事{suffix}</h1>
+  <div class="page-head" data-scope-src={source.id}>
+    <div class="title-row">
+      <h1>{source.name}の最新記事{suffix}</h1>
+      <button
+        type="button"
+        class="follow-btn"
+        data-follow={JSON.stringify({ kind: 'src', value: source.id, label: source.name })}
+        data-on="false"
+      >
+        <span class="icon-off" aria-hidden="true">＋</span><span class="icon-on" aria-hidden="true">✓</span>
+        <span class="follow-label">フォローする</span>
+      </button>
+    </div>
     <p>
       {category && <a href={href(`/category/${category.slug}/`)}>{category.name}</a>}
       ・{page.total}件 ・ <a href={source.siteUrl} target="_blank" rel="noopener">公式サイトを見る</a>

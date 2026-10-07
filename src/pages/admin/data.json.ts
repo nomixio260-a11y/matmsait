@@ -8,6 +8,7 @@ import { getAllSummaries, getSummaries, getSummary } from '../../lib/summaries.t
 import { TEXT_KEYS_PATH, parseJsonList, pickKeys } from '../../lib/article-texts.ts';
 import { coverageOf, topicOf } from '../../lib/topics.ts';
 import type { Item } from '../../lib/types.ts';
+import { NOTICE_PATH, PICKS_PATH, parseNotice, parsePicks } from '../../lib/editorial-core.ts';
 
 /** 同じ話題（同じ出来事を報じた記事のまとまり）を見分けるキー。AI が開けない記事の代わりに、同じ話題の別の記事を選ぶのに使う */
 function topicKey(id: string): string | undefined {
@@ -99,7 +100,37 @@ function sourceStats() {
   }));
 }
 
-/** 管理画面用のデータ（要約待ちの記事、保存済みの要約、非表示の設定、収集元の状況） */
+function readData(path: string): string | undefined {
+  const file = resolve(process.cwd(), path);
+  return existsSync(file) ? readFileSync(file, 'utf8') : undefined;
+}
+
+const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/** 掲載中の記事・要約の数（全体と、きょう（日本時間）の分） */
+function counts() {
+  const today = dayKey.format(builtAt);
+  const items = getItems();
+  const summaries = getSummaries();
+  return {
+    items: items.length,
+    itemsToday: items.filter((item) => dayKey.format(new Date(item.publishedAt)) === today).length,
+    summaries: summaries.length,
+    summariesToday: summaries.filter((record) => dayKey.format(new Date(record.summarizedAt)) === today).length,
+    sources: getSources().length,
+  };
+}
+
+/** 保存しているピックアップ（期限が過ぎたものも含む）と、その記事の情報（管理画面の一覧用） */
+function picks() {
+  const byId = new Map<string, Item>([...getAllSummaries(), ...getAllItems()].map((item) => [item.id, item]));
+  return parsePicks(readData(PICKS_PATH)).map((pick) => {
+    const item = byId.get(pick.id);
+    return { ...pick, ...(item ? { article: article(item), summarized: Boolean(getSummary(pick.id)) } : {}) };
+  });
+}
+
+/** 管理画面用のデータ（要約待ちの記事、保存済みの要約、非表示の設定、収集元の状況、お知らせ・ピックアップ） */
 export function GET() {
   const data = {
     generatedAt: builtAt.toISOString(),
@@ -117,6 +148,10 @@ export function GET() {
         ...(record.keywords?.length ? { keywords: record.keywords } : {}),
         summarizedAt: record.summarizedAt,
       })),
+    counts: counts(),
+    // お知らせ（掲載期間の前後も含めて、保存してある内容）とピックアップ
+    notice: parseNotice(readData(NOTICE_PATH)) ?? null,
+    picks: picks(),
     blocklist: getBlocklist(),
     hidden: hiddenArticles(),
     sources: sourceStats(),

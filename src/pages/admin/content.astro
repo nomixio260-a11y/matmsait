@@ -1,0 +1,213 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { COMMENT_MAX, NOTICE_MAX, PICKS_MAX } from '../../lib/editorial-core.ts';
+import { href } from '../../lib/items.ts';
+---
+
+<AdminLayout title="ピックアップ・お知らせ" current="content">
+  <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
+  <div class="admin" data-admin data-base={href('')} data-comment-max={COMMENT_MAX} data-picks-max={PICKS_MAX} hidden>
+    <div class="intro">
+      <h1>ピックアップ・お知らせ</h1>
+      <p>保存すると GitHub に記録され、サイトの更新（2〜3分）のあとに反映されます。</p>
+      <p class="note" id="data-info" aria-live="polite">読み込んでいます…</p>
+    </div>
+
+    <section class="card" id="picks" aria-labelledby="picks-title">
+      <div class="card-head"><h2 id="picks-title">ピックアップ（編集部のおすすめ）</h2></div>
+      <div class="card-body">
+        <p class="note">
+          トップページの上のほうで、運営者のひとこと付きで記事を紹介します（{PICKS_MAX}件まで。期限が過ぎると自動で外れます）。運営者の視点のひとことは、ほかのサイトにないこのサイトだけの内容になります。
+        </p>
+        <ol class="pick-edit-list" id="pick-edit-list"></ol>
+        <p class="note" id="picks-empty">まだありません。下の「記事を探す」から追加してください。</p>
+        <h3 class="sub">記事を探す</h3>
+        <input type="search" id="pick-search" class="search-input" placeholder="見出しで探す（何も入れなければ、多くのメディアが報じた話題）" aria-label="ピックアップする記事を見出しで探す" />
+        <ul class="result-list" id="pick-results" aria-live="polite"></ul>
+        <div class="actions">
+          <button type="button" class="primary" id="save-picks" disabled>保存して公開</button>
+          <span class="note" id="picks-dirty"></span>
+        </div>
+        <p class="status" id="picks-status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="card" id="notice" aria-labelledby="notice-title">
+      <div class="card-head"><h2 id="notice-title">お知らせ（サイトの上部）</h2></div>
+      <div class="card-body">
+        <p class="note" id="notice-current" aria-live="polite"></p>
+        <form id="notice-form" class="notice-form">
+          <label class="field">
+            <span>本文（{NOTICE_MAX}文字まで）<span class="count" id="notice-count">0/{NOTICE_MAX}</span></span>
+            <textarea id="notice-text" rows="3" maxlength={NOTICE_MAX} required></textarea>
+          </label>
+          <label class="field">
+            リンク（任意。サイト内のページ（/ から始まる）か https の URL）
+            <input type="text" id="notice-url" placeholder="/summary/... や https://..." autocomplete="off" />
+          </label>
+          <fieldset class="radio-row">
+            <legend>種類</legend>
+            <label class="check"><input type="radio" name="notice-level" value="info" checked /> お知らせ</label>
+            <label class="check"><input type="radio" name="notice-level" value="important" /> 重要（赤で目立たせる）</label>
+          </fieldset>
+          <div class="controls">
+            <label class="field">掲載の開始<input type="datetime-local" id="notice-start" required /></label>
+            <label class="field">
+              掲載の期間
+              <select id="notice-days">
+                <option value="1">1日</option>
+                <option value="3">3日</option>
+                <option value="7" selected>7日</option>
+                <option value="14">14日</option>
+                <option value="30">30日</option>
+              </select>
+            </label>
+            <label class="field">掲載の終了<input type="datetime-local" id="notice-end" required /></label>
+          </div>
+          <label class="check" id="notice-push-row" hidden>
+            <input type="checkbox" id="notice-push" /> 通知でも送る（「運営からのお知らせ」を受け取る設定の読者へ。リンクがサイト内のページのときはそのページを開きます）
+          </label>
+          <div class="preview" aria-label="お知らせの見え方">
+            <span class="preview-label" id="preview-label">お知らせ</span>
+            <span id="preview-text">（本文を入れると、ここに見え方が出ます）</span>
+          </div>
+          <div class="actions">
+            <button type="submit" class="primary" id="notice-save">保存して公開</button>
+            <button type="button" class="danger" id="notice-remove" hidden>掲載をやめる</button>
+          </div>
+          <p class="status" id="notice-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </div>
+</AdminLayout>
+
+<script>
+  import '../../scripts/admin-content.ts';
+</script>
+
+<style>
+  .sub {
+    margin: 16px 0 6px;
+    font-size: 0.85rem;
+  }
+  .search-input {
+    width: 100%;
+  }
+  .pick-edit-list,
+  .result-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .pick-edit-list {
+    display: grid;
+    gap: 10px;
+  }
+  .result-list {
+    margin-top: 8px;
+    max-height: 420px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .result-list:empty {
+    display: none;
+  }
+  :global(.result-list li) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+  :global(.result-list li + li) {
+    border-top: 1px solid var(--border);
+  }
+  :global(.result-list .result-text) {
+    flex: 1;
+    min-width: 0;
+  }
+  :global(.pick-edit) {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  :global(.pick-edit.expired) {
+    opacity: 0.6;
+  }
+  :global(.pick-edit .pick-head) {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  :global(.pick-edit .pick-title) {
+    flex: 1;
+    min-width: 0;
+    color: var(--text);
+  }
+  :global(.pick-edit textarea) {
+    margin-top: 8px;
+  }
+  :global(.pick-edit .pick-controls) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-top: 6px;
+    font-size: 0.8rem;
+  }
+  .notice-form {
+    display: grid;
+    gap: 12px;
+  }
+  .notice-form .field > span {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .count {
+    font-weight: 400;
+    color: var(--muted);
+  }
+  .radio-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .radio-row legend {
+    width: 100%;
+    margin-bottom: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    font-size: 0.85rem;
+  }
+  .preview.important {
+    background: var(--hot-soft);
+  }
+  .preview-label {
+    flex: none;
+    padding: 0 8px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1.8;
+  }
+  .preview.important .preview-label {
+    background: var(--hot);
+    color: var(--on-hot);
+  }
+</style>

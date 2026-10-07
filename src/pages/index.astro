@@ -1,10 +1,12 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ItemList from '../components/ItemList.astro';
+import PickList from '../components/PickList.astro';
 import PopularList from '../components/PopularList.astro';
 import SummaryCard from '../components/SummaryCard.astro';
 import TopicList from '../components/TopicList.astro';
 import { categories, site } from '../config/site.ts';
+import { getPicks } from '../lib/editorial.ts';
 import { builtAt, formatDateTime, getItems, getItemsByCategory, getSources, href, pickVaried } from '../lib/items.ts';
 import { getPopular } from '../lib/popular.ts';
 import { clampDescription, headlineTeaser } from '../lib/seo.ts';
@@ -22,6 +24,8 @@ const sections = categories
   .map((category) => ({ category, items: pickVaried(getItemsByCategory(category.slug), 6, 2) }))
   .filter((section) => section.items.length > 0);
 const sourceCount = getSources().length;
+// 編集部のピックアップ（管理画面で選んだ記事と、運営者のひとこと）
+const picks = getPicks();
 
 const description = clampDescription(
   hot.length > 0
@@ -71,6 +75,17 @@ const jsonLd = [
       </p>
       <p class="since" data-since-banner hidden></p>
     </section>
+
+    {
+      picks.length > 0 && (
+        <section class="panel" aria-labelledby="picks-title">
+          <div class="panel-head">
+            <h2 id="picks-title">編集部のピックアップ</h2>
+          </div>
+          <PickList picks={picks} />
+        </section>
+      )
+    }
 
     {
       hot.length > 0 && (

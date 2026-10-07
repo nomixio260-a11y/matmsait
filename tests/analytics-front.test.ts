@@ -90,4 +90,34 @@ describe('アクセス解析の入口（Pages Functions の /api と Worker で�
     // Worker として直接使うとき（/api なし）
     expect((await handle(new Request('http://127.0.0.1:8787/popular'), env)).status).toBe(200);
   });
+
+  it('通知の新着の確認は、送り主の内容ではなく公開しているサイトの updates.json を渡す', async () => {
+    const { env, received } = fakeEnv();
+    const asked: string[] = [];
+    env.ASSETS = {
+      fetch: async (req: Request) => {
+        asked.push(new URL(req.url).pathname);
+        return new Response('{"builtAt":"x","items":[]}');
+      },
+    };
+    const res = await handle(request('/api/push/check', { method: 'POST', body: '{"items":"偽物"}' }), env, '/api');
+    expect(res.status).toBe(200);
+    expect(asked).toEqual(['/updates.json']);
+    expect(new URL(received[0].url).pathname).toBe('/push/check');
+    expect(await received[0].text()).toBe('{"builtAt":"x","items":[]}');
+    // サイトのファイルを読めなければ 503（Durable Object には渡さない）
+    env.ASSETS = { fetch: async () => new Response('missing', { status: 404 }) };
+    expect((await handle(request('/api/push/check', { method: 'POST' }), env, '/api')).status).toBe(503);
+    expect(received).toHaveLength(1);
+  });
+
+  it('通知の登録はサイトのページからだけ。フォローの設定が入るので少し大きめまで受け付ける', async () => {
+    const { env, received } = fakeEnv();
+    const post = (body: string, origin = SITE) => request('/api/push/subscribe', { method: 'POST', body, headers: { Origin: origin } });
+    expect((await handle(post('{}', 'https://evil.example'), env, '/api')).status).toBe(403);
+    expect((await handle(post('x'.repeat(10_000)), env, '/api')).status).toBe(200);
+    expect((await handle(post('x'.repeat(20_000)), env, '/api')).status).toBe(413);
+    expect((await handle(request('/api/push/key'), env, '/api')).headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(received.map((r) => new URL(r.url).pathname)).toEqual(['/push/subscribe', '/push/key']);
+  });
 });

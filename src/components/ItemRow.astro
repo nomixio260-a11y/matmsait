@@ -26,7 +26,15 @@ const saved = JSON.stringify({ id: item.id, title: item.title, url: link, site: 
 const rank = popularRank(item.id);
 ---
 
-<li class="item" data-id={item.id} data-at={item.publishedAt}>
+<li
+  class="item"
+  data-id={item.id}
+  data-at={item.publishedAt}
+  data-src={item.sourceId}
+  data-src-name={site.label}
+  data-cat={item.category}
+  data-cat-name={getCategory(item.category)?.name}
+>
   {
     summary ? (
       <a class="item-title" href={link} data-aid={item.id} data-src={item.sourceId} data-cat={item.category}>
@@ -90,6 +98,21 @@ const rank = popularRank(item.id);
     <button class="save-btn" type="button" data-save={saved} aria-pressed="false" aria-label="あとで読む" title="あとで読む">
       <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
+      </svg>
+    </button>
+    <button
+      class="more-btn"
+      type="button"
+      data-item-menu
+      aria-haspopup="menu"
+      aria-expanded="false"
+      aria-label="この記事のメニュー"
+      title="フォロー・表示しない・既読"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="5" cy="12" r="1.8" fill="currentColor"></circle>
+        <circle cx="12" cy="12" r="1.8" fill="currentColor"></circle>
+        <circle cx="19" cy="12" r="1.8" fill="currentColor"></circle>
       </svg>
     </button>
   </div>

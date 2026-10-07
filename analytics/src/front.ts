@@ -8,6 +8,15 @@
  * - GET  /admin/live       いま見ている人・最近の動き（運営者だけ）
  * - GET  /admin/stats      期間の集計（運営者だけ）
  * - GET  /admin/articles   記事ごとの人数（管理画面の「よく読まれている順」用。運営者だけ）
+ * - GET  /push/key         通知の購読に使う公開鍵（公開）
+ * - POST /push/subscribe   通知の購読・設定の変更（フォローしているジャンル・掲載元・キーワードと受け取り方）
+ * - POST /push/unsubscribe 通知をやめる
+ * - POST /push/status      このブラウザの購読が登録されているか
+ * - POST /push/test        テストの通知を送る
+ * - POST /push/check       公開したサイトの updates.json を読み、新着を通知する（公開のワークフローが呼ぶ。
+ *                          中身は送り主から受け取らず、公開しているサイトのファイルを読む）
+ * - GET  /admin/push       通知の購読の数・送った記録（運営者だけ）
+ * - POST /admin/push/send  運営からのお知らせを通知で送る（運営者だけ）
  */
 import { parseOrigins } from './core.ts';
 
@@ -21,16 +30,57 @@ export interface FrontEnv {
   ANALYTICS: AnalyticsNamespace;
   /** サイトのほかに受け付けるオリジン（カンマ区切り。手元で試すときの http://localhost:4321 など） */
   ALLOWED_ORIGINS?: string;
+  /** Pages の Functions で、公開しているサイトのファイルを読む（updates.json） */
+  ASSETS?: { fetch(request: Request): Promise<Response> };
+  /** Worker を直接使うときに updates.json を読むサイトの URL */
+  SITE_URL?: string;
 }
 
-const ROUTES: Record<string, { method: 'GET' | 'POST'; site: boolean }> = {
+interface Route {
+  method: 'GET' | 'POST';
+  /** サイト（と許可したオリジン）のページからだけ受け付ける */
+  site: boolean;
+  /** 受け付ける内容の大きさ（POST） */
+  maxBody?: number;
+}
+
+const ROUTES: Record<string, Route> = {
   '/collect': { method: 'POST', site: true },
   '/popular': { method: 'GET', site: false },
   '/admin/live': { method: 'GET', site: true },
   '/admin/stats': { method: 'GET', site: true },
   '/admin/articles': { method: 'GET', site: true },
+  '/push/key': { method: 'GET', site: false },
+  // フォローの設定（ジャンル・掲載元・キーワード）を含むので少し大きめ
+  '/push/subscribe': { method: 'POST', site: true, maxBody: 16_384 },
+  '/push/unsubscribe': { method: 'POST', site: true },
+  '/push/status': { method: 'POST', site: true },
+  '/push/test': { method: 'POST', site: true },
+  // 公開のワークフロー（GitHub Actions）から呼ぶ。送り主の内容は使わないので、どこからでも受け付ける
+  '/push/check': { method: 'POST', site: false },
+  '/admin/push': { method: 'GET', site: true },
+  '/admin/push/send': { method: 'POST', site: true },
 };
 const MAX_BODY = 4096;
+
+/**
+ * 公開しているサイトの updates.json（新着の通知の材料）。Pages の Functions では同じデプロイのファイルを、
+ * Worker を直接使うときは SITE_URL のサイトから読む。読めなければ undefined
+ */
+async function updatesFile(env: FrontEnv, url: URL): Promise<string | undefined> {
+  try {
+    const response = env.ASSETS
+      ? await env.ASSETS.fetch(new Request(new URL('/updates.json', url.origin)))
+      : env.SITE_URL
+        ? await fetch(`${env.SITE_URL.replace(/\/+$/, '')}/updates.json`, { headers: { 'Cache-Control': 'no-cache' } })
+        : undefined;
+    if (!response?.ok) return undefined;
+    return await response.text();
+  } catch (error) {
+    console.error(error);
+    return undefined;
+  }
+}
 
 /**
  * 送り元のオリジン。同じドメインのページからの GET には Origin が付かないので、
@@ -78,9 +128,17 @@ export async function handle(request: Request, env: FrontEnv, prefix = ''): Prom
   if (route.site && !allowed) return new Response('Forbidden', { status: 403, headers: cors });
 
   let body: string | undefined;
-  if (request.method === 'POST') {
+  if (path === '/push/check') {
+    body = await updatesFile(env, url);
+    if (body === undefined) {
+      return new Response(JSON.stringify({ error: 'updates.json を読めませんでした' }), {
+        status: 503,
+        headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8' },
+      });
+    }
+  } else if (request.method === 'POST') {
     body = await request.text();
-    if (body.length > MAX_BODY) return new Response('Payload too large', { status: 413, headers: cors });
+    if (body.length > (route.maxBody ?? MAX_BODY)) return new Response('Payload too large', { status: 413, headers: cors });
   }
   // Durable Object へは、必要な情報だけを決まった名前で渡す（IP は訪問者番号を作るのに使うだけで保存しない）
   const cf = (request as Request & { cf?: { country?: unknown } }).cf;

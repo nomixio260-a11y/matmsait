@@ -61,7 +61,9 @@ export function pageKind(path: string): { kind: string; cat?: string; src?: stri
     case 'daily':
     case 'search':
     case 'saved':
+    case 'following':
       return { kind: first };
+    case 'settings':
     case 'about':
     case 'privacy':
     case 'contact':

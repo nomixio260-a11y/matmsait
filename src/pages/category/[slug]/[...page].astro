@@ -52,11 +52,22 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: page.da
   breadcrumbs={[{ name: category.name }]}
   sidebar={{ category: category.slug }}
 >
-  <div class="page-head">
-    <h1>
-      <span class="dot" style={`--c:${category.color}`}></span>
-      {category.name}の最新ニュース{suffix}
-    </h1>
+  <div class="page-head" data-scope-cat={category.slug}>
+    <div class="title-row">
+      <h1>
+        <span class="dot" style={`--c:${category.color}`}></span>
+        {category.name}の最新ニュース{suffix}
+      </h1>
+      <button
+        type="button"
+        class="follow-btn"
+        data-follow={JSON.stringify({ kind: 'cat', value: category.slug, label: category.name })}
+        data-on="false"
+      >
+        <span class="icon-off" aria-hidden="true">＋</span><span class="icon-on" aria-hidden="true">✓</span>
+        <span class="follow-label">フォローする</span>
+      </button>
+    </div>
     <p>
       {category.description}（{page.total}件）・<a href={href(`/category/${category.slug}/rss.xml`)}>RSS</a>
     </p>

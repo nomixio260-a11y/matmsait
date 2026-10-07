@@ -33,19 +33,20 @@
 
 | 項目 | 場所 |
 | --- | --- |
-| サイト | **https://topiatsume.pages.dev/**（Cloudflare Pages。2026-10-07 に移転）。以前の https://nomixio260-a11y.github.io/matmsait/ は、GitHub の Secrets が登録されると新しい URL への転送ページになる（それまでは今までどおりのサイト） |
-| 管理画面 | https://topiatsume.pages.dev/admin/ （ログインが必要。ログインページは `/admin/login/`。検索エンジンには非公開。ログインの保存は URL ごとなので、新しい URL では初回設定がもう一度必要） |
-| アクセス解析 | サイトと同じドメインの `/api`（Pages の Functions）→ Worker `topiatsume-analytics` の Durable Object（Cloudflare、`workers.dev` では公開しない） |
+| サイト | **https://topiatsume.pages.dev/**（Cloudflare Pages。2026-10-07 に移転し、同日から毎時の更新もここに公開）。以前の https://nomixio260-a11y.github.io/matmsait/ は新しい URL の同じページへの転送ページ |
+| 管理画面 | https://topiatsume.pages.dev/admin/ （ログインが必要。ログインページは `/admin/login/`。検索エンジンには非公開）。ページは「概要」（`/admin/`）・「AI要約・記事」（`/admin/summaries/`）・「ピックアップ・お知らせ」（`/admin/content/`）・「通知」（`/admin/notify/`）・「アクセス解析」（`/admin/analytics/`） |
+| アクセス解析・通知 | サイトと同じドメインの `/api`（Pages の Functions）→ Worker `topiatsume-analytics` の Durable Object（Cloudflare、`workers.dev` では公開しない）。通知（プッシュ通知）の購読と送信も同じ Durable Object |
 | リポジトリ | `nomixio260-a11y/matmsait`（公開。開発・テスト・毎時の収集とビルドはここと GitHub Actions） |
 | 既定ブランチ | `ccr-28054993-x9r1qj`（このブランチへの push で公開される） |
 | 公開方法 | GitHub Actions（`.github/workflows/update.yml`）→ Cloudflare Pages（`wrangler pages deploy`。Secrets がなければ GitHub Pages）。アクセス解析の Worker は `analytics.yml` |
 
 ### 自動で動いているもの
 
-- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「今すぐ更新」/ Actions の Run workflow）で、テスト → 公開先の確認（Cloudflare の Secrets があれば Cloudflare Pages、なければ GitHub Pages）→ フィード取得 → 本文の自動取得 → よく読まれている記事の取得 → データをコミット → ビルド → Cloudflare Pages へ公開（＋GitHub Pages を転送ページに）→ IndexNow・WebSub へ通知 → SNS 投稿（設定時のみ）。**GitHub の Secrets が未登録の間は、毎時の更新は GitHub Pages に公開され、pages.dev は 2026-10-07 に手で公開した内容のまま**（「未解決の課題」1）。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
+- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「概要」の「今すぐ更新」/ Actions の Run workflow）で、テスト → 公開先の確認（Cloudflare の Secrets があれば Cloudflare Pages、なければ GitHub Pages）→ フィード取得 → 本文の自動取得 → よく読まれている記事の取得 → データをコミット → ビルド → Cloudflare Pages へ公開 → **フォロー中の新着の通知**（`POST /api/push/check`）→ GitHub Pages をページごとの転送ページに → IndexNow・WebSub へ通知 → SNS 投稿（設定時のみ）。2026-10-07 に運営者が Secrets を登録し、run #51 から pages.dev に公開されている。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
 - **自動更新タイマー**（`timer.yml`）: 前回の `update.yml` の実行から60分（変数 `UPDATE_INTERVAL_MINUTES` で変更可）たつまで待ち、`update.yml` を実行して自分自身を次に予約する。GitHub の定期実行（schedule）は一度も動かなかったため、こちらで定期更新する。公開リポジトリでだけ動く（非公開にすると自動で止まる）。
 - 収集元は `sources.yaml` の66件（ニュース・経済・テクノロジー・サイエンス・エンタメ・ゲーム・アニメ・スポーツ・乗り物・ライフの9カテゴリ）。どれも利用規約で商用サイトからの利用が禁じられていないことを確認済みで、確認結果（登録を見送ったサイトと理由も）は `docs/SOURCES.md` にある。はてなブックマーク（収集元・ブックマーク数）は商用で使えないため使っていない。
 - **本文の自動取得**（`scripts/fetch-texts.ts`、`update.yml` の「AI が開けない記事の本文を取得」）: 管理画面が `data/text-requests.json` に書いた依頼（AI が開けなかった記事）について、フィードと同じブラウザ相当の通信（ボットの名前は名乗らない）で記事のページを取得し、本文を運営者の公開鍵（`data/text-keys.json`）で暗号化して `data/texts.json` に置く。robots.txt（クローラー全般と AI のクローラーの拒否）・noai・アクセスの拒否を守り、1回15件まで。依頼がなければ何もしない。
+- **フォロー・通知**（2026-10-07 追加）: 読者がジャンル・掲載元・キーワードをフォローすると「フォロー中」（`/following/`）に新着をまとめ（ブラウザだけに保存）、通知をオンにした人には、毎時の公開のあとに Durable Object が `updates.json` のはじめて見た記事をフォローと照らし合わせてプッシュ通知を送る（1日1回の朝のまとめ・夜は送らない設定も）。いま話題のニュース（4社以上）と、管理画面からの運営のお知らせも送れる。VAPID の鍵は Durable Object が作って保存（秘密の設定は不要）。表示しない設定（ミュート）・既読・表示の設定（`/settings/`）もブラウザだけに保存。
 - **アクセス解析**（Cloudflare。2026-10-07 から pages.dev で動作中）: サイトのページが見たページ・開いた記事・検索・保存・閲覧時間などを同じドメインの `/api/collect` に送り（`src/scripts/analytics.ts`）、Pages の Functions（`functions/api/[[path]].ts`、中身は `analytics/src/front.ts`）が Worker `topiatsume-analytics` の Durable Object（SQLite）に渡して数える。管理画面の「アクセス解析」（`/admin/analytics/`）で見る。`update.yml` が毎回よく読まれている記事を `/api/popular` から `data/popular.json` に取り込む（`scripts/popular.ts`。Cloudflare に公開していないときは何もしない）。GitHub Pages で公開している間はアクセス解析なし。
 - 人気の目安は「話題度」＝同じ出来事を報じた掲載元の数（「N社が報道」）。見出しの似ている記事をまとめて数える（`src/lib/related.ts` の `clusterTopics`）。話題のニュース（トップ・「話題」ページ・サイドバー・カテゴリ）、日別まとめの並び、SNS 投稿（3社以上）、管理画面の「話題の順」に使う。アクセス解析を設定すると、読まれた人数による「よく読まれている記事」（`/popular/`・トップ・サイドバー・「人気N位」）と、管理画面の「よく読まれている順」も使える。
 - 記事は直近30日・最大12000件を `data/items.json` に保存（更新の多いサイトで上限が埋まっても、各掲載元の新しい20件は残す）。一覧ページは25ページ（1000件）まで、検索は新しい6000件まで。
@@ -58,7 +59,9 @@
 | AI 要約 | 運営者が管理画面で作成（有料の AI API は使わない）。AI が開けない記事は、運営者が本文を貼り付けて本文入りのプロンプトで依頼するか、同じ話題の別の記事に切り替える。長いプロンプトは分割・ファイルで渡せ、AI の回答はファイルでも読み込める |
 | 管理画面のログイン | 管理画面を開くとログインページに移る。トークンはパスワードで暗号化して運営者のブラウザにだけ保存（Contents と Actions の Read and write が必要）。2026-10-07 に運営者が設定し直した（パスワードを忘れたため） |
 | 本文の自動取得 | 公開済み。運営者の公開鍵は 2026-10-07 に登録済み（`data/text-keys.json`） |
-| Cloudflare（公開先・アクセス解析） | 運営者がアカウントと API トークンを作成（2026-10-07）。そのトークンで Claude が Worker `topiatsume-analytics` と Pages のプロジェクト `topiatsume` を作り、サイトを1回公開した。**GitHub の Secrets（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）は未登録**（「未解決の課題」1）。ダッシュボードで作られた Worker `matmsait`（Hello World のひな形）は使っていない |
+| Cloudflare（公開先・アクセス解析・通知） | 運営者がアカウントと API トークンを作成し、GitHub の Secrets（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）を登録済み（2026-10-07。登録後の update.yml run #51 で pages.dev への公開と GitHub Pages の転送ページを確認）。Worker `topiatsume-analytics` と Pages のプロジェクト `topiatsume` を使う。ダッシュボードで作られた Worker `matmsait`（Hello World のひな形）は使っていない |
+| 管理画面のログイン（新しい URL） | 運営者が pages.dev の管理画面で初回設定済み（2026-10-07。本文の自動取得の鍵を新しく登録した push で確認） |
+| お知らせ・ピックアップ・通知 | 機能は公開済み。お知らせ（`data/notice.json`）とピックアップ（`data/picks.json`）は、運営者が管理画面から保存すると作られる（まだない） |
 | SNS（X・Bluesky・Mastodon・Misskey） | 未設定 |
 | AdSense・Google アナリティクス・Search Console | 未設定（変数を設定すると有効になる。Google アナリティクスは上のアクセス解析と併用できる） |
 | 独自ドメイン | なし（収益化の段階で取得を推奨） |
@@ -92,9 +95,16 @@
 | `src/scripts/analytics.ts` | サイトの計測（閲覧・記事を開いた・検索・保存・閲覧時間・表示中の合図、いま見ている人数の表示、除外・Do Not Track・GPC） |
 | `src/pages/admin/analytics.astro`, `src/scripts/admin-analytics.ts`, `src/scripts/charts.ts` | 管理画面のアクセス解析（グラフは SVG で自前に描く。管理画面の CSP で外部のスクリプトを読めないため） |
 | `src/lib/analytics-config.ts`, `src/lib/popular.ts`, `scripts/popular.ts`, `src/pages/popular.astro`, `src/components/PopularList.astro` | アクセス解析の接続先、よく読まれている記事（取り込み・ページ・一覧・「人気N位」の印） |
-| `data/popular.json` | よく読まれている記事（Cloudflare に公開している自動更新が書く。まだない） |
+| `data/popular.json` | よく読まれている記事（Cloudflare に公開している自動更新が書く） |
+| `src/lib/follow-core.ts`, `src/pages/updates.json.ts` | フォロー・ミュートの照合（ブラウザと通知のサーバーで共通）と、直近の新着・話題のファイル（フォロー中のページ・ヘッダーの数・通知の材料） |
+| `src/scripts/personal.ts`, `src/scripts/personal-store.ts`, `src/styles/personal.css` | 読者向けの機能（既読・ミュート・フォローのボタン・記事のメニュー（…）・ヘッダーの新着の数・お知らせを閉じる・先頭に戻る）と、ブラウザへの保存 |
+| `src/pages/following.astro`, `src/scripts/following.ts`, `src/pages/settings.astro`, `src/scripts/settings.ts` | 「フォロー中」（新着の一覧・フォローの追加・通知の設定）と「表示の設定」（表示・ミュート・書き出しと読み込み・アクセス解析で数えない） |
+| `src/scripts/push-client.ts`, `public/sw.js`, `public/badge-96.png` | ブラウザの通知の登録（サービスワーカー・購読・設定の送信・テスト）と、通知の表示 |
+| `analytics/src/push.ts`, `analytics/src/webpush.ts` | 通知のサーバー（購読の保存・新着の確認・40件ずつの送信・お知らせ・集計）と、Web Push の暗号化（RFC 8291）・VAPID（RFC 8292） |
+| `src/lib/editorial-core.ts`, `src/lib/editorial.ts`, `src/components/PickList.astro` | お知らせ（`data/notice.json`）とピックアップ（`data/picks.json`）の形・読み込み・トップページの表示 |
+| `src/pages/admin/index.astro`（概要）, `summaries.astro`（AI要約・記事）, `content.astro`, `notify.astro`, `src/scripts/admin-dashboard.ts`, `admin-content.ts`, `admin-notify.ts`, `admin-shared.ts`, `src/styles/admin.css` | 管理画面の各ページと共通の処理・見た目（AI要約・記事のページの処理は今までどおり `src/scripts/admin.ts`） |
 | `src/lib/admin-auth.ts`, `src/scripts/admin-login.ts`, `src/scripts/admin-common.ts`, `src/pages/admin/login.astro` | 管理画面のログイン（トークンの暗号化・ログイン中の状態・自動ログアウト・続けて間違えたときの制限・枠の中での表示の禁止） |
-| `src/pages/admin/`, `src/scripts/admin.ts`, `src/layouts/AdminLayout.astro` | 管理画面（AdminLayout で接続先を制限する CSP を指定） |
+| `src/pages/admin/`, `src/scripts/admin.ts`, `src/layouts/AdminLayout.astro` | 管理画面（AdminLayout でページの切り替えと、接続先を制限する CSP を指定） |
 | `data/items.json` | 収集した記事（1行1記事） |
 | `data/summaries/YYYY-MM.json` | AI 要約（記事の公開月ごと） |
 | `data/daily/YYYY-MM-DD.json` | 日別まとめ |
@@ -108,33 +118,69 @@
 npm test          # ユニットテスト（vitest）
 npm run check     # 型チェック（.astro を含む）
 SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npm run build
-npx astro preview # ビルド結果の確認（Astro 7 の preview は常駐するので、止めるときは npx astro preview stop）
+SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npx astro preview # ビルド結果の確認（ビルドと同じ環境変数が要る。Astro 7 の preview は常駐するので、止めるときは npx astro preview stop）
 ```
 
 - 管理画面の動作（ログインを含む）は、Playwright で GitHub API をモックして確かめている（実際の GitHub には書き込まない）。ログインの確認には、Playwright の時計の早送り（`clock.fastForward`）で自動ログアウトや待ち時間を再現する。
 - Cloudflare での公開と同じ組み合わせは、`cd analytics && npm install && npx wrangler dev --var GITHUB_API:<GitHub API のまね>` で解析の Worker を動かし、`SITE_URL=https://topiatsume.pages.dev BASE_PATH=/ PUBLIC_ANALYTICS_URL=/api npm run build` でビルドしてから、ルートで `analytics/node_modules/.bin/wrangler pages dev --port 8788` を動かして確かめる（http://127.0.0.1:8788。`dist`＋`/api`＋Durable Object。`npx tsc --noEmit`（analytics/）で Worker と Functions の型チェック）。Worker だけなら `PUBLIC_ANALYTICS_URL=http://127.0.0.1:8787` でビルドする。集計とデータの保存の中身は `tests/analytics.test.ts`（node:sqlite で SQL も実行）で確かめている。Playwright で数えさせるときは `navigator.webdriver` を false にする（自動操作のブラウザは数えないため）。
-- テストのために `data/` に作ったファイル（要約・非表示の設定など）は**コミットしない**。
+- 通知は、`wrangler dev` に `--var PUSH_TEST_HOSTS:127.0.0.1:9999 --var SITE_URL:http://127.0.0.1:8788` を付けると、偽の届け先（127.0.0.1:9999 で受け取りを記録する小さなサーバー）へ送れる。Playwright で `PushManager.prototype.subscribe` を偽の購読（鍵はテスト側で作る）に差し替え、届いた通知をテスト側で復号して中身を確かめる。サービスワーカーの通知の表示は、フル版の Chromium（`chromium.launch({ channel: 'chromium' })`。ヘッドレス専用版は通知を出せない）と CDP の `ServiceWorker.deliverPushMessage` で確かめる。暗号化は `tests/webpush.test.ts` が RFC 8291 の例と比べている。
+- テストのために `data/` に作ったファイル（要約・非表示の設定・お知らせ・ピックアップなど）は**コミットしない**。
 
 ---
 
 ## 未解決の課題・次にやること
 
-1. **運営者の作業: GitHub の Secrets を登録して、毎時の更新を Cloudflare に公開する。** チャットに貼られた Cloudflare の API トークン（と、それから作られた R2 のアクセスキー）は漏えい扱いにする: Cloudflare のダッシュボード（My Profile → API Tokens）でそのトークンを作り直し（Roll）、新しい値を GitHub の Secrets の `CLOUDFLARE_API_TOKEN` に、Account ID を `CLOUDFLARE_ACCOUNT_ID` に登録する（権限は Workers と Pages の編集。テンプレート「Edit Cloudflare Workers」）。登録すると、次の更新から pages.dev に公開され、GitHub Pages は転送ページになる。**登録したら確かめること**: update.yml の「公開先を決める」で `公開先: https://topiatsume.pages.dev`、「Cloudflare Pages に公開」の成功、pages.dev の最終更新の時刻、以前の URL が新しい URL に移ること、次の更新で `data/popular.json` ができること。あわせて、新しい URL の管理画面で初回設定（トークンとパスワード）をする（ログインの保存は URL ごと）。使っていない Worker `matmsait`（ダッシュボードのひな形）は消してよい。トークンや Account ID はチャットやリポジトリに書かない。
-2. 収集元の利用条件は `docs/SOURCES.md` のとおり確認したが、最終確認は運営者が行う（規約は変わるので年1回程度見直す）。4Gamer.net と鉄道ファン（railf.jp）は「利用したら一報を」と歓迎しているので、収益化のときに連絡するとよい（任意）。
-3. 話題度（「N社が報道」）は見出しの似かたで同じ出来事をまとめているので、言い回しが大きく違う報道はまとまらないことがある（逆に別の出来事をまとめてしまう誤りは、本番のデータでは見つかっていない）。調整するときは `src/lib/related.ts` の `clusterTopics` の既定値（`minScore` など）を変え、テストと本番のデータで確かめる。
-4. 海外ニュースは、商用サイトで使えるフィードがほとんど見つからなかったため「海外」カテゴリは作っていない（BBC・CNN・AFPBB・聯合ニュースなどは NG）。使えるサイトが見つかったら `src/config/site.ts` にカテゴリを足す。
-5. SNS 自動投稿は未設定・未確認（X の署名は公式の例と一致することを確認済み）。
-6. 管理画面で編集できる要約は新しい300件まで。それより古い要約は `data/summaries/YYYY-MM.json` を直接編集する。
-7. 本文の自動取得で取得できるかはサイトしだい（アクセスを拒否するサイト・本文が動画だけのページ・JavaScript で本文を表示するページは取れない。2026-10-07 からはボットの名前を名乗らずブラウザ相当の通信で取るが、robots.txt と拒否は守り、ボット対策のすり抜けはしない）。取得できない記事は、本文を貼り付けるか同じ話題の別の記事に切り替える。取得結果で断られることが多い掲載元があれば、`summary: false` にするかを考える。
-8. AI が開けない記事の記録（どのサイトがどれだけ開けなかったか）は運営者のブラウザにだけ残る（localStorage、14日間）。別の端末では記録がない状態から始まる。どのサイトを AI が開けないかが分かってきたら、`docs/SOURCES.md` に書き残しておくとよい。
-9. 収益化の前に: 独自ドメインの取得、AdSense の審査の前に AI 要約を増やす（話題の記事を中心に。審査では独自の内容が重視される）、`ads.txt` の設置、気になる記事の非表示、`src/config/site.ts` の運営者名・問い合わせ先の確認。
-10. アクセス解析の注意: Cloudflare の無料プランは1日にリクエスト10万回・SQLite の書き込み10万行・読み込み500万行が上限（ページを見るごとに1回、表示中は1分ごとに1回送る。1日に数千人くらいまで）。記録は1日4万件まで（`MAX_EVENTS_PER_DAY`）。足りなくなったら Workers の有料プラン（月5ドル）にするか、合図の間隔（`src/scripts/analytics.ts` の `PING_INTERVAL`）を延ばす。訪問者は「IP アドレス＋ブラウザの種類＋日ごとの塩」で数えるので、携帯電話の回線（多くの人が同じ IP を使う）で同じ機種・同じブラウザの人が1人に数えられることがある。人気の順位は同じ人を1回だけ数えるが、多くの IP から送れば操作はできる（おかしな順位に気づいたら、管理画面で記事を非表示にできる）。「いまN人が閲覧中」は2人以上のときだけ出す（`data-min`）。 検索エンジンには新しい URL（pages.dev）を覚え直してもらう必要がある（以前の URL は GitHub Pages の制約で 301 ではなく転送ページ。Search Console を使うなら新しい URL で登録する）。
+1. **運営者の作業: 通知を自分の端末で確かめる。** 公開後、サイトの「フォロー中」（ヘッダーのベル）で何かをフォローして通知をオンにし、「テストの通知を送る」で届くかを確かめる（iPhone・iPad は Safari の共有ボタンから「ホーム画面に追加」して、そのアイコンから開いたときだけ使える。iOS 16.4 以降）。新着の通知は毎時の公開のあとに送る（公開後の最初の確認はそれまでの記事を記録するだけで送らないので、届き始めるのはその次の更新から）。管理画面の「通知」で登録者数と送った記録を見られる。
+2. **チャットに貼られた Cloudflare の API トークン**を作り直した（Roll）かは、こちらからは確認できなかった（確かめる操作は権限の都合で行えなかった）。Cloudflare のダッシュボード（My Profile → API Tokens）で、作り直したこと・Secrets に新しい値を登録したことを確かめる（同じトークンから作られた R2 のアクセスキーも、作り直せば無効になる）。使っていない Worker `matmsait`（ダッシュボードのひな形）は消してよい。トークンや Account ID はチャットやリポジトリに書かない。
+3. 通知の無料枠の注意: 購読は2万件まで（`analytics/wrangler.jsonc` の `MAX_PUSH_SUBSCRIBERS`）、1回の処理で外へ送れるのが50件までなので40件ずつ送り、残りは1秒ごとのアラームで続ける（登録者が数千人を超えて毎時の送信が多くなったら、Workers の有料プランを検討）。送るたびに購読ごとの書き込みはせず、届かなかったときだけ書く。通知を届ける会社の URL（Google・Mozilla・Apple・Microsoft）だけに送る。
+4. 一部の掲載元の見出しの末尾にサイト名などの決まり文句が入る（例: 「｜AERA DIGITAL」）。キーワードの候補（いま話題の言葉）は複数の掲載元に出る言葉だけにして避けたが、話題のまとめや検索にも少し影響するので、`sources.yaml` の `stripTitle` で取り除くかを検討する。
+5. 収集元の利用条件は `docs/SOURCES.md` のとおり確認したが、最終確認は運営者が行う（規約は変わるので年1回程度見直す）。4Gamer.net と鉄道ファン（railf.jp）は「利用したら一報を」と歓迎しているので、収益化のときに連絡するとよい（任意）。
+6. 話題度（「N社が報道」）は見出しの似かたで同じ出来事をまとめているので、言い回しが大きく違う報道はまとまらないことがある（逆に別の出来事をまとめてしまう誤りは、本番のデータでは見つかっていない）。調整するときは `src/lib/related.ts` の `clusterTopics` の既定値（`minScore` など）を変え、テストと本番のデータで確かめる。
+7. 海外ニュースは、商用サイトで使えるフィードがほとんど見つからなかったため「海外」カテゴリは作っていない（BBC・CNN・AFPBB・聯合ニュースなどは NG）。使えるサイトが見つかったら `src/config/site.ts` にカテゴリを足す。
+8. SNS 自動投稿は未設定・未確認（X の署名は公式の例と一致することを確認済み）。
+9. 管理画面で編集できる要約は新しい300件まで。それより古い要約は `data/summaries/YYYY-MM.json` を直接編集する。
+10. 本文の自動取得で取得できるかはサイトしだい（アクセスを拒否するサイト・本文が動画だけのページ・JavaScript で本文を表示するページは取れない。2026-10-07 からはボットの名前を名乗らずブラウザ相当の通信で取るが、robots.txt と拒否は守り、ボット対策のすり抜けはしない）。取得できない記事は、本文を貼り付けるか同じ話題の別の記事に切り替える。取得結果で断られることが多い掲載元があれば、`summary: false` にするかを考える。
+11. AI が開けない記事の記録（どのサイトがどれだけ開けなかったか）は運営者のブラウザにだけ残る（localStorage、14日間）。別の端末では記録がない状態から始まる。どのサイトを AI が開けないかが分かってきたら、`docs/SOURCES.md` に書き残しておくとよい。
+12. 収益化の前に: 独自ドメインの取得、AdSense の審査の前に AI 要約を増やす（話題の記事を中心に。審査では独自の内容が重視される）、`ads.txt` の設置、気になる記事の非表示、`src/config/site.ts` の運営者名・問い合わせ先の確認。管理画面の「ピックアップ」のひとことも、運営者の独自の内容として審査で評価されやすい。
+13. アクセス解析の注意: Cloudflare の無料プランは1日にリクエスト10万回・SQLite の書き込み10万行・読み込み500万行が上限（ページを見るごとに1回、表示中は1分ごとに1回送る。1日に数千人くらいまで）。記録は1日4万件まで（`MAX_EVENTS_PER_DAY`）。足りなくなったら Workers の有料プラン（月5ドル）にするか、合図の間隔（`src/scripts/analytics.ts` の `PING_INTERVAL`）を延ばす。訪問者は「IP アドレス＋ブラウザの種類＋日ごとの塩」で数えるので、携帯電話の回線（多くの人が同じ IP を使う）で同じ機種・同じブラウザの人が1人に数えられることがある。人気の順位は同じ人を1回だけ数えるが、多くの IP から送れば操作はできる（おかしな順位に気づいたら、管理画面で記事を非表示にできる）。「いまN人が閲覧中」は2人以上のときだけ出す（`data-min`）。 検索エンジンには新しい URL（pages.dev）を覚え直してもらう必要がある（以前の URL は GitHub Pages の制約で 301 ではなく転送ページ。2026-10-07 からページごとに正規の URL と即時の転送を入れている。Search Console を使うなら新しい URL で登録する）。
 
-（解決済み: はてなブックマークの商用利用の問題と、外した収集元・要約を禁じている掲載元の要約は、2026-10-06 に削除して解決した。管理画面のパスワードの設定し直しは、2026-10-07 に運営者が行った（本文を読むための公開鍵も登録済み）。下の記録を参照）
+（解決済み: GitHub の Secrets（Cloudflare）の登録と新しい URL の管理画面の初回設定は、2026-10-07 に運営者が行い、毎時の更新が pages.dev に公開されることを確かめた。はてなブックマークの商用利用の問題と、外した収集元・要約を禁じている掲載元の要約は、2026-10-06 に削除して解決した。管理画面のパスワードの設定し直しは、2026-10-07 に運営者が行った（本文を読むための公開鍵も登録済み）。下の記録を参照）
 
 ---
 
 ## 開発の記録（新しい順）
+
+### 2026-10-07 設定の確認・読者向けの機能（フォロー・通知・ミュート・既読・表示の設定）・管理画面の拡充（概要・ピックアップ・お知らせ・通知）
+
+- 依頼・目的: 運営者から「設定した、確認しろ」「管理画面の管理機能の充実や拡充」「使用者や読者が使いやすいように機能拡充、改善」「新しい記事や気になるジャンル等の通知機能の実装」。
+- やったこと（設定の確認）:
+  - 運営者が GitHub の Secrets（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）を登録したあとの update.yml run #51 で、「Cloudflare Pages に公開」が成功し（Functions を含む）、GitHub Pages が転送ページになったことを確認。pages.dev の最終更新がその実行の時刻（10/7 11:50）になり、`/api/popular` が動き、`data/popular.json` が作られた。以前の URL（`/matmsait/category/tech/` など）は新しい URL に移る。新しい URL の管理画面での初回設定も済んでいる（本文の自動取得の鍵の登録の push で確認）。
+  - チャットに貼られたトークンが作り直されたかを確かめようとしたが、権限の都合で確かめられなかった（「未解決の課題」2）。
+- やったこと（読者向け）:
+  - **フォロー**: ジャンル・掲載元・キーワードをフォローして、新着を「フォロー中」（`/following/`）にまとめる。ジャンル・掲載元のページの「フォローする」、検索結果の「フォローする」、サイドバーのジャンル、記事ごとのメニュー（…）から追加。フォロー中のページは、直近36時間の新着（`updates.json`）を、当てはまった理由・前回見たあとの印つきで日付ごとに出し、フォローごとに絞り込める。ヘッダーのベルに前回見たあとの新着の数（サイトの更新ごとに1回だけ数え直す）。キーワードの候補（いま話題の言葉）は、複数の掲載元の見出しに出る言葉だけにした（サイト名などの決まり文句を除くため。検索ページの候補も同じ）。照合は `src/lib/follow-core.ts`（英数字だけのキーワードは前後が英数字でないときだけ当てはまる。「AI」が「Gmail」に当たらない）。
+  - **通知（プッシュ通知）**: フォロー中のページでオンにすると、フォローに当てはまる新着（毎時の公開のあと。1件なら見出し、複数なら件数と見出し3件）、いま話題のニュース（4社以上・同じ話題は1回だけ）、運営からのお知らせを送る。「1日1回、朝7時ごろにまとめて」「夜（23〜7時）は送らず朝にまとめる」（既定）も選べる。テストの通知・やめるもできる。iPhone・iPad はホーム画面に追加したときだけ使えると案内する。
+  - **表示しない（ミュート）**: 掲載元・キーワード・ジャンル。記事のメニューか表示の設定から。隠した件数を見出しの下に出し、一時的に表示もできる。ジャンル・掲載元のページでは、そのジャンル・掲載元は隠さない。
+  - **既読**（開いた記事の色を変える・隠す・何もしない）、**表示の設定**（`/settings/`。文字の大きさ・抜粋・既読・画面の色、ミュート、設定の書き出しと読み込み、アクセス解析で数えない、設定の消去）。表示の設定は head のスクリプトで最初から反映（ちらつかない）。
+  - そのほか: ページの先頭に戻るボタン、運営からのお知らせのバー（閉じると内容が変わるまで出ない・掲載期間が過ぎたら出さない）、トップページの「編集部のピックアップ」、「このサイトについて」に使い方、プライバシーポリシーに通知（`#push`）と、ブラウザに保存するもの。
+- やったこと（通知の仕組み）:
+  - 通知のサーバーはアクセス解析と同じ Durable Object（`analytics/src/push.ts`）。購読（届け先の URL と鍵）・フォロー・ミュート・受け取り方だけを保存し、IP やアクセス解析とは結び付けない。届け先は通知を届ける会社（Google・Mozilla・Apple・Microsoft）の URL だけに限る。登録・変更は1人1時間30回まで、購読は2万件まで。同じ URL の登録は同じ鍵でしか変えられない。
+  - 公開のワークフローが公開後に `POST /api/push/check` を呼ぶと、Pages の Functions が公開したサイトの `updates.json` を読んで（呼んだ側の内容は使わない）Durable Object に渡す。はじめて見た記事（72時間覚える）と、あらたに話題になった出来事（7日覚える）だけを材料にし、同じビルドは1回だけ扱う。最初の1回は記録だけ。購読は40件ずつ処理し、残りは1秒後のアラームで続ける（無料プランの1回の処理で外へ送れる50件の上限のため。毎時の集計のアラームと同じ枠を使う）。送った結果は購読ごとには書かず、取り消された購読（404・410）は消し、失敗が続いた購読も消す。送った記録は200件まで残す。
+  - 暗号化は RFC 8291（aes128gcm）、送り主の証明は VAPID（RFC 8292。ES256）を WebCrypto で実装（`analytics/src/webpush.ts`）。VAPID の鍵は Durable Object が最初に作って保存する（秘密の値の設定は不要）。サービスワーカー（`public/sw.js`）は通知を表示し、押すとサイト内のページを開く（ほかのサイトの URL はトップに置き換える）。Android の通知の小さなアイコン（`public/badge-96.png`）はロゴから作った。
+  - 採らなかった案: 外部の通知サービス（OneSignal など）→ 読者の情報が外部に渡る・費用と依存が増えるので不採用。ワークフローから新着の内容を直接送る → 送り主を確かめる秘密の値が要るので、公開したサイトのファイルを読む方式にした。VAPID の鍵を Secrets に置く → 運営者の設定作業が増えるので不採用。
+- やったこと（管理画面）:
+  - ページを「概要」（`/admin/`。新規）・「AI要約・記事」（`/admin/summaries/`。今までの `/admin/` を移した）・「ピックアップ・お知らせ」（新規）・「通知」（新規）・「アクセス解析」に分け、上のタブで切り替える。ログインのあとは「概要」が開く。
+  - 概要: やること（更新が止まっている・直近の更新の失敗・取得できていない収集元・3日以上記事がない収集元・3社以上が報じたのに要約がない話題（同じ話題は1つに数える）・きょうの要約・お知らせとピックアップの状況・通知の確認が止まっている）、きょうの数字、サイトの更新（「今すぐ更新」・自動更新タイマー・最近の実行・接続の確認。AI要約のページから移した）、よく使う操作。
+  - ピックアップ・お知らせ: 記事を探して（何も入れなければ話題の記事を1話題1件）ピックアップに加え、ひとこと・期限・並びを決めて `data/picks.json` に保存。お知らせは本文・リンク（サイト内か https だけ）・種類・掲載期間を `data/notice.json` に保存し、通知でも送れる。
+  - 通知: 登録者数と受け取り方の内訳、よくフォローされているもの（キーワードは2人以上のものだけ）、お知らせを送る（ジャンルで絞れる・5分に1回まで・夜は注意を出す）、送った記録。
+  - 共通の見た目を `src/styles/admin.css`、共通の処理を `src/scripts/admin-shared.ts` にまとめた。AI要約のページのコード（`admin.ts`）は、更新の実行と接続の確認を外しただけで、ほかは変えていない（大きなコードを作り直す危険を避けた）。「概要」からのリンク（`#sources-card` など）で閉じた欄を開く。
+- やったこと（そのほか）: GitHub Pages の転送ページを、サイトのページごとに置くようにした（正規の URL と即時の転送。ないページだけ 404.html）。`sw.js` は毎回確かめるヘッダー。フォロー中・表示の設定のページはサイトマップに入れない。
+- 主な変更ファイル: `src/lib/follow-core.ts`・`src/pages/updates.json.ts`・`src/scripts/personal.ts`・`src/scripts/personal-store.ts`・`src/scripts/push-client.ts`・`src/scripts/following.ts`・`src/scripts/settings.ts`・`src/pages/following.astro`・`src/pages/settings.astro`・`src/styles/personal.css`・`public/sw.js`・`public/badge-96.png`（新規、読者向け）、`analytics/src/push.ts`・`analytics/src/webpush.ts`（新規、通知のサーバー）、`analytics/src/index.ts`・`analytics/src/front.ts`・`analytics/wrangler.jsonc`、`src/lib/editorial-core.ts`・`src/lib/editorial.ts`・`src/components/PickList.astro`（新規）、`src/pages/admin/index.astro`（概要に作り直し）・`summaries.astro`（移動）・`content.astro`・`notify.astro`・`src/scripts/admin-dashboard.ts`・`admin-content.ts`・`admin-notify.ts`・`admin-shared.ts`・`src/styles/admin.css`（新規）、`src/scripts/admin.ts`、`src/pages/admin/data.json.ts`、`src/layouts/BaseLayout.astro`・`AdminLayout.astro`、`src/components/Header.astro`・`ItemRow.astro`・`Sidebar.astro`・`Footer.astro`、カテゴリ・掲載元・検索・トップ・プライバシーポリシー・このサイトについてのページ、`src/lib/search-core.ts`、`src/scripts/reader.ts`・`analytics.ts`、`scripts/redirect-stub.mjs`、`.github/workflows/update.yml`・`analytics.yml`、`public/_headers`、`astro.config.mjs`、`README.md`、テスト（`tests/follow-core.test.ts`・`webpush.test.ts`・`push.test.ts`・`editorial.test.ts`・`helpers/webpush.ts` は新規、`analytics-front.test.ts`・`search-core.test.ts`）
+- 確認したこと:
+  - ユニットテスト 256件（暗号化が RFC 8291 の例と同じ結果になる・ブラウザ側の復号・VAPID の署名の検証、フォローの照合と英数字の語の区切り・ミュート、updates.json の検証、購読の確認（届け先の制限・鍵の形）、通知の中身（1件・複数・話題・夜・朝のまとめ・1日1回）、SQLite での購読の登録・変更・取り消し・同じ鍵でしか変えられない・登録の回数の制限・最初の確認は記録だけ・同じビルドは1回・40件ずつ・取り消された購読を消す・話題は1回だけ・お知らせをジャンルで絞る・集計、入口の /api/push/check が公開したサイトのファイルを渡す、お知らせとピックアップの形）、型チェック（サイト・Worker と Functions）、actionlint。暗号化は、別の実装（`http_ece` で復号・`web-push` で鍵を読む）でも確かめた（作業用のフォルダーで。リポジトリには入れていない）。
+  - 手元の Cloudflare と同じ構成（`wrangler dev` の Worker ＋ `wrangler pages dev` ＋ 偽の届け先）で、読者向けの E2E（ジャンルのページと検索からフォロー → フォロー中の一覧・理由・絞り込み・追加と削除 → 通知をオン（サービスワーカーの登録・サーバーへの登録）→ テストの通知が VAPID つき・暗号化されて届き復号できる → 新着の確認でフォローに当てはまる記事の通知が届く → サービスワーカーが通知を表示し、ほかのサイトの URL はトップに置き換える → 記事のメニューでミュート・掲載元のページでは隠さない・既読 → 表示の設定と書き出し → ヘッダーの新着の数 → 通知をやめるとサーバーからも消える）と、管理画面の E2E（ログインで概要が開く・やることと数字・今すぐ更新・接続の確認・AI要約のページの移動と欄へのリンク・ピックアップの追加と並べ替えと保存・お知らせの保存と危ないリンクを断る・通知でお知らせが届く・通知のページの集計と送る・続けては送れない・スマホの幅とダークモード）がすべて通った。
+  - 移した「AI要約・記事」のページで、以前からの E2E（本文の貼り付け・ファイルの読み込み・本文の自動取得）が通った。GitHub Pages（ベースパス /matmsait・サーバーなし）でもフォロー中のページのリンクが正しく、通知の欄は出ないことを確かめた。
+  - axe（サイトの9ページ・記事のメニュー・知らせ、管理画面の5ページ。ライト・ダーク、1280px・390px）で問題なし。横にはみ出すページなし。確認のために一時的に作ったお知らせ・ピックアップのデータは消した（コミットしていない）。
+- 残った課題・注意点: 本番の通知は、運営者の端末で確かめる（「未解決の課題」1）。公開後の最初の新着の確認は記録だけなので、通知が届き始めるのはその次の毎時の更新から。登録者が増えたときの無料枠（「未解決の課題」3）。
 
 ### 2026-10-07 公開先を Cloudflare Pages（topiatsume.pages.dev）に移し、アクセス解析を同じドメインの /api に
 

@@ -1,5 +1,5 @@
-// 管理画面（/admin/）: 要約待ちの記事を選んでプロンプトを作り、AI の回答を検証して GitHub に保存する。
-// サイトの更新（GitHub Actions の実行）もここから行う
+// 管理画面の「AI要約・記事」（/admin/summaries/）: 要約待ちの記事を選んでプロンプトを作り、AI の回答を検証して GitHub に保存する。
+// 記事の非表示・収集元の状況もここで扱う（サイトの更新の実行は「概要」（/admin/、admin-dashboard.ts））
 import {
   BLOCKLIST_PATH,
   emptyBlocklist,
@@ -8,7 +8,7 @@ import {
   serializeBlocklist,
   type Blocklist,
 } from '../lib/blocklist-core.ts';
-import { createGitHubClient, GitHubError, type Repository, type WorkflowRun } from '../lib/github-commit.ts';
+import { createGitHubClient, GitHubError, type Repository } from '../lib/github-commit.ts';
 import {
   ARTICLE_TEXT_MAX,
   PASTE_MARKER,
@@ -170,9 +170,6 @@ const base = root.dataset.base ?? '';
 
 const ui = {
   dataInfo: $('data-info'),
-  tokenBadge: $('token-badge'),
-  tokenStatus: $('token-status'),
-  repoName: $('repo-name'),
   count: $<HTMLSelectElement>('count'),
   category: $<HTMLSelectElement>('category'),
   sort: $<HTMLSelectElement>('sort'),
@@ -199,9 +196,6 @@ const ui = {
   savedList: $<HTMLUListElement>('saved-list'),
   deleteSelected: $<HTMLButtonElement>('delete-selected'),
   deleteStatus: $('delete-status'),
-  runUpdate: $<HTMLButtonElement>('run-update'),
-  runStatus: $('run-status'),
-  runList: $<HTMLUListElement>('run-list'),
   pasteCard: $<HTMLDetailsElement>('paste-card'),
   pasteCount: $('paste-count'),
   pasteList: $<HTMLUListElement>('paste-list'),
@@ -1981,137 +1975,6 @@ function setupBlocklist() {
   renderHiddenList();
 }
 
-// ===== サイトの更新（GitHub Actions のワークフローを実行） =====
-
-const WORKFLOW = 'update.yml';
-const TIMER_WORKFLOW = 'timer.yml';
-const RUN_EVENTS: Record<string, string> = {
-  schedule: '定期更新',
-  workflow_dispatch: '手動実行',
-  push: '変更の反映',
-};
-/** 自動更新タイマーが実行したもの（Actions のトークンで実行される） */
-const runLabel = (run: WorkflowRun) =>
-  run.event === 'workflow_dispatch' && run.triggering_actor?.login === 'github-actions[bot]'
-    ? '自動更新'
-    : (RUN_EVENTS[run.event] ?? run.event);
-let runsTimer: ReturnType<typeof setTimeout> | undefined;
-
-function runState(run: WorkflowRun): { text: string; kind: 'ok' | 'error' | 'active' | '' } {
-  if (run.status !== 'completed') {
-    return { text: ['queued', 'pending', 'waiting', 'requested'].includes(run.status) ? '待機中' : '実行中', kind: 'active' };
-  }
-  switch (run.conclusion) {
-    case 'success':
-      return { text: '成功', kind: 'ok' };
-    case 'cancelled':
-      return { text: 'キャンセル', kind: '' };
-    case 'skipped':
-      return { text: 'スキップ', kind: '' };
-    default:
-      return { text: '失敗', kind: 'error' };
-  }
-}
-
-async function renderRuns() {
-  clearTimeout(runsTimer);
-  if (!data || !token) {
-    ui.runList.replaceChildren(el('li', 'pick-meta', 'ログインすると表示されます。'));
-    return;
-  }
-  try {
-    const runs = await githubClient().listWorkflowRuns(WORKFLOW, 6);
-    ui.runList.replaceChildren(
-      ...runs.map((run) => {
-        const state = runState(run);
-        const link = el('a', '', '詳細');
-        link.href = run.html_url;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        const item = el('li');
-        item.append(
-          el('span', `run-state ${state.kind}`.trim(), state.text),
-          el('span', '', runLabel(run)),
-          el('span', 'pick-meta', dateFormat.format(new Date(run.created_at))),
-          link,
-        );
-        return item;
-      }),
-    );
-    if (runs.length === 0) ui.runList.append(el('li', 'pick-meta', 'まだ実行されていません。'));
-    // 実行中のものがあれば、終わるまで自動で状況を更新する
-    if (runs.some((run) => run.status !== 'completed')) runsTimer = setTimeout(renderRuns, 15_000);
-    await renderTimerStatus(runs);
-  } catch (error) {
-    ui.runList.replaceChildren(
-      el('li', 'pick-meta', `実行状況を読み込めませんでした: ${errorText(error)}`),
-    );
-  }
-}
-
-/** 自動更新タイマー（timer.yml）が動いているか、次の更新はいつごろか */
-async function renderTimerStatus(updateRuns: WorkflowRun[]) {
-  const target = $('timer-status');
-  try {
-    const timers = await githubClient().listWorkflowRuns(TIMER_WORKFLOW, 5);
-    const active = timers.some((run) => run.status !== 'completed');
-    const last = updateRuns[0] ? Date.parse(updateRuns[0].created_at) : undefined;
-    const next = last ? `（次の更新は ${dateFormat.format(new Date(last + 60 * 60 * 1000))} ごろ）` : '';
-    target.textContent = active
-      ? `自動更新: 動作中${next}`
-      : '自動更新: 停止中です。「今すぐ更新」を押すと、更新と一緒に自動更新も再開します。';
-    target.className = `timer-status ${active ? 'ok' : 'error'}`;
-  } catch {
-    // タイマーの状況が読めなくても、ほかの表示は続ける
-    target.textContent = '';
-  }
-}
-
-/** 収集とサイトの更新を今すぐ実行する */
-async function runUpdate() {
-  const button = ui.runUpdate;
-  button.disabled = true;
-  setStatus(ui.runStatus, '実行を依頼しています…');
-  try {
-    const client = githubClient();
-    const { defaultBranch } = await client.repository();
-    await client.dispatchWorkflow(WORKFLOW, defaultBranch);
-    setStatus(ui.runStatus, '更新を開始しました。2〜3分ほどでサイトに反映されます。', 'ok');
-    // 実行が一覧に現れるまで少しかかる
-    setTimeout(renderRuns, 4000);
-  } catch (error) {
-    setStatus(ui.runStatus, `実行できませんでした: ${errorText(error)}`, 'error');
-  } finally {
-    // 連打で何度も実行しないよう、少し待ってから押せるようにする
-    setTimeout(() => (button.disabled = false), 5000);
-  }
-}
-
-function setupRuns() {
-  ui.runUpdate.addEventListener('click', runUpdate);
-  $('refresh-runs').addEventListener('click', renderRuns);
-}
-
-// ===== GitHub との連携 =====
-
-function setupConnection() {
-  $('test-token').addEventListener('click', async () => {
-    setStatus(ui.tokenStatus, '確認しています…');
-    try {
-      const { defaultBranch, canPush } = await githubClient().repository();
-      if (canPush) {
-        setStatus(ui.tokenStatus, `接続できました。保存先: ${defaultBranch} ブランチ`, 'ok');
-        ui.tokenBadge.textContent = '接続OK';
-        void renderRuns();
-      } else {
-        setStatus(ui.tokenStatus, '読み取りはできますが、書き込み権限がありません（Contents の Read and write が必要です）', 'error');
-      }
-    } catch (error) {
-      setStatus(ui.tokenStatus, errorText(error), 'error');
-    }
-  });
-}
-
 // ===== よく読まれている記事（アクセス解析） =====
 
 /** 記事ごとの読まれた人数（直近7日）を読み込み、要約の候補の並びと表示に使う（選んだ記事はそのまま） */
@@ -2148,7 +2011,6 @@ async function main() {
     readOption.disabled = false;
   }
   restoreOptions();
-  setupConnection();
   setupPaste();
   try {
     const res = await fetch(`${base}/admin/data.json`, { cache: 'no-store' });
@@ -2166,11 +2028,10 @@ async function main() {
       el(
         'p',
         'stale-warning',
-        `サイトが${hours}時間以上更新されていません。定期実行が止まっている可能性があります。下の「今すぐ更新」で更新できます。`,
+        `サイトが${hours}時間以上更新されていません。定期実行が止まっている可能性があります。「概要」のページの「今すぐ更新」で更新できます。`,
       ),
     );
   }
-  ui.repoName.textContent = `${data.repository.owner}/${data.repository.repo}`;
   ui.category.append(
     ...data.categories.map((category) => {
       const option = el('option', '', category.name);
@@ -2237,10 +2098,19 @@ async function main() {
   }
   renderSavedList();
   renderSaveArea();
-  setupRuns();
   setupBlocklist();
   renderSources();
-  void renderRuns();
+  // 「概要」などからのリンク（#sources-card・#blocklist-card）で開いたときは、その欄を開いて見せる
+  openLinkedCard();
+  window.addEventListener('hashchange', openLinkedCard);
+}
+
+/** ページ内のリンク（#sources-card など）の欄が閉じていれば開いて、そこまで動かす */
+function openLinkedCard() {
+  if (!/^#[a-z-]+$/.test(location.hash)) return;
+  const target = document.querySelector(location.hash);
+  if (target instanceof HTMLDetailsElement) target.open = true;
+  target?.scrollIntoView();
 }
 
 void main();

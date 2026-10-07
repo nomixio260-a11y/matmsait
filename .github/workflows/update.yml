@@ -166,21 +166,35 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PROJECT: ${{ steps.target.outputs.project }}
           ANALYTICS_WORKER: ${{ steps.target.outputs.analytics_worker }}
+          SITE_URL: ${{ steps.target.outputs.site_url }}
         run: |
           npm ci --prefix analytics --no-audit --no-fund
           if [ "$ANALYTICS_WORKER" = 'missing' ]; then
-            (cd analytics && npx wrangler deploy --var "REPOSITORY:$GITHUB_REPOSITORY")
+            (cd analytics && npx wrangler deploy --var "REPOSITORY:$GITHUB_REPOSITORY" --var "SITE_URL:$SITE_URL")
           fi
           # dist（静的なページ）と functions/（サイトの /api）を公開する。設定はルートの wrangler.jsonc
           analytics/node_modules/.bin/wrangler pages deploy --project-name "$PROJECT" --branch main \
             --commit-hash "$(git rev-parse HEAD)" --commit-message "update $(date -u +%Y-%m-%dT%H:%MZ)" --commit-dirty=true
+
+      - name: フォロー中の新着を通知
+        # 公開したサイトの updates.json を通知のサーバー（サイトの /api の Durable Object）が読み、
+        # フォローしているジャンル・掲載元・キーワードに当てはまる新着を、通知をオンにした人に送る（失敗しても公開は続ける）
+        if: steps.target.outputs.cloudflare == 'true'
+        env:
+          SITE_URL: ${{ steps.target.outputs.site_url }}
+        run: |
+          sleep 10
+          status=$(curl -sS -o push-check.json -w '%{http_code}' -X POST "$SITE_URL/api/push/check" --max-time 60 || echo 000)
+          echo "通知の確認: HTTP $status $(cat push-check.json 2>/dev/null || true)"
+          if [ "$status" != '200' ]; then echo "::warning::フォロー中の新着の通知を確認できませんでした（HTTP $status）"; fi
+          rm -f push-check.json
 
       - name: GitHub Pages を新しい公開先への転送ページにする
         if: steps.target.outputs.cloudflare == 'true'
         env:
           SITE_URL: ${{ steps.target.outputs.site_url }}
           OLD_BASE_PATH: ${{ steps.pages.outputs.base_path }}
-        run: node scripts/redirect-stub.mjs "$SITE_URL" "$OLD_BASE_PATH" gh-pages
+        run: node scripts/redirect-stub.mjs "$SITE_URL" "$OLD_BASE_PATH" gh-pages dist
 
       - uses: actions/upload-pages-artifact@v5
         with:

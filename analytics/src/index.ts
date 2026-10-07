@@ -28,6 +28,7 @@ import {
   type StoredEvent,
 } from './core.ts';
 import { handle } from './front.ts';
+import { PushService, PushStore, type PushResponse } from './push.ts';
 import { AnalyticsStore, ROLLUP_DAYS } from './store.ts';
 
 export interface Env {
@@ -40,6 +41,12 @@ export interface Env {
   GITHUB_API?: string;
   /** 1日に保存するイベントの上限（無料枠の書き込みの上限を超えないように） */
   MAX_EVENTS_PER_DAY?: string;
+  /** 公開しているサイトの URL（通知の送り主の連絡先。この Worker を直接使うときは updates.json をここから読む） */
+  SITE_URL?: string;
+  /** 通知の試験で使う偽の届け先（host:port のカンマ区切り。手元で試すときだけ設定する） */
+  PUSH_TEST_HOSTS?: string;
+  /** 通知の購読の数の上限 */
+  MAX_PUSH_SUBSCRIBERS?: string;
 }
 
 /** いま見ている人とみなす時間（表示中のページは1分ごとに合図を送る） */
@@ -67,6 +74,20 @@ interface RecentEvent {
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+
+const pushJson = ({ status, data }: PushResponse) => json(data, status);
+
+/** 送られてきた JSON（読めなければ undefined） */
+async function readJson(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    return undefined;
+  }
+}
+
+/** 送る仕事を続けるときの、次のアラームまでの間隔 */
+const PUSH_STEP = 1_000;
 
 const toRecent = (event: StoredEvent, title: string): RecentEvent => ({
   ts: event.ts,
@@ -131,10 +152,19 @@ export class Analytics extends DurableObject<Env> {
   /** 過去の日を日ごとの集計にまとめ終えた日（毎時の処理の前に集計を見られても、昨日の分が欠けないように） */
   private rolledFor = '';
   private ready = false;
+  /** 通知（購読・新着の確認・送信） */
+  private readonly push: PushService;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.store = new AnalyticsStore(ctx.storage.sql, (fn) => ctx.storage.transactionSync(fn));
+    const transaction = <T>(fn: () => T) => ctx.storage.transactionSync(fn);
+    this.store = new AnalyticsStore(ctx.storage.sql, transaction);
+    this.push = new PushService(new PushStore(ctx.storage.sql, transaction), env);
+  }
+
+  /** 通知を送る仕事ができたら、すぐにアラームで送り始める */
+  private async startPush(now: number) {
+    if (this.push.hasJobs()) await this.ctx.storage.setAlarm(now + 50);
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -147,14 +177,39 @@ export class Analytics extends DurableObject<Env> {
           return await this.collect(request, now);
         case '/popular':
           return json(this.popular(now));
+        case '/push/key':
+          return pushJson(await this.push.publicKey());
+        case '/push/subscribe': {
+          const vid = await visitorId(this.saltFor(jstDay(now)), request.headers.get('x-ip') ?? '', request.headers.get('x-ua') ?? '');
+          return pushJson(await this.push.subscribe(await readJson(request), vid, now));
+        }
+        case '/push/unsubscribe':
+          return pushJson(await this.push.unsubscribe(await readJson(request)));
+        case '/push/status':
+          return pushJson(await this.push.status(await readJson(request)));
+        case '/push/test':
+          return pushJson(await this.push.test(await readJson(request), now));
+        case '/push/check': {
+          const result = this.push.check(await request.text(), now);
+          await this.startPush(now);
+          return pushJson(result);
+        }
         case '/admin/live':
         case '/admin/stats':
-        case '/admin/articles': {
+        case '/admin/articles':
+        case '/admin/push':
+        case '/admin/push/send': {
           if (!(await this.isAdmin(request.headers.get('authorization') ?? '', now))) {
             return json({ error: 'GitHub のトークンを確認できませんでした（サイトのリポジトリに書き込めるトークンが必要です）' }, 401);
           }
           if (url.pathname === '/admin/live') return json(this.live(now));
           if (url.pathname === '/admin/articles') return json(this.articleCounts(url, now));
+          if (url.pathname === '/admin/push') return json(this.push.stats());
+          if (url.pathname === '/admin/push/send') {
+            const result = this.push.broadcast(await readJson(request), now);
+            await this.startPush(now);
+            return pushJson(result);
+          }
           return this.statsResponse(url, now);
         }
       }
@@ -168,6 +223,14 @@ export class Analytics extends DurableObject<Env> {
   async alarm(): Promise<void> {
     const now = Date.now();
     const today = jstDay(now);
+    // 通知を送る仕事があれば少し進める（残っていれば、すぐ次のアラームで続ける）
+    let pushing = false;
+    try {
+      pushing = await this.push.processJobs(now);
+    } catch (error) {
+      console.error(error);
+      pushing = this.push.hasJobs();
+    }
     try {
       this.ensureRolled(today);
       if (this.store.getMeta('cleaned') !== today) {
@@ -179,7 +242,7 @@ export class Analytics extends DurableObject<Env> {
       console.error(error);
     }
     this.prune(now);
-    await this.ctx.storage.setAlarm(nextAlarm(now));
+    await this.ctx.storage.setAlarm(pushing ? now + PUSH_STEP : nextAlarm(now));
   }
 
   /** 起動して最初の1回だけ: 今日のイベントから、今日の集計・いま見ている人・最近の動きを作り直す */

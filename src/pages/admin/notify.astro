@@ -1,0 +1,194 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { categories } from '../../config/site.ts';
+import { getSources, href } from '../../lib/items.ts';
+
+const names = JSON.stringify({
+  categories: Object.fromEntries(categories.map((category) => [category.slug, category.name])),
+  sources: Object.fromEntries(getSources().map((source) => [source.id, source.name])),
+});
+---
+
+<AdminLayout title="通知" current="notify">
+  <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
+  <div class="admin" data-admin data-base={href('')} data-names={names} hidden>
+    <div class="intro">
+      <h1>通知</h1>
+      <p>
+        読者は「フォロー中」のページで通知をオンにすると、フォローしたジャンル・掲載元・キーワードの新着（毎時のサイトの更新のあと）、いま話題のニュース、運営からのお知らせを受け取れます。
+      </p>
+      <p class="note" id="data-info" aria-live="polite">読み込んでいます…</p>
+    </div>
+
+    <section class="card" id="setup-card" hidden>
+      <div class="card-head"><h2>通知を使うには</h2></div>
+      <div class="card-body">
+        <p class="note">通知は、サイトを Cloudflare に公開しているとき（サイトの /api があるとき）に使えます。README の「公開先（Cloudflare）」を参照してください。</p>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="summary-title" data-needs-server>
+      <div class="card-head">
+        <h2 id="summary-title">登録の状況</h2>
+        <button type="button" class="ghost small" id="refresh">更新</button>
+      </div>
+      <div class="card-body">
+        <div class="stat-grid" id="stats"></div>
+        <p class="note" id="last-check"></p>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="follows-title" data-needs-server>
+      <div class="card-head"><h2 id="follows-title">よくフォローされているもの</h2></div>
+      <div class="card-body follow-grid">
+        <div>
+          <h3 class="sub">ジャンル</h3>
+          <div id="follow-cats"></div>
+        </div>
+        <div>
+          <h3 class="sub">掲載元</h3>
+          <div id="follow-srcs"></div>
+        </div>
+        <div>
+          <h3 class="sub">キーワード</h3>
+          <div id="follow-words"></div>
+          <p class="note">キーワードは、2人以上がフォローしているものだけを出します。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="send-title" data-needs-server>
+      <div class="card-head"><h2 id="send-title">お知らせを送る</h2></div>
+      <div class="card-body">
+        <p class="note">
+          「運営からのお知らせ」を受け取る設定の読者に通知を送ります。大きなニュースの速報や、新しい機能のお知らせなどに使ってください（送りすぎると通知をやめる人が増えます。5分に1回まで）。
+        </p>
+        <form id="send-form" class="send-form">
+          <label class="field">
+            <span>タイトル（60文字まで）<span class="count" id="title-count">0/60</span></span>
+            <input type="text" id="send-title-input" maxlength="60" required autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>本文（200文字まで）<span class="count" id="body-count">0/200</span></span>
+            <textarea id="send-body" rows="3" maxlength="200"></textarea>
+          </label>
+          <div class="controls">
+            <label class="field grow">
+              開くページ（サイト内のパス。例: /summary/0123456789abcdef/ ・ /ranking/）
+              <input type="text" id="send-url" value="/" required autocomplete="off" />
+            </label>
+            <label class="field">
+              送る相手
+              <select id="send-target">
+                <option value="">お知らせを受け取る人全員</option>
+                {categories.map((category) => <option value={category.slug}>{category.name}をフォローしている人</option>)}
+              </select>
+            </label>
+          </div>
+          <div class="preview" aria-label="通知の見え方">
+            <img src={href('/icon-192.png')} alt="" width="40" height="40" />
+            <div>
+              <p class="preview-title" id="preview-title">（タイトル）</p>
+              <p class="preview-body" id="preview-body"></p>
+            </div>
+          </div>
+          <p class="note warn" id="night-warning" hidden>いまは夜です（23時〜7時）。お知らせは夜でもすぐに届きます。</p>
+          <div class="actions">
+            <button type="submit" class="primary" id="send-button">通知を送る</button>
+          </div>
+          <p class="status" id="send-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="log-title" data-needs-server>
+      <div class="card-head"><h2 id="log-title">送った記録</h2></div>
+      <div class="card-body">
+        <div class="table-wrap" tabindex="0" role="region" aria-label="送った記録の表（横にスクロールできます）">
+          <table class="result-table log-table">
+            <thead>
+              <tr><th>日時</th><th>種類</th><th>内容</th><th class="num">送った</th><th class="num">届かなかった</th><th class="num">登録を消した</th></tr>
+            </thead>
+            <tbody id="log-body"></tbody>
+          </table>
+        </div>
+        <p class="note">「登録を消した」は、読者が通知を取り消した・ブラウザのデータを消したなどで届かなくなった登録です（自動で消します）。</p>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="test-title">
+      <div class="card-head"><h2 id="test-title">自分で確かめる</h2></div>
+      <div class="card-body">
+        <p class="note">
+          サイトの<a href={href('/following/')} target="_blank" rel="noopener">「フォロー中」</a>のページで、このブラウザの通知をオンにして「テストの通知を送る」を押すと、届くかを確かめられます。
+        </p>
+      </div>
+    </section>
+  </div>
+</AdminLayout>
+
+<script>
+  import '../../scripts/admin-notify.ts';
+</script>
+
+<style>
+  .sub {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+  }
+  .follow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+  .send-form {
+    display: grid;
+    gap: 12px;
+  }
+  .send-form .field > span {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .send-form .grow {
+    flex: 1 1 260px;
+  }
+  .send-form .grow input {
+    width: 100%;
+  }
+  .count {
+    font-weight: 400;
+    color: var(--muted);
+  }
+  .preview {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    max-width: 420px;
+    padding: 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    background: var(--surface-2);
+  }
+  .log-table {
+    min-width: 560px;
+  }
+  :global(.log-table td:first-child) {
+    white-space: nowrap;
+  }
+  .preview img {
+    border-radius: 8px;
+  }
+  .preview p {
+    margin: 0;
+  }
+  .preview-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .preview-body {
+    color: var(--text-2);
+    font-size: 0.82rem;
+    white-space: pre-line;
+  }
+</style>

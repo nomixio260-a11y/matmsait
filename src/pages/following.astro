@@ -1,0 +1,265 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { categories } from '../config/site.ts';
+import { getSources, href } from '../lib/items.ts';
+
+// ジャンルと掲載元の一覧（フォローの追加と、記事の表示に使う）
+const sources = getSources()
+  .map((source) => ({ id: source.id, name: source.name, cat: source.category, host: new URL(source.siteUrl).hostname.replace(/^www\./, '') }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+const pageData = JSON.stringify({
+  categories: categories.map(({ slug, name, color }) => ({ slug, name, color })),
+  sources,
+});
+---
+
+<BaseLayout
+  title="フォロー中"
+  description="フォローしたジャンル・掲載元・キーワードの新着記事をまとめて表示します。通知を受け取ることもできます。"
+  noindex
+  current="following"
+  breadcrumbs={[{ name: 'フォロー中' }]}
+>
+  <div class="page-head" data-following-page data-page={pageData}>
+    <h1>フォロー中</h1>
+    <p>
+      気になるジャンル・掲載元・キーワードをフォローすると、新着記事をここにまとめます。通知をオンにすると、サイトを開いていないときもお知らせします。フォローの設定はこのブラウザにだけ保存されます。
+    </p>
+  </div>
+
+  <div class="stack">
+    <section class="panel" aria-labelledby="new-title" id="new-panel">
+      <div class="panel-head">
+        <h2 id="new-title">フォロー中の新着</h2>
+        <span class="new-info" id="new-info" aria-live="polite"></span>
+      </div>
+      <div class="follow-filter" id="follow-filter" role="group" aria-label="新着の絞り込み" hidden></div>
+      <p class="following-empty" id="following-empty">
+        まだ何もフォローしていません。下の「フォローを追加」で、気になるジャンル・掲載元・キーワードを選んでください。記事の右下の「…」や、各ジャンル・掲載元のページの「フォローする」からも追加できます。
+      </p>
+      <div id="following-list"></div>
+      <p class="more-wrap" id="following-more-wrap" hidden><button type="button" class="btn" id="following-more">さらに表示</button></p>
+    </section>
+
+    <section class="panel" aria-labelledby="manage-title" id="manage-panel">
+      <div class="panel-head">
+        <h2 id="manage-title">フォローを追加・やめる</h2>
+        <a class="more" href={href('/settings/')}>表示しない設定・表示の設定 →</a>
+      </div>
+      <div class="panel-body stack-sm">
+        <div>
+          <h3 class="sub-title">フォロー中</h3>
+          <ul class="chips" id="follow-chips" aria-live="polite"></ul>
+          <p class="note" id="follow-chips-empty">まだありません。</p>
+        </div>
+        <div>
+          <h3 class="sub-title">ジャンル</h3>
+          <div class="chip-row">
+            {
+              categories.map((category) => (
+                <button
+                  type="button"
+                  class="chip toggle-chip"
+                  style={`--c:${category.color}`}
+                  data-follow={JSON.stringify({ kind: 'cat', value: category.slug, label: category.name })}
+                  aria-pressed="false"
+                >
+                  <span class="dot" />
+                  {category.name}
+                </button>
+              ))
+            }
+          </div>
+        </div>
+        <form class="add-row" id="word-form">
+          <label for="word-input" class="sub-title">キーワード</label>
+          <div class="add-controls">
+            <input id="word-input" type="text" maxlength="30" placeholder="例: 生成AI、大谷翔平、地震" autocomplete="off" />
+            <button type="submit" class="btn primary">フォロー</button>
+          </div>
+          <p class="note">見出しにその言葉が入った記事が当てはまります。スペースで区切ると、すべての言葉を含む記事だけになります。</p>
+          <div class="suggest-words" id="suggest-words" hidden>
+            <span class="note">いま話題の言葉:</span>
+            <span id="suggest-word-list"></span>
+          </div>
+        </form>
+        <form class="add-row" id="src-form">
+          <label for="src-select" class="sub-title">掲載元</label>
+          <div class="add-controls">
+            <select id="src-select">
+              <option value="">掲載元を選ぶ</option>
+              {
+                categories.map((category) => (
+                  <optgroup label={category.name}>
+                    {sources
+                      .filter((source) => source.cat === category.slug)
+                      .map((source) => (
+                        <option value={source.id}>{source.name}</option>
+                      ))}
+                  </optgroup>
+                ))
+              }
+            </select>
+            <button type="submit" class="btn primary">フォロー</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="notify-title" id="notify-panel" hidden>
+      <div class="panel-head">
+        <h2 id="notify-title">通知</h2>
+      </div>
+      <div class="panel-body stack-sm">
+        <p class="notify-status" id="notify-status" aria-live="polite"></p>
+        <div class="notify-actions">
+          <button type="button" class="btn primary" id="notify-toggle">通知を受け取る</button>
+          <button type="button" class="btn" id="notify-test" hidden>テストの通知を送る</button>
+        </div>
+        <fieldset class="options" id="notify-options">
+          <legend>知らせること</legend>
+          <label><input type="checkbox" name="follow" checked /> フォローしているものの新着</label>
+          <label><input type="checkbox" name="hot" /> いま話題のニュース（4社以上が報じた出来事）</label>
+          <label><input type="checkbox" name="news" checked /> 運営からのお知らせ（大きなニュースの速報など。めったに送りません）</label>
+        </fieldset>
+        <fieldset class="options" id="notify-timing">
+          <legend>知らせるタイミング</legend>
+          <label><input type="radio" name="timing" value="now" checked /> 新着があればすぐ（多くても1時間に1回）</label>
+          <label><input type="radio" name="timing" value="daily" /> 1日1回、朝7時ごろにまとめて</label>
+          <label><input type="checkbox" name="quiet" checked /> 夜（23時〜翌朝7時）は送らない（朝にまとめて送る）</label>
+        </fieldset>
+        <p class="note">
+          通知をオンにすると、通知を届けるための情報（ブラウザの通知の宛先）と、フォロー・表示しない設定・知らせ方を運営者のサーバーに保存します（オフにすると消えます）。閲覧の記録とは結び付けません。詳しくは<a
+            href={href('/privacy/#push')}>プライバシーポリシー</a
+          >をご覧ください。
+        </p>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import '../scripts/following.ts';
+</script>
+
+<style>
+  .panel-body {
+    padding: 14px 16px;
+  }
+  .stack-sm {
+    display: grid;
+    gap: 18px;
+  }
+  .sub-title {
+    display: block;
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-2);
+  }
+  .note {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  .note a {
+    color: var(--accent);
+  }
+  .new-info {
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: right;
+  }
+  :global(.follow-filter .chip) {
+    flex: none;
+  }
+  .following-empty {
+    margin: 0;
+    padding: 18px 16px;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  .follow-filter {
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+    padding: 10px 16px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: thin;
+  }
+  .add-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .add-controls input,
+  .add-controls select {
+    flex: 1 1 220px;
+    min-width: 0;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.9rem;
+  }
+  .suggest-words {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .suggest-words #suggest-word-list {
+    display: contents;
+  }
+  .notify-status {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+  .notify-status.is-on {
+    color: var(--live);
+    font-weight: 700;
+  }
+  .notify-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .options {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: grid;
+    gap: 6px;
+  }
+  .options legend {
+    padding: 0;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-2);
+  }
+  .options label {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 0.875rem;
+  }
+  .options input {
+    margin-top: 0.3em;
+    accent-color: var(--accent);
+  }
+  .options:disabled {
+    opacity: 0.6;
+  }
+  .more-wrap {
+    margin: 0;
+    padding: 12px 16px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+  }
+</style>

@@ -93,4 +93,19 @@ describe('suggestKeywords', () => {
     expect(keywords).not.toContain('発表');
     expect(suggestKeywords([...entries.map((e) => ({ ...e, d: hoursAgo(100) }))], now)).toEqual([]);
   });
+
+  it('1つの掲載元の見出しにしか出ない言葉（サイト名などの決まり文句）は、minSources で除ける', () => {
+    const entries = [
+      { t: '新しい施策を発表｜SITEPLUS', d: hoursAgo(1), s: 'X' },
+      { t: '話題の映画の裏側｜SITEPLUS', d: hoursAgo(2), s: 'X' },
+      { t: '人気の店に行列｜SITEPLUS', d: hoursAgo(3), s: 'X' },
+      { t: 'ChatGPTに新機能', d: hoursAgo(1), s: 'A' },
+      { t: 'ChatGPTの料金が改定', d: hoursAgo(1), s: 'B' },
+      { t: 'ChatGPTで旅行の計画', d: hoursAgo(1), s: 'A' },
+    ];
+    expect(suggestKeywords(entries, now)).toContain('SITEPLUS');
+    const keywords = suggestKeywords(entries, now, { minSources: 2 });
+    expect(keywords).toContain('ChatGPT');
+    expect(keywords).not.toContain('SITEPLUS');
+  });
 });
