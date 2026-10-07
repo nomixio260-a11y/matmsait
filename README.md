@@ -1,11 +1,13 @@
 # トピあつめ（matmsait）
 
 複数サイトの RSS フィードから新着記事の **見出し・短い抜粋・元記事リンク** を集めて一覧表示する、まとめ（アンテナ）サイトです。
-GitHub Actions で 1 時間ごとに収集し、静的サイトとして GitHub Pages に公開します（サーバー費 0 円）。
+GitHub Actions で 1 時間ごとに収集・ビルドし、静的サイトとして **Cloudflare Pages**（pages.dev）に公開します（サーバー費 0 円）。
 同じ出来事を報じたメディアの数による「話題のニュース」ランキング、運営者が作る AI 要約、記事検索、あとで読む、広告枠（Google AdSense）も備えています。
-アクセス解析（訪問者数・いま見ている人数・よく読まれている記事など）は、Cloudflare Workers の無料プランで動く小さなサーバー（`analytics/`）で行います（下の「アクセス解析」）。
+アクセス解析（訪問者数・いま見ている人数・よく読まれている記事など）も、Cloudflare の無料プランで同じドメインの `/api` で動きます（下の「アクセス解析」）。
 
-公開URL: https://nomixio260-a11y.github.io/matmsait/
+公開URL: https://topiatsume.pages.dev/ （2026-10-07 に GitHub Pages から移転。以前の https://nomixio260-a11y.github.io/matmsait/ は新しい URL への転送ページになります）
+
+開発・テスト・毎時の収集とビルドは GitHub（このリポジトリと GitHub Actions）で行い、公開するサイトとアクセス解析のサーバーは Cloudflare に置きます（下の「公開先（Cloudflare）」）。
 
 > **開発を引き継ぐ方へ**: 開発の経緯・現在の状態・未解決の課題は [`docs/DEVLOG.md`](docs/DEVLOG.md)（開発記録）にまとめています。
 > 開発（コード・設定の変更）をしたら、必ず同ファイルに記録を追記してください（詳しくは下の「開発記録・引き継ぎ」）。
@@ -13,8 +15,8 @@ GitHub Actions で 1 時間ごとに収集し、静的サイトとして GitHub 
 ## 仕組み
 
 ```
-sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro でビルド ─▶ GitHub Pages
- (収集元一覧)    (取得・整形・重複排除)     (直近30日/最大12000件)   (静的HTML)
+sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro でビルド ─▶ Cloudflare Pages（pages.dev）
+ (収集元一覧)    (取得・整形・重複排除)     (直近30日/最大12000件)   (静的HTML)       ＋ /api（アクセス解析）
 ```
 
 - 記事本文・画像は転載しません。抜粋は約 120 文字で切り詰め、全文は元サイトへ誘導します。
@@ -88,7 +90,7 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 
 ### 使い方（`/admin/`）
 
-公開サイトの `/admin/`（例: https://nomixio260-a11y.github.io/matmsait/admin/ ）を開きます。
+公開サイトの `/admin/`（https://topiatsume.pages.dev/admin/ ）を開きます。
 
 1. **記事を選ぶ** — 件数（10 / 20 / 30 / 50件）・カテゴリ・並び順（話題の順＝報じたサイトが多い順 / 新しい順）を選ぶと、要約のない記事が上から選ばれます。チェックで個別に外せます。利用規約で要約を禁じている掲載元（`summary: false`）の記事は候補に出ません
 2. **プロンプトをコピー** — 「プロンプトをコピー」で丸ごとコピーし、ChatGPT や Gemini など Web ページを読めるチャット AI にそのまま貼り付けます。要約の長さ・要点（箇条書き）の有無も選べます
@@ -189,7 +191,7 @@ npm run summaries -- import 回答.json                                     # �
 
 ## アクセス解析（訪問者数・いま見ている人数・よく読まれている記事）
 
-GitHub Pages だけでは訪問の記録を受け取れないため、記録を受け取って集計する小さなサーバーを Cloudflare Workers の無料プランに置いています（`analytics/`。1つの Durable Object の SQLite に保存）。
+記録の受け取りと集計は Cloudflare の無料プランで行います。サイトと同じドメインの `/api`（Cloudflare Pages の Functions。`functions/api/[[path]].ts`）が、Worker「topiatsume-analytics」（`analytics/`）の Durable Object（SQLite）に記録を渡して数えます。Worker 自体は外から直接は呼べません（`workers.dev` で公開しない）。
 
 - **管理画面の「アクセス解析」**（`/admin/analytics/`。管理画面の上の「アクセス解析」から）
   - リアルタイム（15秒ごとに更新）: いま見ている人数、直近30分の1分ごとの閲覧数、いま見られているページ、最近の動き（閲覧・記事を開いた・検索・保存）
@@ -204,17 +206,11 @@ GitHub Pages だけでは訪問の記録を受け取れないため、記録を�
 - 検索エンジンなどのボット、「Do Not Track」「Global Privacy Control」を有効にしたブラウザ、自動操作のブラウザ、管理画面にログインしたブラウザ（自分の閲覧で数字が増えないよう自動で除外。アクセス解析のページで戻せます）は数えません。
 - 個々の記録は14日、日ごとの集計は約400日残します。送る情報・送り先・目的はプライバシーポリシー（`/privacy/#analytics`）に載せています。
 
-### 使い始める（最初に1回）
-
-1. [Cloudflare](https://dash.cloudflare.com/sign-up) に無料で登録し、ダッシュボードの「Workers & Pages」を一度開きます（`workers.dev` のサブドメインが作られます）。
-2. 「My Profile」→「API Tokens」→「Create Token」で、テンプレート「Edit Cloudflare Workers」からトークンを作ります。ダッシュボードに出る「Account ID」も控えます。
-3. GitHub の Settings → Secrets and variables → Actions → **Secrets** に `CLOUDFLARE_API_TOKEN`（トークン）と `CLOUDFLARE_ACCOUNT_ID`（Account ID）を登録します。
-4. Actions →「アクセス解析のサーバーを公開」（`.github/workflows/analytics.yml`）→ Run workflow を押します。サーバーが公開され、その URL が `data/analytics.json` に記録されて、サイトが自動で更新されます。以後、`analytics/` を変更して push すると自動で公開し直します。
+アクセス解析は、サイトを Cloudflare に公開していれば（下の「公開先（Cloudflare）」）自動で動きます。`analytics/` を変更して push すると、`.github/workflows/analytics.yml` が Worker を公開し直します。
 
 - **無料の範囲**: Cloudflare の無料プランは1日にリクエスト10万回・書き込み10万行などが上限です。ページを見るごとに1回と、表示している間は1分ごとに1回（いま見ている人数のため）送るので、1日に数千人くらいまでは無料の範囲です。記録する件数は1日4万件までにしてあり（`analytics/wrangler.jsonc` の `MAX_EVENTS_PER_DAY`）、上限を超えてもその日の残りの記録が止まるだけで、サイトの表示には影響しません。
-- サーバーは、送り元がこのサイトのページのときだけ記録を受け取ります。管理画面からの問い合わせには、ログイン中の GitHub のトークンでサイトのリポジトリに書き込めるかを GitHub に確かめてから答えます（トークンは保存しません）。
-- 独自ドメインにしたときは「アクセス解析のサーバーを公開」をもう一度実行してください（受け付けるサイトのオリジンを更新します）。サーバー自体を別の URL で動かすときは、変数 `PUBLIC_ANALYTICS_URL` にその URL を設定します。
-- 手元で試すとき: `cd analytics && npm install && npx wrangler dev --var ALLOWED_ORIGINS:http://localhost:4321` で起動し、`PUBLIC_ANALYTICS_URL=http://127.0.0.1:8787 npm run build` でサイトをビルドします（サーバーの集計の中身は `npm test` の `tests/analytics.test.ts` で確かめています）。
+- `/api` は、サイトと同じドメインのページからの記録だけを受け取ります（同じドメインなので CORS も不要）。管理画面からの問い合わせには、ログイン中の GitHub のトークンでサイトのリポジトリに書き込めるかを GitHub に確かめてから答えます（トークンは保存しません）。
+- 手元で試すとき: `cd analytics && npm install && npx wrangler dev` で解析の Worker を起動し、別の端末でサイトを `PUBLIC_ANALYTICS_URL=/api npm run build` でビルドしてから、ルートで `analytics/node_modules/.bin/wrangler pages dev` を動かすと、本番と同じ組み合わせ（`dist` ＋ `/api` ＋ Durable Object）を http://localhost:8788 で試せます。Worker だけを試すときは `PUBLIC_ANALYTICS_URL=http://127.0.0.1:8787`（入口の中身は `analytics/src/front.ts`、集計の中身は `npm test` の `tests/analytics*.test.ts` で確かめています）。
 
 ## 開発記録・引き継ぎ
 
@@ -242,14 +238,32 @@ npm run check     # 型チェック（.astro ファイルを含む）
 
 ## 公開・自動更新
 
-`.github/workflows/update.yml` が以下のタイミングで「テスト → 収集 → 本文の自動取得（管理画面からの依頼があるときだけ） → よく読まれている記事の取得（アクセス解析を使っているときだけ） → データをコミット → ビルド → GitHub Pages へ公開 → 検索エンジン・SNS へ通知」を行います。
+`.github/workflows/update.yml` が以下のタイミングで「テスト → 収集 → 本文の自動取得（管理画面からの依頼があるときだけ） → よく読まれている記事の取得 → データをコミット → ビルド → Cloudflare Pages へ公開 → 検索エンジン・SNS へ通知」を行います。
 データのコミットは、再実行や同時実行で古いコミットから始まった場合でも、ブランチの最新状態に取り込み直してから push します。
 
 - **自動更新タイマー**（`.github/workflows/timer.yml`）による約1時間ごとの実行
 - 既定ブランチへの push（管理画面から要約を保存したときも）
 - 管理画面の「今すぐ更新」ボタン、または Actions タブからの手動実行（Run workflow）
 
-GitHub Pages の設定（Settings → Pages → Source）は **GitHub Actions** にしてください。
+### 公開先（Cloudflare）
+
+リポジトリの Secrets に `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` があると、`update.yml` は次のように公開します。
+
+1. Cloudflare Pages のプロジェクト `topiatsume`（ルートの `wrangler.jsonc`）がなければ作り、公開先の URL（`https://topiatsume.pages.dev`）を調べる。アクセス解析の Worker（`analytics/`）がまだなければ先に公開する
+2. その URL 用にサイトをビルドし（`BASE_PATH=/`、アクセス解析は `/api`）、`wrangler pages deploy` で `dist`（静的なページ）と `functions/`（`/api`）を公開する
+3. 以前の公開先の GitHub Pages には、新しい URL の同じページへ移る転送ページ（`scripts/redirect-stub.mjs`）を公開する
+
+Secrets がないときは、これまでどおり GitHub Pages にサイトを公開します（アクセス解析なし。GitHub Pages の設定（Settings → Pages → Source）は **GitHub Actions** のまま）。
+
+設定のしかた:
+
+1. Cloudflare のダッシュボードの「My Profile」→「API Tokens」→「Create Token」で、テンプレート「Edit Cloudflare Workers」からトークンを作る（Workers と Pages を編集できる権限）。ダッシュボードに出る「Account ID」も控える
+2. GitHub の Settings → Secrets and variables → Actions → **Secrets** に `CLOUDFLARE_API_TOKEN`（トークン）と `CLOUDFLARE_ACCOUNT_ID`（Account ID）を登録する（トークンはチャットやリポジトリに書かない）
+3. 管理画面の「今すぐ更新」（または Actions の Run workflow）で公開する
+
+- 応答ヘッダーは `public/_headers`（管理画面は枠の中で表示させない・検索に出さない・保存させない、`/_astro/` は長く保存）、以前の URL（`/matmsait/...`）の転送は `public/_redirects` で指定しています。
+- 管理画面のログイン（暗号化したトークンと本文を読むための鍵）は URL ごとにブラウザに保存されるので、新しい URL の管理画面では最初に1回、初回設定（トークンとパスワード）が必要です。
+- Cloudflare Pages の無料プランでは、静的なページの配信は無料・無制限、`/api`（Functions）は Workers の無料枠（1日10万回）に含まれます。
 
 ### 自動更新タイマー
 
@@ -276,8 +290,8 @@ curl -X POST -H "Authorization: Bearer <トークン>" -H "Accept: application/v
 
 ### 独自ドメインを使う場合
 
-Settings → Pages → Custom domain にドメインを設定すると、ワークフローが自動でそのドメイン用にビルドします。
-AdSense の審査や `ads.txt`・`robots.txt`（ドメイン直下に置く必要がある）を考えると、収益化する段階では独自ドメインを強く推奨します。
+Cloudflare のダッシュボードで Pages のプロジェクト `topiatsume` →「Custom domains」にドメインを追加し、GitHub のリポジトリの変数（Settings → Secrets and variables → Actions → Variables）`SITE_URL` にその URL（例: `https://example.com`）を設定すると、次の更新からそのドメイン用にビルドします（正規の URL・サイトマップ・RSS などがそのドメインになり、以前の GitHub Pages の転送先もそのドメインになります）。
+AdSense の審査（`pages.dev` のような共用のドメインでは申し込めない）を考えると、収益化する段階では独自ドメインを強く推奨します。
 
 ## カスタマイズ
 
@@ -329,7 +343,8 @@ GitHub の **Settings → Secrets and variables → Actions → Variables** に�
 | `PUBLIC_GA_ID` | （任意）Google アナリティクス 4 の測定 ID（例: `G-XXXXXXXXXX`） |
 | `PUBLIC_GOOGLE_SITE_VERIFICATION` | （任意）Google Search Console の所有権確認コード |
 | `PUBLIC_BING_SITE_VERIFICATION` | （任意）Bing Web マスターツールの所有権確認コード |
-| `PUBLIC_ANALYTICS_URL` | （任意）アクセス解析のサーバーの URL。ふだんは `data/analytics.json`（公開のワークフローが書く）を使うので設定不要 |
+| `PUBLIC_ANALYTICS_URL` | （任意）アクセス解析の接続先。Cloudflare に公開するときはワークフローが `/api` にするので設定不要 |
+| `SITE_URL` | （任意）独自ドメインで公開するときの URL（例: `https://example.com`）。Cloudflare に公開するときだけ使う |
 
 プライバシーポリシー（Cookie・広告配信・アクセス解析の記載）、運営者情報、お問い合わせ、サイトマップ、構造化データ、OGP 画像は最初から用意しています。
 2 ページ目以降の一覧・検索・新着一覧・掲載元別一覧・あとで読むは `noindex` にし、サイトマップからも除外しています（内容の薄いページが大量に検索結果に出ないようにするため）。

@@ -28,28 +28,21 @@ const names = {
     {
       !endpoint ? (
         <section class="card setup">
-          <h2>アクセス解析のサーバーを用意する（最初に1回）</h2>
+          <h2>アクセス解析を使うには（Cloudflare への公開）</h2>
           <div class="card-body">
             <p>
-              訪問者の記録を受け取るサーバーを、Cloudflare の無料プラン（Workers）に置きます。お金はかかりません（無料の範囲を超えたときは記録が止まるだけで、サイトの表示には影響しません）。
+              アクセス解析は、サイトを Cloudflare Pages（pages.dev）で公開しているときに使えます（サイトと同じドメインの /api で記録を受け取ります）。Cloudflare の無料プランで動き、お金はかかりません（無料の範囲を超えたときは記録が止まるだけで、サイトの表示には影響しません）。
             </p>
             <ol>
               <li>
-                <a href="https://dash.cloudflare.com/sign-up" target="_blank" rel="noopener noreferrer">
-                  Cloudflare
-                </a>
-                に無料で登録し、ダッシュボードの「Workers &amp; Pages」を一度開きます（workers.dev のサブドメインが作られます）。
-              </li>
-              <li>
-                「My Profile」→「API Tokens」→「Create Token」で、テンプレート「Edit Cloudflare Workers」からトークンを作ります。あわせて、ダッシュボードの右側に出る「Account
-                ID」を控えます。
+                Cloudflare のダッシュボードの「My Profile」→「API Tokens」で、テンプレート「Edit Cloudflare Workers」からトークンを作ります（Workers と Pages を編集できる権限）。ダッシュボードに出る「Account ID」も控えます。
               </li>
               <li>
                 GitHub のリポジトリの「Settings」→「Secrets and variables」→「Actions」→「New repository secret」で、
                 <code>CLOUDFLARE_API_TOKEN</code>（トークン）と <code>CLOUDFLARE_ACCOUNT_ID</code>（Account ID）を登録します。
               </li>
               <li>
-                GitHub の「Actions」→「アクセス解析のサーバーを公開」→「Run workflow」を押します。数分でサーバーが公開され、サイトが自動で更新されてこのページにアクセス解析が出ます。
+                「AI要約の管理」の「今すぐ更新」を押すか、次の自動更新を待ちます。サイトが Cloudflare Pages に公開され、以前の URL は新しい URL への転送になります。新しい URL の管理画面でログインし直すと、このページにアクセス解析が出ます。
               </li>
             </ol>
             <p class="note">

@@ -1,12 +1,8 @@
 /**
- * トピあつめのアクセス解析のサーバー（Cloudflare Workers の無料枠で動く）。
- * 入口の Worker が送り元（サイトのオリジン）を確かめ、集計は1つの Durable Object（SQLite）が行う。
- *
- * - POST /collect          サイトの閲覧・記事のクリックなどを受け取る（いま見ている人数を返す）
- * - GET  /popular          よく読まれている記事（24時間・1週間）。サイトのビルドで使う（公開）
- * - GET  /admin/live       いま見ている人・最近の動き（運営者だけ）
- * - GET  /admin/stats      期間の集計（運営者だけ）
- * - GET  /admin/articles   記事ごとの人数（管理画面の「よく読まれている順」用。運営者だけ）
+ * トピあつめのアクセス解析のサーバー（Cloudflare Workers の無料プラン）。集計は1つの Durable Object（SQLite）が行う。
+ * 公開しているサイトでは、この Worker は Durable Object を置くためだけに使い（workers.dev では公開しない）、
+ * サイトと同じドメインの /api（Cloudflare Pages の Functions。functions/api/[[path]].ts）から Durable Object を直接使う。
+ * 入口（送り元の確認・振り分け）は src/front.ts、受け付ける API も src/front.ts を参照。
  *
  * 運営者かどうかは、管理画面が送る GitHub のトークンでサイトのリポジトリに書き込めるかを GitHub に問い合わせて確かめる
  * （トークンは保存しない。確かめた結果だけを、トークンのハッシュをキーにして10分間覚えておく）
@@ -25,18 +21,18 @@ import {
   mergeRows,
   osOf,
   parseEvent,
-  parseOrigins,
   rankArticles,
   topOf,
   totalsOf,
   visitorId,
   type StoredEvent,
 } from './core.ts';
+import { handle } from './front.ts';
 import { AnalyticsStore, ROLLUP_DAYS } from './store.ts';
 
 export interface Env {
   ANALYTICS: DurableObjectNamespace<Analytics>;
-  /** サイトのオリジン（カンマ区切り。例: https://example.github.io） */
+  /** この Worker に直接送るときに受け付けるオリジン（カンマ区切り。手元で試すときの http://localhost:4321 など） */
   ALLOWED_ORIGINS?: string;
   /** サイトのリポジトリ（owner/repo）。運営者の確認に使う */
   REPOSITORY?: string;
@@ -487,74 +483,9 @@ export class Analytics extends DurableObject<Env> {
   }
 }
 
-/** 入口: 送り元を確かめて Durable Object へ渡す（CORS の応答もここで返す） */
-const ROUTES: Record<string, { method: 'GET' | 'POST'; site: boolean }> = {
-  '/collect': { method: 'POST', site: true },
-  '/popular': { method: 'GET', site: false },
-  '/admin/live': { method: 'GET', site: true },
-  '/admin/stats': { method: 'GET', site: true },
-  '/admin/articles': { method: 'GET', site: true },
-};
-const MAX_BODY = 4096;
-
+/** 手元で試すときの入口（公開しているサイトでは、Pages Functions が同じ処理をサイトの /api で行う） */
 export default {
-  async fetch(request, env): Promise<Response> {
-    const url = new URL(request.url);
-    if (url.pathname === '/') {
-      return new Response('トピあつめのアクセス解析のサーバーです。\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-    }
-    const route = ROUTES[url.pathname];
-    if (!route) return new Response('Not found', { status: 404 });
-    const origin = request.headers.get('Origin') ?? '';
-    const allowed = origin !== '' && parseOrigins(env.ALLOWED_ORIGINS).includes(origin);
-    const cors: Record<string, string> = allowed
-      ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' }
-      : route.site
-        ? { Vary: 'Origin' }
-        : { 'Access-Control-Allow-Origin': '*' };
-
-    if (request.method === 'OPTIONS') {
-      if (!allowed) return new Response(null, { status: 403 });
-      return new Response(null, {
-        status: 204,
-        headers: {
-          ...cors,
-          'Access-Control-Allow-Methods': route.method,
-          'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-          'Access-Control-Max-Age': '86400',
-        },
-      });
-    }
-    if (request.method !== route.method) return new Response('Method not allowed', { status: 405, headers: cors });
-    // 計測と管理画面の API は、サイトのページからだけ受け付ける
-    if (route.site && !allowed) return new Response('Forbidden', { status: 403, headers: cors });
-
-    let body: string | undefined;
-    if (request.method === 'POST') {
-      body = await request.text();
-      if (body.length > MAX_BODY) return new Response('Payload too large', { status: 413, headers: cors });
-    }
-    const headers = new Headers({
-      'x-ua': request.headers.get('User-Agent') ?? '',
-      'x-ip': request.headers.get('CF-Connecting-IP') ?? '',
-      'x-country': String(request.cf?.country ?? ''),
-    });
-    const authorization = request.headers.get('Authorization');
-    if (authorization) headers.set('authorization', authorization);
-    try {
-      // 日本の利用者が多いので、Durable Object はアジア太平洋に置く（最初に作られるときだけ効く）
-      const stub = env.ANALYTICS.get(env.ANALYTICS.idFromName('main'), { locationHint: 'apac' });
-      const response = await stub.fetch(new Request(url.toString(), { method: request.method, headers, body }));
-      const out = new Response(response.body, response);
-      for (const [name, value] of Object.entries(cors)) out.headers.set(name, value);
-      out.headers.set('Cache-Control', 'no-store');
-      return out;
-    } catch (error) {
-      console.error(error);
-      return new Response(JSON.stringify({ error: 'unavailable' }), {
-        status: 503,
-        headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8' },
-      });
-    }
+  fetch(request, env): Promise<Response> {
+    return handle(request, env);
   },
 } satisfies ExportedHandler<Env>;

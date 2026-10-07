@@ -1,6 +1,7 @@
 /**
  * よく読まれている記事をアクセス解析のサーバーから取ってきて data/popular.json に保存する（自動更新のたびに実行）。
- * サーバーが設定されていなければ何もしない。取ってこられなかったときは前回の内容のまま（サイトの更新は止めない）
+ * 接続先（PUBLIC_ANALYTICS_URL）が設定されていなければ何もしない。サイトと同じドメインのパス（/api）のときは、
+ * 公開先の URL（SITE_URL）につなげて読む。取ってこられなかったときは前回の内容のまま（サイトの更新は止めない）
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -8,14 +9,16 @@ import { POPULAR_PATH, analyticsEndpoint } from '../src/lib/analytics-config.ts'
 import { parsePopularFile, type PopularFile } from '../src/lib/popular.ts';
 
 const endpoint = analyticsEndpoint();
-if (!endpoint) {
-  console.log('アクセス解析のサーバーが設定されていないため、よく読まれている記事は取得しません');
+const site = process.env.SITE_URL?.replace(/\/+$/, '') ?? '';
+if (!endpoint || (endpoint.startsWith('/') && !/^https?:\/\//.test(site))) {
+  console.log('アクセス解析の接続先が設定されていないため、よく読まれている記事は取得しません');
   process.exit(0);
 }
+const popularUrl = endpoint.startsWith('/') ? `${site}${endpoint}/popular` : `${endpoint}/popular`;
 
 const path = resolve(process.cwd(), POPULAR_PATH);
 try {
-  const res = await fetch(`${endpoint}/popular`, { signal: AbortSignal.timeout(20_000), headers: { Accept: 'application/json' } });
+  const res = await fetch(popularUrl, { signal: AbortSignal.timeout(20_000), headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = (await res.json()) as { generatedAt?: unknown; day?: unknown; week?: unknown };
   const fetched = parsePopularFile(JSON.stringify({ updatedAt: data.generatedAt, day: data.day, week: data.week }));

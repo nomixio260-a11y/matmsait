@@ -34,7 +34,11 @@ describe('サイトの計測（ブラウザ側）', () => {
 });
 
 describe('アクセス解析の設定とデータ', () => {
-  it('接続先は https（試験用の localhost は http も可）のオリジンだけ', () => {
+  it('接続先は、サイトと同じドメインのパスか、https（試験用の localhost は http も可）のオリジンだけ', () => {
+    expect(cleanEndpoint('/api')).toBe('/api');
+    expect(cleanEndpoint('/api/')).toBe('');
+    expect(cleanEndpoint('//evil.example')).toBe('');
+    expect(cleanEndpoint('/api?x=1')).toBe('');
     expect(cleanEndpoint('https://topiatsume-analytics.example.workers.dev/')).toBe('https://topiatsume-analytics.example.workers.dev');
     expect(cleanEndpoint('http://127.0.0.1:8787')).toBe('http://127.0.0.1:8787');
     expect(cleanEndpoint('http://example.com')).toBe('');

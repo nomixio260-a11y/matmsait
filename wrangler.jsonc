@@ -1,0 +1,12 @@
+// 公開するサイト（Cloudflare Pages）の設定。公開は GitHub Actions（.github/workflows/update.yml）が
+// `wrangler pages deploy` で行う（Cloudflare の Secrets があるとき）。サイトのビルドは Astro（dist）。
+// サイトと同じドメインの /api は Functions（functions/）で、アクセス解析の Durable Object（analytics/ の Worker）につなぐ
+{
+  "$schema": "./analytics/node_modules/wrangler/config-schema.json",
+  "name": "topiatsume",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {
+    "bindings": [{ "name": "ANALYTICS", "class_name": "Analytics", "script_name": "topiatsume-analytics" }]
+  }
+}

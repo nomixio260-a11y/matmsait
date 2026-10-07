@@ -33,19 +33,20 @@
 
 | 項目 | 場所 |
 | --- | --- |
-| サイト | https://nomixio260-a11y.github.io/matmsait/ |
-| 管理画面 | https://nomixio260-a11y.github.io/matmsait/admin/ （ログインが必要。ログインページは `/admin/login/`。検索エンジンには非公開） |
-| リポジトリ | `nomixio260-a11y/matmsait`（公開） |
+| サイト | **https://topiatsume.pages.dev/**（Cloudflare Pages。2026-10-07 に移転）。以前の https://nomixio260-a11y.github.io/matmsait/ は、GitHub の Secrets が登録されると新しい URL への転送ページになる（それまでは今までどおりのサイト） |
+| 管理画面 | https://topiatsume.pages.dev/admin/ （ログインが必要。ログインページは `/admin/login/`。検索エンジンには非公開。ログインの保存は URL ごとなので、新しい URL では初回設定がもう一度必要） |
+| アクセス解析 | サイトと同じドメインの `/api`（Pages の Functions）→ Worker `topiatsume-analytics` の Durable Object（Cloudflare、`workers.dev` では公開しない） |
+| リポジトリ | `nomixio260-a11y/matmsait`（公開。開発・テスト・毎時の収集とビルドはここと GitHub Actions） |
 | 既定ブランチ | `ccr-28054993-x9r1qj`（このブランチへの push で公開される） |
-| 公開方法 | GitHub Actions（`.github/workflows/update.yml`）→ GitHub Pages |
+| 公開方法 | GitHub Actions（`.github/workflows/update.yml`）→ Cloudflare Pages（`wrangler pages deploy`。Secrets がなければ GitHub Pages）。アクセス解析の Worker は `analytics.yml` |
 
 ### 自動で動いているもの
 
-- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「今すぐ更新」/ Actions の Run workflow）で、テスト → フィード取得 → 本文の自動取得 → よく読まれている記事の取得 → データをコミット → ビルド → Pages へ公開 → IndexNow・WebSub へ通知 → SNS 投稿（設定時のみ）。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
+- **収集・公開**（`update.yml`）: 自動更新タイマー・push・手動実行（管理画面の「今すぐ更新」/ Actions の Run workflow）で、テスト → 公開先の確認（Cloudflare の Secrets があれば Cloudflare Pages、なければ GitHub Pages）→ フィード取得 → 本文の自動取得 → よく読まれている記事の取得 → データをコミット → ビルド → Cloudflare Pages へ公開（＋GitHub Pages を転送ページに）→ IndexNow・WebSub へ通知 → SNS 投稿（設定時のみ）。**GitHub の Secrets が未登録の間は、毎時の更新は GitHub Pages に公開され、pages.dev は 2026-10-07 に手で公開した内容のまま**（「未解決の課題」1）。実行のたびに、自動更新タイマーが止まっていれば再開する（`keep-timer` ジョブ）。
 - **自動更新タイマー**（`timer.yml`）: 前回の `update.yml` の実行から60分（変数 `UPDATE_INTERVAL_MINUTES` で変更可）たつまで待ち、`update.yml` を実行して自分自身を次に予約する。GitHub の定期実行（schedule）は一度も動かなかったため、こちらで定期更新する。公開リポジトリでだけ動く（非公開にすると自動で止まる）。
 - 収集元は `sources.yaml` の66件（ニュース・経済・テクノロジー・サイエンス・エンタメ・ゲーム・アニメ・スポーツ・乗り物・ライフの9カテゴリ）。どれも利用規約で商用サイトからの利用が禁じられていないことを確認済みで、確認結果（登録を見送ったサイトと理由も）は `docs/SOURCES.md` にある。はてなブックマーク（収集元・ブックマーク数）は商用で使えないため使っていない。
 - **本文の自動取得**（`scripts/fetch-texts.ts`、`update.yml` の「AI が開けない記事の本文を取得」）: 管理画面が `data/text-requests.json` に書いた依頼（AI が開けなかった記事）について、フィードと同じブラウザ相当の通信（ボットの名前は名乗らない）で記事のページを取得し、本文を運営者の公開鍵（`data/text-keys.json`）で暗号化して `data/texts.json` に置く。robots.txt（クローラー全般と AI のクローラーの拒否）・noai・アクセスの拒否を守り、1回15件まで。依頼がなければ何もしない。
-- **アクセス解析**（`analytics/`。Cloudflare Workers の無料プラン）: サイトのページが見たページ・開いた記事・検索・保存・閲覧時間などを送り（`src/scripts/analytics.ts`）、サーバー（1つの SQLite の Durable Object）が数える。管理画面の「アクセス解析」（`/admin/analytics/`）で見る。**ただし運営者が Cloudflare を設定するまでは動いていない**（「未解決の課題」1）。設定すると、`analytics.yml` がサーバーを公開して URL を `data/analytics.json` に書き、`update.yml` が毎回よく読まれている記事を `data/popular.json` に取り込む（`scripts/popular.ts`。未設定なら何もしない）。
+- **アクセス解析**（Cloudflare。2026-10-07 から pages.dev で動作中）: サイトのページが見たページ・開いた記事・検索・保存・閲覧時間などを同じドメインの `/api/collect` に送り（`src/scripts/analytics.ts`）、Pages の Functions（`functions/api/[[path]].ts`、中身は `analytics/src/front.ts`）が Worker `topiatsume-analytics` の Durable Object（SQLite）に渡して数える。管理画面の「アクセス解析」（`/admin/analytics/`）で見る。`update.yml` が毎回よく読まれている記事を `/api/popular` から `data/popular.json` に取り込む（`scripts/popular.ts`。Cloudflare に公開していないときは何もしない）。GitHub Pages で公開している間はアクセス解析なし。
 - 人気の目安は「話題度」＝同じ出来事を報じた掲載元の数（「N社が報道」）。見出しの似ている記事をまとめて数える（`src/lib/related.ts` の `clusterTopics`）。話題のニュース（トップ・「話題」ページ・サイドバー・カテゴリ）、日別まとめの並び、SNS 投稿（3社以上）、管理画面の「話題の順」に使う。アクセス解析を設定すると、読まれた人数による「よく読まれている記事」（`/popular/`・トップ・サイドバー・「人気N位」）と、管理画面の「よく読まれている順」も使える。
 - 記事は直近30日・最大12000件を `data/items.json` に保存（更新の多いサイトで上限が埋まっても、各掲載元の新しい20件は残す）。一覧ページは25ページ（1000件）まで、検索は新しい6000件まで。
 
@@ -57,7 +58,7 @@
 | AI 要約 | 運営者が管理画面で作成（有料の AI API は使わない）。AI が開けない記事は、運営者が本文を貼り付けて本文入りのプロンプトで依頼するか、同じ話題の別の記事に切り替える。長いプロンプトは分割・ファイルで渡せ、AI の回答はファイルでも読み込める |
 | 管理画面のログイン | 管理画面を開くとログインページに移る。トークンはパスワードで暗号化して運営者のブラウザにだけ保存（Contents と Actions の Read and write が必要）。2026-10-07 に運営者が設定し直した（パスワードを忘れたため） |
 | 本文の自動取得 | 公開済み。運営者の公開鍵は 2026-10-07 に登録済み（`data/text-keys.json`） |
-| アクセス解析（Cloudflare Workers） | **未設定**。Secrets に `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID` を登録して Actions の「アクセス解析のサーバーを公開」を実行すると動く（README の「アクセス解析」、管理画面の「アクセス解析」にも手順を表示）。管理画面にログインしたブラウザは自動で数えない |
+| Cloudflare（公開先・アクセス解析） | 運営者がアカウントと API トークンを作成（2026-10-07）。そのトークンで Claude が Worker `topiatsume-analytics` と Pages のプロジェクト `topiatsume` を作り、サイトを1回公開した。**GitHub の Secrets（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）は未登録**（「未解決の課題」1）。ダッシュボードで作られた Worker `matmsait`（Hello World のひな形）は使っていない |
 | SNS（X・Bluesky・Mastodon・Misskey） | 未設定 |
 | AdSense・Google アナリティクス・Search Console | 未設定（変数を設定すると有効になる。Google アナリティクスは上のアクセス解析と併用できる） |
 | 独自ドメイン | なし（収益化の段階で取得を推奨） |
@@ -85,12 +86,13 @@
 | `scripts/fetch-texts.ts`, `scripts/lib/text-fetcher.ts`, `scripts/lib/robots.ts`, `scripts/lib/article-text.ts` | 本文の自動取得（依頼の処理・robots.txt と AI の拒否の確認・本文の取り出し） |
 | `src/lib/text-crypto.ts`, `src/lib/article-texts.ts` | 取得した本文の暗号化（RSA-OAEP＋AES-GCM）と、依頼・結果・公開鍵のファイルの扱い（管理画面と共通） |
 | `data/text-requests.json`, `data/texts.json`, `data/text-keys.json` | 本文の自動取得の依頼（管理画面が書く）・結果（暗号化した本文。自動収集が書く）・運営者の公開鍵（管理画面が書く） |
-| `analytics/`（`src/index.ts`・`src/core.ts`・`src/store.ts`・`wrangler.jsonc`） | アクセス解析のサーバー（Cloudflare Workers・SQLite の Durable Object。受け取り・いま見ている人・今日の集計（メモリ）・日ごとの集計（毎時）・公開の人気記事・運営者用の API）。依存は wrangler だけで、`analytics/package.json` で別に入れる |
-| `.github/workflows/analytics.yml` | アクセス解析のサーバーの公開（Cloudflare の Secrets があるときだけ。URL を `data/analytics.json` に記録してサイトを更新） |
+| `wrangler.jsonc`（ルート）, `functions/api/[[path]].ts`, `public/_headers`, `public/_redirects`, `scripts/redirect-stub.mjs` | Cloudflare Pages の設定（プロジェクト名 `topiatsume`・`dist`・Durable Object の束縛）、サイトの `/api`、応答ヘッダー、以前の URL（`/matmsait/...`）の転送、GitHub Pages 用の転送ページ |
+| `analytics/`（`src/index.ts`・`src/front.ts`・`src/core.ts`・`src/store.ts`・`wrangler.jsonc`） | アクセス解析（Cloudflare Workers・SQLite の Durable Object。入口（`front.ts`。Pages の Functions と共通）・受け取り・いま見ている人・今日の集計（メモリ）・日ごとの集計（毎時）・公開の人気記事・運営者用の API）。依存は wrangler だけで、`analytics/package.json` で別に入れる（`wrangler pages deploy` もこれを使う） |
+| `.github/workflows/analytics.yml` | アクセス解析の Worker の公開（Cloudflare の Secrets があるときだけ。`analytics/` を変えて push したとき・手動） |
 | `src/scripts/analytics.ts` | サイトの計測（閲覧・記事を開いた・検索・保存・閲覧時間・表示中の合図、いま見ている人数の表示、除外・Do Not Track・GPC） |
 | `src/pages/admin/analytics.astro`, `src/scripts/admin-analytics.ts`, `src/scripts/charts.ts` | 管理画面のアクセス解析（グラフは SVG で自前に描く。管理画面の CSP で外部のスクリプトを読めないため） |
 | `src/lib/analytics-config.ts`, `src/lib/popular.ts`, `scripts/popular.ts`, `src/pages/popular.astro`, `src/components/PopularList.astro` | アクセス解析の接続先、よく読まれている記事（取り込み・ページ・一覧・「人気N位」の印） |
-| `data/analytics.json`, `data/popular.json` | アクセス解析のサーバーの URL（`analytics.yml` が書く）・よく読まれている記事（自動更新が書く）。どちらもアクセス解析を設定するまではない |
+| `data/popular.json` | よく読まれている記事（Cloudflare に公開している自動更新が書く。まだない） |
 | `src/lib/admin-auth.ts`, `src/scripts/admin-login.ts`, `src/scripts/admin-common.ts`, `src/pages/admin/login.astro` | 管理画面のログイン（トークンの暗号化・ログイン中の状態・自動ログアウト・続けて間違えたときの制限・枠の中での表示の禁止） |
 | `src/pages/admin/`, `src/scripts/admin.ts`, `src/layouts/AdminLayout.astro` | 管理画面（AdminLayout で接続先を制限する CSP を指定） |
 | `data/items.json` | 収集した記事（1行1記事） |
@@ -110,14 +112,14 @@ npx astro preview # ビルド結果の確認（Astro 7 の preview は常駐す�
 ```
 
 - 管理画面の動作（ログインを含む）は、Playwright で GitHub API をモックして確かめている（実際の GitHub には書き込まない）。ログインの確認には、Playwright の時計の早送り（`clock.fastForward`）で自動ログアウトや待ち時間を再現する。
-- アクセス解析は、`cd analytics && npm install && npx wrangler dev --var ALLOWED_ORIGINS:http://localhost:4321 --var GITHUB_API:<GitHub API のまね>` でサーバーを手元で動かし、`PUBLIC_ANALYTICS_URL=http://127.0.0.1:8787` を付けてサイトをビルドして確かめる（`npx tsc --noEmit` でサーバーの型チェック）。集計とデータの保存の中身は `tests/analytics.test.ts`（node:sqlite で SQL も実行）で確かめている。Playwright で数えさせるときは `navigator.webdriver` を false にする（自動操作のブラウザは数えないため）。
+- Cloudflare での公開と同じ組み合わせは、`cd analytics && npm install && npx wrangler dev --var GITHUB_API:<GitHub API のまね>` で解析の Worker を動かし、`SITE_URL=https://topiatsume.pages.dev BASE_PATH=/ PUBLIC_ANALYTICS_URL=/api npm run build` でビルドしてから、ルートで `analytics/node_modules/.bin/wrangler pages dev --port 8788` を動かして確かめる（http://127.0.0.1:8788。`dist`＋`/api`＋Durable Object。`npx tsc --noEmit`（analytics/）で Worker と Functions の型チェック）。Worker だけなら `PUBLIC_ANALYTICS_URL=http://127.0.0.1:8787` でビルドする。集計とデータの保存の中身は `tests/analytics.test.ts`（node:sqlite で SQL も実行）で確かめている。Playwright で数えさせるときは `navigator.webdriver` を false にする（自動操作のブラウザは数えないため）。
 - テストのために `data/` に作ったファイル（要約・非表示の設定など）は**コミットしない**。
 
 ---
 
 ## 未解決の課題・次にやること
 
-1. **運営者の作業: アクセス解析を使い始める。** Cloudflare に無料で登録し（ダッシュボードの「Workers & Pages」を一度開いて workers.dev のサブドメインを作る）、テンプレート「Edit Cloudflare Workers」の API トークンと Account ID を、GitHub の Secrets の `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID` に登録して、Actions の「アクセス解析のサーバーを公開」を実行する（README の「アクセス解析」）。公開されると `data/analytics.json` が作られ、サイトが更新されて計測が始まる。**初めて公開したときは本番で確かめること**: 公開のワークフローの成功、`data/analytics.json` の URL、サイトのページから `/collect` への送信（200）、管理画面のアクセス解析の表示、次の更新で `data/popular.json` ができること。トークンや Account ID はチャットやリポジトリに書かない。
+1. **運営者の作業: GitHub の Secrets を登録して、毎時の更新を Cloudflare に公開する。** チャットに貼られた Cloudflare の API トークン（と、それから作られた R2 のアクセスキー）は漏えい扱いにする: Cloudflare のダッシュボード（My Profile → API Tokens）でそのトークンを作り直し（Roll）、新しい値を GitHub の Secrets の `CLOUDFLARE_API_TOKEN` に、Account ID を `CLOUDFLARE_ACCOUNT_ID` に登録する（権限は Workers と Pages の編集。テンプレート「Edit Cloudflare Workers」）。登録すると、次の更新から pages.dev に公開され、GitHub Pages は転送ページになる。**登録したら確かめること**: update.yml の「公開先を決める」で `公開先: https://topiatsume.pages.dev`、「Cloudflare Pages に公開」の成功、pages.dev の最終更新の時刻、以前の URL が新しい URL に移ること、次の更新で `data/popular.json` ができること。あわせて、新しい URL の管理画面で初回設定（トークンとパスワード）をする（ログインの保存は URL ごと）。使っていない Worker `matmsait`（ダッシュボードのひな形）は消してよい。トークンや Account ID はチャットやリポジトリに書かない。
 2. 収集元の利用条件は `docs/SOURCES.md` のとおり確認したが、最終確認は運営者が行う（規約は変わるので年1回程度見直す）。4Gamer.net と鉄道ファン（railf.jp）は「利用したら一報を」と歓迎しているので、収益化のときに連絡するとよい（任意）。
 3. 話題度（「N社が報道」）は見出しの似かたで同じ出来事をまとめているので、言い回しが大きく違う報道はまとまらないことがある（逆に別の出来事をまとめてしまう誤りは、本番のデータでは見つかっていない）。調整するときは `src/lib/related.ts` の `clusterTopics` の既定値（`minScore` など）を変え、テストと本番のデータで確かめる。
 4. 海外ニュースは、商用サイトで使えるフィードがほとんど見つからなかったため「海外」カテゴリは作っていない（BBC・CNN・AFPBB・聯合ニュースなどは NG）。使えるサイトが見つかったら `src/config/site.ts` にカテゴリを足す。
@@ -126,13 +128,30 @@ npx astro preview # ビルド結果の確認（Astro 7 の preview は常駐す�
 7. 本文の自動取得で取得できるかはサイトしだい（アクセスを拒否するサイト・本文が動画だけのページ・JavaScript で本文を表示するページは取れない。2026-10-07 からはボットの名前を名乗らずブラウザ相当の通信で取るが、robots.txt と拒否は守り、ボット対策のすり抜けはしない）。取得できない記事は、本文を貼り付けるか同じ話題の別の記事に切り替える。取得結果で断られることが多い掲載元があれば、`summary: false` にするかを考える。
 8. AI が開けない記事の記録（どのサイトがどれだけ開けなかったか）は運営者のブラウザにだけ残る（localStorage、14日間）。別の端末では記録がない状態から始まる。どのサイトを AI が開けないかが分かってきたら、`docs/SOURCES.md` に書き残しておくとよい。
 9. 収益化の前に: 独自ドメインの取得、AdSense の審査の前に AI 要約を増やす（話題の記事を中心に。審査では独自の内容が重視される）、`ads.txt` の設置、気になる記事の非表示、`src/config/site.ts` の運営者名・問い合わせ先の確認。
-10. アクセス解析の注意: Cloudflare の無料プランは1日にリクエスト10万回・SQLite の書き込み10万行・読み込み500万行が上限（ページを見るごとに1回、表示中は1分ごとに1回送る。1日に数千人くらいまで）。記録は1日4万件まで（`MAX_EVENTS_PER_DAY`）。足りなくなったら Workers の有料プラン（月5ドル）にするか、合図の間隔（`src/scripts/analytics.ts` の `PING_INTERVAL`）を延ばす。訪問者は「IP アドレス＋ブラウザの種類＋日ごとの塩」で数えるので、携帯電話の回線（多くの人が同じ IP を使う）で同じ機種・同じブラウザの人が1人に数えられることがある。人気の順位は同じ人を1回だけ数えるが、多くの IP から送れば操作はできる（おかしな順位に気づいたら、管理画面で記事を非表示にできる）。「いまN人が閲覧中」は2人以上のときだけ出す（`data-min`）。
+10. アクセス解析の注意: Cloudflare の無料プランは1日にリクエスト10万回・SQLite の書き込み10万行・読み込み500万行が上限（ページを見るごとに1回、表示中は1分ごとに1回送る。1日に数千人くらいまで）。記録は1日4万件まで（`MAX_EVENTS_PER_DAY`）。足りなくなったら Workers の有料プラン（月5ドル）にするか、合図の間隔（`src/scripts/analytics.ts` の `PING_INTERVAL`）を延ばす。訪問者は「IP アドレス＋ブラウザの種類＋日ごとの塩」で数えるので、携帯電話の回線（多くの人が同じ IP を使う）で同じ機種・同じブラウザの人が1人に数えられることがある。人気の順位は同じ人を1回だけ数えるが、多くの IP から送れば操作はできる（おかしな順位に気づいたら、管理画面で記事を非表示にできる）。「いまN人が閲覧中」は2人以上のときだけ出す（`data-min`）。 検索エンジンには新しい URL（pages.dev）を覚え直してもらう必要がある（以前の URL は GitHub Pages の制約で 301 ではなく転送ページ。Search Console を使うなら新しい URL で登録する）。
 
 （解決済み: はてなブックマークの商用利用の問題と、外した収集元・要約を禁じている掲載元の要約は、2026-10-06 に削除して解決した。管理画面のパスワードの設定し直しは、2026-10-07 に運営者が行った（本文を読むための公開鍵も登録済み）。下の記録を参照）
 
 ---
 
 ## 開発の記録（新しい順）
+
+### 2026-10-07 公開先を Cloudflare Pages（topiatsume.pages.dev）に移し、アクセス解析を同じドメインの /api に
+
+- 依頼・目的: 運営者から「開発や実験検証などを除いて、公開バージョンは Cloudflare にサーバーを完全に移して pages.dev で公開」。あわせて Cloudflare のアカウント ID と API トークン（と R2 のアクセスキー）がチャットに貼られた。
+- やったこと:
+  - **方針**: 開発・テスト・毎時の収集とビルドは GitHub（リポジトリと GitHub Actions）のまま、公開するサイトとアクセス解析を Cloudflare に置く。サイトは Cloudflare Pages の Direct Upload（GitHub Actions から `wrangler pages deploy`）。Cloudflare 側でビルドする Git 連携は、無料プランのビルド数（月500回）では毎時の更新に足りないので使わない。アクセス解析は workers.dev の別ドメインをやめ、サイトと同じドメインの `/api`（Pages の Functions）から Durable Object を直接使う（同じドメインなので CORS が要らず、広告ブロックなどで別ドメインごと止められにくい。Worker は workers.dev で公開しない）。
+  - **解析の入口を共通に**: 送り元の確認・CORS・振り分けを `analytics/src/front.ts` に切り出し、Worker（手元で試すとき）と Pages の Functions（`functions/api/[[path]].ts`）の両方から使う。同じドメインの GET には Origin が付かないので、ブラウザが付ける `Sec-Fetch-Site: same-origin` で見分ける。接続先の `data/analytics.json` の仕組みはやめ、`PUBLIC_ANALYTICS_URL=/api`（ワークフローが入れる）にした。
+  - **公開のワークフロー**（`update.yml`）: Secrets（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）があれば、Pages のプロジェクト `topiatsume` がなければ作り（本番のブランチは main）、URL を調べ、解析の Worker がなければ先に公開し、その URL 用（`BASE_PATH=/`）にビルドして公開する。GitHub Pages には、新しい URL の同じページへ移る転送ページ（`scripts/redirect-stub.mjs`。どの URL でも 404.html から移る）を公開する。Secrets がなければ、これまでどおり GitHub Pages に公開する（移行の途中でサイトが止まらないように）。独自ドメインにしたときは変数 `SITE_URL` で正規の URL を変えられる。`analytics.yml` は Worker の公開だけにした。
+  - **Cloudflare ならではの設定**: `public/_headers` で応答ヘッダー（全体に nosniff・Referrer-Policy・Permissions-Policy、管理画面に X-Frame-Options: DENY・frame-ancestors 'none'・noindex・no-store、`/_astro/` は1年キャッシュ）、`public/_redirects` で以前の URL（`/matmsait/...`）を同じページへ 301。
+  - **実際の公開**（運営者のトークンで、この作業の中でだけ使い、ファイル・リポジトリには書いていない）: Worker `topiatsume-analytics`（Durable Object・`REPOSITORY` を設定、workers.dev なし）を公開し、Pages のプロジェクト `topiatsume` を作り、最新のデータでビルドしたサイトを公開した（https://topiatsume.pages.dev/）。
+  - README（公開先（Cloudflare）・独自ドメイン・手元での確かめ方）、管理画面のアクセス解析の設定の手順、`.env.example` を新しい公開先に合わせた。
+- 主な変更ファイル: `analytics/src/front.ts`（新規）, `analytics/src/index.ts`, `analytics/wrangler.jsonc`（workers.dev なし）, `analytics/tsconfig.json`, `functions/api/[[path]].ts`（新規）, `wrangler.jsonc`（新規・ルート）, `public/_headers`（新規）, `public/_redirects`（新規）, `scripts/redirect-stub.mjs`（新規）, `.github/workflows/update.yml`, `.github/workflows/analytics.yml`, `scripts/popular.ts`, `src/lib/analytics-config.ts`, `src/layouts/AdminLayout.astro`, `src/config/services.ts`, `src/pages/admin/analytics.astro`, `tests/analytics-front.test.ts`（新規）, `tests/analytics-site.test.ts`, `tsconfig.json`, `.gitignore`, `README.md`, `.env.example`
+- 確認したこと:
+  - ユニットテスト（入口: 同じドメインの記録を /api を外して渡す・IP と国を渡す・同じドメインの GET を Sec-Fetch-Site で見分けてトークンを渡す・ほかのサイトは 403・許可したオリジン・人気の記事はどこからでも・事前確認・404/405/413。接続先のパス `/api`）、型チェック（サイト・Worker と Functions）、actionlint。
+  - 手元で `wrangler dev`（解析の Worker）＋ `wrangler pages dev`（`dist`＋Functions）を動かし、curl で /api（同じドメインの記録・ほかのサイトの拒否・運営者の確認）・応答ヘッダー・以前の URL の 301 を、Playwright でサイトの計測の E2E（訪問者2人・来た回数2・クリック3 など前回と同じ項目）・管理画面のアクセス解析の E2E（axe を含む）・ログインの E2E（ルートに置いた URL で）を確認した。
+  - 本番（https://topiatsume.pages.dev/）: ページの表示と正規の URL・robots.txt とサイトマップが新しい URL、`/api/popular` が JSON、ボットの記録は 204（Durable Object まで届く）、ほかのサイトからは 403、運営者用の API はトークンなしでも不正なトークンでも 401、管理画面と全体の応答ヘッダー、`/matmsait/category/tech/` → `/category/tech/` の 301、workers.dev では Worker を呼べない（404）。実際のブラウザで1回開き、`/api/collect` が 200（いま1人）を返すことを確かめた（この1回分の閲覧が記録に残っている）。
+- 残った課題・注意点: GitHub の Secrets が登録されるまで、毎時の更新は GitHub Pages に公開され、pages.dev は今回公開した内容のまま（「未解決の課題」1）。チャットに貼られたトークンは作り直してから登録すること。新しい URL の管理画面では初回設定がもう一度必要。
 
 ### 2026-10-07 本文の自動取得で名乗るのをやめた・アクセス解析（いま見ている人数・よく読まれている記事など）
 

@@ -4,12 +4,10 @@ name: フィード更新とデプロイ
 # （GitHub の定期実行 schedule は新しいリポジトリだと動かないことがあるため使わない）
 on:
   push:
-    # 開発記録や説明書きだけの変更では、収集・公開をやり直さない（自動更新タイマーの間隔も崩さない）。
-    # アクセス解析のサーバー（analytics/）は別のワークフロー（analytics.yml）で公開する
+    # 開発記録や説明書きだけの変更では、収集・公開をやり直さない（自動更新タイマーの間隔も崩さない）
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - 'analytics/**'
   # 自動更新タイマー、管理画面の「今すぐ更新」ボタン、Actions 画面の Run workflow から実行
   workflow_dispatch:
 
@@ -29,7 +27,7 @@ jobs:
     timeout-minutes: 20
     outputs:
       changed: ${{ steps.commit.outputs.changed }}
-      base_url: ${{ steps.pages.outputs.base_url }}
+      base_url: ${{ steps.target.outputs.base_url }}
     steps:
       - uses: actions/checkout@v7
 
@@ -37,6 +35,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            analytics/package-lock.json
 
       - run: npm ci
 
@@ -48,6 +49,49 @@ jobs:
       - id: pages
         uses: actions/configure-pages@v6
 
+      # 公開先を決める。Cloudflare の Secrets があれば Cloudflare Pages（pages.dev。アクセス解析つき）に公開し、
+      # 以前の公開先の GitHub Pages は新しい URL への転送ページにする。Secrets がなければ、これまでどおり GitHub Pages に公開する
+      - name: 公開先を決める
+        id: target
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # ルートの wrangler.jsonc の name と同じにする
+          PROJECT: topiatsume
+          PAGES_ORIGIN: ${{ steps.pages.outputs.origin }}
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          # 独自ドメインを Cloudflare Pages に付けたときは、変数 SITE_URL にその URL（例: https://example.com）を入れる
+          CUSTOM_SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo '::notice::Cloudflare の Secrets がないため、GitHub Pages に公開します'
+            { echo 'cloudflare=false'; echo "site_url=$PAGES_ORIGIN"; echo "base_path=$PAGES_BASE_PATH"; echo "base_url=$PAGES_BASE_URL"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID"
+          auth="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+          # Pages のプロジェクトがなければ作る（本番のブランチは main。公開のときに --branch main を付ける）
+          if ! res=$(curl -fsS "$api/pages/projects/$PROJECT" -H "$auth"); then
+            res=$(curl -fsS -X POST "$api/pages/projects" -H "$auth" -H 'Content-Type: application/json' \
+              -d "{\"name\":\"$PROJECT\",\"production_branch\":\"main\"}") || true
+          fi
+          host=$(printf '%s' "$res" | jq -r '.result.subdomain // empty')
+          if [ -z "$host" ]; then
+            echo '::error::Cloudflare Pages のプロジェクトを確かめられませんでした。トークンの権限（Cloudflare Pages の編集）と Account ID を確認してください'
+            exit 1
+          fi
+          # アクセス解析の Durable Object を持つ Worker（analytics/）がまだなければ、先に公開する（サイトの /api が使う）
+          if curl -fsS -o /dev/null "$api/workers/scripts/topiatsume-analytics/settings" -H "$auth"; then
+            echo 'analytics_worker=ready' >> "$GITHUB_OUTPUT"
+          else
+            echo 'analytics_worker=missing' >> "$GITHUB_OUTPUT"
+          fi
+          site="${CUSTOM_SITE_URL%/}"
+          [ -n "$site" ] || site="https://$host"
+          { echo 'cloudflare=true'; echo "project=$PROJECT"; echo "site_url=$site"; echo 'base_path=/'; echo "base_url=$site"; echo 'analytics=/api'; } >> "$GITHUB_OUTPUT"
+          echo "公開先: $site"
+
       - name: フィードを取得
         run: npm run fetch
 
@@ -57,12 +101,13 @@ jobs:
         continue-on-error: true
         run: npm run texts
 
-      # アクセス解析のサーバー（設定していれば）から、よく読まれている記事を取ってくる（data/popular.json）
+      # アクセス解析（Cloudflare に公開しているとき）から、よく読まれている記事を取ってくる（data/popular.json）
       - name: よく読まれている記事を取得
         continue-on-error: true
         run: npm run popular
         env:
-          PUBLIC_ANALYTICS_URL: ${{ vars.PUBLIC_ANALYTICS_URL }}
+          PUBLIC_ANALYTICS_URL: ${{ steps.target.outputs.analytics || vars.PUBLIC_ANALYTICS_URL }}
+          SITE_URL: ${{ steps.target.outputs.site_url }}
 
       - name: 取得したデータをコミット
         id: commit
@@ -105,18 +150,41 @@ jobs:
       - name: サイトをビルド
         run: npm run build
         env:
-          SITE_URL: ${{ steps.pages.outputs.origin }}
-          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          SITE_URL: ${{ steps.target.outputs.site_url }}
+          BASE_PATH: ${{ steps.target.outputs.base_path }}
           PUBLIC_ADSENSE_CLIENT: ${{ vars.PUBLIC_ADSENSE_CLIENT }}
           PUBLIC_ADSENSE_SLOT: ${{ vars.PUBLIC_ADSENSE_SLOT }}
           PUBLIC_GA_ID: ${{ vars.PUBLIC_GA_ID }}
           PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}
           PUBLIC_BING_SITE_VERIFICATION: ${{ vars.PUBLIC_BING_SITE_VERIFICATION }}
-          PUBLIC_ANALYTICS_URL: ${{ vars.PUBLIC_ANALYTICS_URL }}
+          PUBLIC_ANALYTICS_URL: ${{ steps.target.outputs.analytics || vars.PUBLIC_ANALYTICS_URL }}
+
+      - name: Cloudflare Pages に公開
+        if: steps.target.outputs.cloudflare == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: ${{ steps.target.outputs.project }}
+          ANALYTICS_WORKER: ${{ steps.target.outputs.analytics_worker }}
+        run: |
+          npm ci --prefix analytics --no-audit --no-fund
+          if [ "$ANALYTICS_WORKER" = 'missing' ]; then
+            (cd analytics && npx wrangler deploy --var "REPOSITORY:$GITHUB_REPOSITORY")
+          fi
+          # dist（静的なページ）と functions/（サイトの /api）を公開する。設定はルートの wrangler.jsonc
+          analytics/node_modules/.bin/wrangler pages deploy --project-name "$PROJECT" --branch main \
+            --commit-hash "$(git rev-parse HEAD)" --commit-message "update $(date -u +%Y-%m-%dT%H:%MZ)" --commit-dirty=true
+
+      - name: GitHub Pages を新しい公開先への転送ページにする
+        if: steps.target.outputs.cloudflare == 'true'
+        env:
+          SITE_URL: ${{ steps.target.outputs.site_url }}
+          OLD_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: node scripts/redirect-stub.mjs "$SITE_URL" "$OLD_BASE_PATH" gh-pages
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: dist
+          path: ${{ steps.target.outputs.cloudflare == 'true' && 'gh-pages' || 'dist' }}
 
   # 収集（build）は同時に動いてもデータのコミットが衝突しないので並行させ、公開だけを1つずつ行う。
   # （同じ concurrency group で待っている実行は、次の実行が来ると取り消されるため、

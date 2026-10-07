@@ -3,7 +3,7 @@ import '../styles/global.css';
 import '../styles/items.css';
 import { site } from '../config/site.ts';
 import { analyticsUrlOverride } from '../config/services.ts';
-import { analyticsEndpoint } from '../lib/analytics-config.ts';
+import { analyticsEndpoint, analyticsOrigin } from '../lib/analytics-config.ts';
 import { href } from '../lib/items.ts';
 
 interface Props {
@@ -14,8 +14,9 @@ interface Props {
   current?: 'summaries' | 'analytics';
 }
 const { title, showUser = true, current } = Astro.props;
-// アクセス解析のサーバー（設定されていれば、管理画面からの通信先に加える）
+// アクセス解析の接続先（サイトと同じドメインの /api なら CSP の 'self' に含まれる。ほかのオリジンなら通信先に加える）
 const analytics = analyticsEndpoint(analyticsUrlOverride);
+const analyticsConnect = analyticsOrigin(analytics);
 
 /**
  * 管理画面のコンテンツセキュリティポリシー。読み込めるのは自分のサイトのファイルだけで、通信先は GitHub API と
@@ -29,7 +30,7 @@ const csp = [
   // （画像の読み込み先を制限しているので、スタイルから外へ情報を送ることもできない）
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://www.google.com https://*.gstatic.com",
-  `connect-src 'self' https://api.github.com${analytics ? ` ${analytics}` : ''}`,
+  `connect-src 'self' https://api.github.com${analyticsConnect ? ` ${analyticsConnect}` : ''}`,
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",

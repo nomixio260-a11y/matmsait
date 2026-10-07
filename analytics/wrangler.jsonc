@@ -1,11 +1,12 @@
-// トピあつめのアクセス解析のサーバー（Cloudflare Workers）の設定。
-// 公開は GitHub Actions（.github/workflows/analytics.yml）が行う。ALLOWED_ORIGINS と REPOSITORY は公開のときに上書きする
+// トピあつめのアクセス解析のサーバー（Cloudflare Workers）の設定。公開は GitHub Actions（.github/workflows/analytics.yml）が行う。
+// 公開しているサイトからは、Cloudflare Pages の Functions（サイトと同じドメインの /api）がこの Worker の Durable Object を直接使うので、
+// この Worker 自体は workers.dev で公開しない（ALLOWED_ORIGINS は手元で wrangler dev で試すときだけ使う）
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "topiatsume-analytics",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
-  "workers_dev": true,
+  "workers_dev": false,
   "preview_urls": false,
   "observability": { "enabled": true },
   "durable_objects": {
@@ -14,7 +15,7 @@
   // 無料プランで使える SQLite の Durable Object
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Analytics"] }],
   "vars": {
-    "ALLOWED_ORIGINS": "https://nomixio260-a11y.github.io",
+    "ALLOWED_ORIGINS": "http://localhost:4321",
     "REPOSITORY": "nomixio260-a11y/matmsait",
     "MAX_EVENTS_PER_DAY": "40000"
   }

@@ -1,0 +1,3 @@
+# 以前の公開先（GitHub Pages の /matmsait/）の URL で来たときは、同じページへ
+/matmsait /  301
+/matmsait/* /:splat 301

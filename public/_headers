@@ -1,0 +1,16 @@
+# Cloudflare Pages の応答ヘッダー（GitHub Pages では使われない）
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+
+# 管理画面: ほかのサイトの枠の中では表示しない・検索エンジンに出さない・保存しない
+/admin/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+# 名前に中身のハッシュが入るファイルは、長く保存してよい
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
