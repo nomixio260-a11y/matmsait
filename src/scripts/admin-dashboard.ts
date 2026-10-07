@@ -113,7 +113,7 @@ function renderSocialLog(log: PostedEntry[]): void {
 
 const SOCIAL_PATH = 'data/social.json';
 const REQUEST_PATH = 'data/social-request.json';
-/** 結果を確かめる間隔と、待つ時間の上限（記事の取り込み・サイトの更新・投稿で、ふだんは2〜4分） */
+/** 結果を確かめる間隔と、待つ時間の上限（記事の取り込み・サイトの更新・投稿で、ふだんは2〜3分） */
 const POST_POLL_MS = 10_000;
 const POST_WAIT_MS = 12 * 60_000;
 /** 「今すぐ投稿」も含めた24時間の上限（scripts/lib/social.ts の SOCIAL_LIMITS.manualMaxPerDay と同じ） */
