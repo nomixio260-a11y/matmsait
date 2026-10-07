@@ -84,6 +84,16 @@ import { href } from '../../lib/items.ts';
         <p class="note">
           毎時の更新のあとに、Bluesky（@topiatsume.bsky.social）へ自動で投稿します（朝の今日の重要ニュース・昼の AI ニュース・夜の今日のまとめ・日曜の今週のランキングと、急上昇・いま話題・10秒でわかるニュース。深夜0〜7時は投稿しない・急上昇などは1時間に1件まで・1日12件まで）。GitHub の Secrets に <code>BLUESKY_APP_PASSWORD</code>（Bluesky のアプリパスワード）が登録されていると動きます（別のアカウントで投稿するときは <code>BLUESKY_IDENTIFIER</code> も登録）。
         </p>
+        <div class="post-now">
+          <div class="actions">
+            <button type="button" id="post-now" class="primary">今すぐ Bluesky に投稿</button>
+          </div>
+          <p class="hint">
+            最新の記事を取り込んでサイトを更新してから、いちばん新しい話題（急上昇 → いま話題 → 10秒でわかるニュースの順。なければ「いま話題のニュース」のまとめ）を投稿します。2〜3分かかります。深夜や前の投稿の直後でも投稿しますが、同じ話題は二度投稿しません。
+          </p>
+          <p class="status" id="post-now-status" aria-live="polite"></p>
+          <ul class="post-now-links" id="post-now-links" hidden></ul>
+        </div>
         <h3 class="sub-title">最近の投稿</h3>
         <ul class="draft-list" id="social-log">
           <li class="pick-meta">読み込んでいます…</li>
@@ -131,6 +141,27 @@ import { href } from '../../lib/items.ts';
   .sub-title {
     margin: 16px 0 0;
     font-size: 0.85rem;
+  }
+  .post-now {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .post-now .actions {
+    margin-top: 0;
+  }
+  .post-now .hint {
+    margin: 8px 0 0;
+    line-height: 1.6;
+  }
+  .post-now-links {
+    margin: 8px 0 0;
+    padding-left: 1.2em;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
   }
   .shortcuts span {
     display: block;

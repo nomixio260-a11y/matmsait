@@ -8,6 +8,7 @@
  * - 日曜の夕方（18〜20時台）: 今週の話題ランキング
  * - 夜（21時以降）: 今日の話題ニュース（日別まとめ）
  * - 急上昇・いま話題・10秒でわかるニュース（AI 要約）: 前の投稿から1時間あけて1件ずつ（種類ごとに1日の上限あり）
+ * - 管理画面の「今すぐ投稿」: 時間帯・間隔を待たずに、いちばん新しい話題を1件（なければ「いま話題のニュース」のまとめ）
  *
  * スパムにならないよう、深夜は投稿しない・1日の投稿数に上限を設ける・同じ話題は二度投稿しない。
  * フォロー・いいね・返信の自動化はしない（相手の迷惑になり、アカウントの停止にもつながるため）。
@@ -39,6 +40,10 @@ export const SOCIAL_LIMITS = {
   /** 日曜日の、今週のまとめ */
   weekly: [18, 21],
   digestHour: 21,
+  /** 管理画面の「今すぐ投稿」も含めた24時間の上限（誤って何度も押したときの歯止め） */
+  manualMaxPerDay: 24,
+  /** 「今すぐ投稿」の依頼がこれより古ければ投稿しない（分。更新の失敗などで処理が遅れたときに、思わぬ時間に投稿しないように） */
+  requestExpiresMinutes: 30,
 } as const;
 
 export const DIGEST_HOUR = SOCIAL_LIMITS.digestHour;
@@ -72,10 +77,10 @@ function hashtagLine(tags: readonly string[]): string {
 
 // ===== 投稿内容 =====
 
-export type PostKind = 'digest' | 'morning' | 'ai' | 'weekly' | 'rising' | 'hot' | 'summary';
+export type PostKind = 'digest' | 'morning' | 'ai' | 'weekly' | 'rising' | 'hot' | 'summary' | 'now';
 
 export interface SocialPost {
-  /** 重複投稿を防ぐためのキー（digest:YYYY-MM-DD / morning:… / ai:… / weekly:… / rising:話題ID / hot:話題ID / summary:記事ID） */
+  /** 重複投稿を防ぐためのキー（digest:YYYY-MM-DD / morning:… / ai:… / weekly:… / rising:話題ID / hot:話題ID / summary:記事ID / now:YYYY-MM-DDTHH） */
   key: string;
   kind: PostKind;
   /** 文字数の判定関数を受け取り、上限に収まる本文を返す（本文にはリンクの URL がそのまま入る） */
@@ -84,10 +89,48 @@ export interface SocialPost {
   link: { url: string; title: string; description: string };
 }
 
+/** 投稿の記録 */
+export interface PostedEntry {
+  key: string;
+  at: string;
+  /** 投稿できたサービス（以前の記録にはない） */
+  platforms?: string[];
+  /** サービスごとの投稿の URL（例: { Bluesky: 'https://bsky.app/profile/…/post/…' }） */
+  urls?: Record<string, string>;
+}
+
+/** 管理画面の「今すぐ投稿」の依頼（data/social-request.json。管理画面が書く） */
+export interface SocialRequest {
+  /** 依頼ごとに違う ID（結果の記録と照らし合わせる） */
+  id: string;
+  /** 依頼した日時（ISO 8601） */
+  at: string;
+}
+
+/**
+ * 「今すぐ投稿」の結果。posted: 投稿した / none: 投稿できる新しい話題がなかった / no-credentials: 認証情報がない /
+ * failed: 投稿に失敗した / limit: 24時間の上限 / expired: 依頼から時間がたっていた
+ */
+export type ManualOutcome = 'posted' | 'none' | 'no-credentials' | 'failed' | 'limit' | 'expired';
+
+export interface ManualResult {
+  /** 依頼の ID */
+  id: string;
+  requestedAt: string;
+  /** 処理した日時 */
+  at: string;
+  result: ManualOutcome;
+  /** 投稿したもの */
+  posts?: PostedEntry[];
+  /** 失敗したときの説明 */
+  error?: string;
+}
+
 export interface SocialState {
   lastDigest?: string;
-  /** 投稿の記録（platforms は投稿できたサービス。以前の記録にはない） */
-  posted: { key: string; at: string; platforms?: string[] }[];
+  posted: PostedEntry[];
+  /** 管理画面の「今すぐ投稿」の最後の結果（管理画面が読んで表示する） */
+  manual?: ManualResult;
 }
 
 /** 投稿に使う話題（src/lib/topics.ts の数字から必要なものだけ） */
@@ -280,6 +323,28 @@ function topicPost(kind: 'rising' | 'hot', topic: SocialTopic, { pageUrl, siteNa
   };
 }
 
+/** いま話題のニュースのまとめ（管理画面の「今すぐ投稿」で、急上昇などの新しい話題がないとき。同じ時間帯には1回まで） */
+export function nowPost(topics: SocialTopic[], now: Date, { pageUrl, siteName }: PlanContext): SocialPost | undefined {
+  if (topics.length < 3) return undefined;
+  const date = jstDateKey(now);
+  const hour = jstHour(now);
+  const { month, day } = monthDay(date);
+  const url = pageUrl('/');
+  return listPost(
+    `now:${date}T${String(hour).padStart(2, '0')}`,
+    'now',
+    `【いま話題のニュース】${month}/${day} ${hour}時`,
+    topics.map((topic) => `${topic.title}（${topic.coverage}社）`),
+    url,
+    hashtagLine(['ニュース']),
+    {
+      url,
+      title: `いま話題のニュース｜${siteName}`,
+      description: `「${truncate(topics[0].title, 60)}」ほか、いま多くのメディアが報じているニュースを話題度の順に紹介します。`,
+    },
+  );
+}
+
 export function hotPost(topic: SocialTopic, context: PlanContext): SocialPost {
   return topicPost('hot', topic, context);
 }
@@ -316,14 +381,32 @@ export function summaryPost(summary: SocialSummary, { pageUrl, siteName }: PlanC
   };
 }
 
+/** 直近24時間の投稿 */
+function recentPosts(state: SocialState, now: Date): PostedEntry[] {
+  return state.posted.filter((entry) => now.getTime() - Date.parse(entry.at) < 24 * HOUR);
+}
+
+/** 24時間の上限に達しているか（manual: 管理画面の「今すぐ投稿」の上限で数える） */
+export function reachedDailyLimit(state: SocialState, now: Date, manual = false): boolean {
+  return recentPosts(state, now).length >= (manual ? SOCIAL_LIMITS.manualMaxPerDay : SOCIAL_LIMITS.maxPerDay);
+}
+
+export interface PlanOptions {
+  /**
+   * 管理画面の「今すぐ投稿」: 深夜・間隔・種類ごとの上限を待たずに、急上昇 → いま話題 → 10秒でわかるニュースの順で
+   * まだ投稿していない話題を1件投稿する（なければ「いま話題のニュース」のまとめ）。同じ話題は二度投稿しない
+   */
+  manual?: boolean;
+}
+
 /** 今回の実行で投稿するものを決める（上限と時間帯を守る） */
-export function planPosts(state: SocialState, context: PlanContext): SocialPost[] {
+export function planPosts(state: SocialState, context: PlanContext, { manual = false }: PlanOptions = {}): SocialPost[] {
   const { now, snapshots } = context;
   const hour = jstHour(now);
-  if (hour < SOCIAL_LIMITS.quietUntilHour) return [];
+  if (!manual && hour < SOCIAL_LIMITS.quietUntilHour) return [];
   const today = jstDateKey(now);
-  const recent = state.posted.filter((entry) => now.getTime() - Date.parse(entry.at) < 24 * HOUR);
-  const room = SOCIAL_LIMITS.maxPerDay - recent.length;
+  const recent = recentPosts(state, now);
+  const room = (manual ? SOCIAL_LIMITS.manualMaxPerDay : SOCIAL_LIMITS.maxPerDay) - recent.length;
   if (room <= 0) return [];
   const posted = new Set(state.posted.map((entry) => entry.key));
   const posts: SocialPost[] = [];
@@ -349,14 +432,15 @@ export function planPosts(state: SocialState, context: PlanContext): SocialPost[
   }
 
   // 急上昇・いま話題・10秒でわかるニュース（前の投稿から間をあけ、1回の実行で1件まで。同じ話題は二度投稿しない）
-  const eventPosts = recent.filter((entry) => /^(rising|hot|summary):/.test(entry.key));
+  const eventPosts = recent.filter((entry) => /^(rising|hot|summary|now):/.test(entry.key));
   const lastEvent = Math.max(0, ...eventPosts.map((entry) => Date.parse(entry.at)));
   // 10秒でわかるニュースで投稿した話題（記録は要約の記事 ID なので、要約から話題をたどる）
   const summaryTopics = new Set(context.summaries.filter((entry) => posted.has(`summary:${entry.id}`)).map((entry) => entry.topicId));
   const seenTopic = (id: string | undefined) =>
     id !== undefined && (posted.has(`rising:${id}`) || posted.has(`hot:${id}`) || summaryTopics.has(id));
-  if (now.getTime() - lastEvent >= SOCIAL_LIMITS.minGapMinutes * 60 * 1000) {
-    const count = (kind: PostKind) => eventPosts.filter((entry) => entry.key.startsWith(`${kind}:`)).length;
+  if (manual || now.getTime() - lastEvent >= SOCIAL_LIMITS.minGapMinutes * 60 * 1000) {
+    // 種類ごとの1日の上限（「今すぐ投稿」では数えない）
+    const allows = (kind: PostKind, max: number) => manual || eventPosts.filter((entry) => entry.key.startsWith(`${kind}:`)).length < max;
     const rising = context.rising.find(
       (topic) => topic.gained >= SOCIAL_LIMITS.risingMinGained && topic.coverage >= SOCIAL_LIMITS.risingMinCoverage && !seenTopic(topic.id),
     );
@@ -369,18 +453,58 @@ export function planPosts(state: SocialState, context: PlanContext): SocialPost[
         !seenTopic(topic.id),
     );
     const summary = context.summaries.find((entry) => !posted.has(`summary:${entry.id}`) && !seenTopic(entry.topicId));
-    if (rising && count('rising') < SOCIAL_LIMITS.maxRisingPerDay) posts.push(risingPost(rising, context));
-    else if (hot && count('hot') < SOCIAL_LIMITS.maxHotPerDay) posts.push(hotPost(hot, context));
-    else if (summary && count('summary') < SOCIAL_LIMITS.maxSummaryPerDay) posts.push(summaryPost(summary, context));
+    if (rising && allows('rising', SOCIAL_LIMITS.maxRisingPerDay)) posts.push(risingPost(rising, context));
+    else if (hot && allows('hot', SOCIAL_LIMITS.maxHotPerDay)) posts.push(hotPost(hot, context));
+    else if (summary && allows('summary', SOCIAL_LIMITS.maxSummaryPerDay)) posts.push(summaryPost(summary, context));
+    else if (manual) {
+      // 新しい話題がなければ、いま話題のニュースのまとめ（同じ時間帯に投稿済みなら何もしない）
+      const post = nowPost(context.hot.slice(0, 5), now, context);
+      if (post && !posted.has(post.key)) posts.push(post);
+    }
   }
   return posts.slice(0, room);
 }
 
+/** まだ処理していない「今すぐ投稿」の依頼（処理済み・依頼がなければ undefined）。古すぎる依頼は expired */
+export function pendingRequest(
+  state: SocialState,
+  request: SocialRequest | undefined,
+  now: Date,
+): { request: SocialRequest; expired: boolean } | undefined {
+  if (!request || typeof request.id !== 'string' || request.id === '' || request.id === state.manual?.id) return undefined;
+  const age = now.getTime() - Date.parse(request.at);
+  // 日時が読めない依頼も古いものとして扱う
+  return { request, expired: !(age < SOCIAL_LIMITS.requestExpiresMinutes * 60 * 1000) };
+}
+
+/** 「今すぐ投稿」の結果を記録する（管理画面がこれを読んで表示する） */
+export function recordManual(
+  state: SocialState,
+  request: SocialRequest,
+  now: Date,
+  result: Pick<ManualResult, 'result' | 'posts' | 'error'>,
+): SocialState {
+  return { ...state, manual: { id: request.id, requestedAt: request.at, at: now.toISOString(), ...result } };
+}
+
 /** 投稿済みとして記録する（古い記録は捨てる） */
-export function recordPost(state: SocialState, post: SocialPost, now: Date, platforms: string[] = []): SocialState {
+export function recordPost(
+  state: SocialState,
+  post: SocialPost,
+  now: Date,
+  platforms: string[] = [],
+  urls: Record<string, string> = {},
+): SocialState {
+  const entry: PostedEntry = {
+    key: post.key,
+    at: now.toISOString(),
+    ...(platforms.length > 0 ? { platforms } : {}),
+    ...(Object.keys(urls).length > 0 ? { urls } : {}),
+  };
   return {
+    ...state,
     lastDigest: post.key.startsWith('digest:') ? post.key.slice('digest:'.length) : state.lastDigest,
-    posted: [...state.posted, { key: post.key, at: now.toISOString(), ...(platforms.length > 0 ? { platforms } : {}) }].slice(-500),
+    posted: [...state.posted, entry].slice(-500),
   };
 }
 
@@ -393,9 +517,10 @@ export interface PlatformLimit {
   monthly: number;
 }
 
-/** サービスごとの投稿の上限（どのサービスも無料の API なので、全体の上限と同じ） */
-export function platformLimit(): PlatformLimit {
-  return { daily: SOCIAL_LIMITS.maxPerDay, monthly: SOCIAL_LIMITS.maxPerDay * 30 };
+/** サービスごとの投稿の上限（どのサービスも無料の API なので、全体の上限と同じ。manual: 「今すぐ投稿」のとき） */
+export function platformLimit(manual = false): PlatformLimit {
+  const daily = manual ? SOCIAL_LIMITS.manualMaxPerDay : SOCIAL_LIMITS.maxPerDay;
+  return { daily, monthly: daily * 30 };
 }
 
 /** このサービスにこの投稿をしてよいか（24時間・30日の上限） */
@@ -472,7 +597,8 @@ export function blueskyRichText(text: string, campaign: string): { text: string;
 export interface Platform {
   name: string;
   fits: (text: string) => boolean;
-  send: (text: string, post: SocialPost) => Promise<void>;
+  /** 投稿して、投稿のページの URL を返す（分からなければ undefined） */
+  send: (text: string, post: SocialPost) => Promise<string | undefined>;
 }
 
 async function request(url: string, init: RequestInit, label: string): Promise<unknown> {
@@ -488,6 +614,7 @@ export const fitsBluesky = (text: string) => graphemeLength(blueskyRichText(text
 interface BlueskySession {
   accessJwt: string;
   did: string;
+  handle?: string;
 }
 
 /**
@@ -521,7 +648,7 @@ function blueskyPlatform(identifier: string, password: string, service: string, 
     name: 'Bluesky',
     fits: fitsBluesky,
     send: async (text, post) => {
-      const { accessJwt, did } = await login();
+      const { accessJwt, did, handle } = await login();
       const rich = blueskyRichText(text, post.kind);
       const blob = await uploadThumb(accessJwt);
       const record = {
@@ -540,7 +667,7 @@ function blueskyPlatform(identifier: string, password: string, service: string, 
           },
         },
       };
-      await request(
+      const created = (await request(
         `${base}/xrpc/com.atproto.repo.createRecord`,
         {
           method: 'POST',
@@ -548,9 +675,16 @@ function blueskyPlatform(identifier: string, password: string, service: string, 
           body: JSON.stringify({ repo: did, collection: 'app.bsky.feed.post', record }),
         },
         'Bluesky',
-      );
+      )) as { uri?: string } | undefined;
+      return blueskyPostUrl(created?.uri, handle || did);
     },
   };
+}
+
+/** 投稿の at:// の URI から、Bluesky のアプリで開ける URL を作る */
+export function blueskyPostUrl(uri: string | undefined, actor: string): string | undefined {
+  const rkey = uri?.match(/\/app\.bsky\.feed\.post\/([^/]+)$/)?.[1];
+  return rkey ? `https://bsky.app/profile/${actor}/post/${rkey}` : undefined;
 }
 
 /** 本文の URL に流入元を付ける（Mastodon・Misskey は本文の URL をそのまま表示するので） */
@@ -562,7 +696,7 @@ function mastodonPlatform(instance: string, token: string): Platform {
     name: 'Mastodon',
     fits: (text) => mastodonLength(text) <= 500,
     send: async (text, post) => {
-      await request(
+      const status = (await request(
         `${base}/api/v1/statuses`,
         {
           method: 'POST',
@@ -574,7 +708,8 @@ function mastodonPlatform(instance: string, token: string): Platform {
           body: JSON.stringify({ status: tagLinks(text, 'mastodon', post.kind), visibility: 'public', language: 'ja' }),
         },
         'Mastodon',
-      );
+      )) as { url?: string } | undefined;
+      return status?.url;
     },
   };
 }
@@ -585,7 +720,7 @@ function misskeyPlatform(instance: string, token: string): Platform {
     name: 'Misskey',
     fits: (text) => Array.from(text).length <= 3000,
     send: async (text, post) => {
-      await request(
+      const created = (await request(
         `${base}/api/notes/create`,
         {
           method: 'POST',
@@ -593,7 +728,8 @@ function misskeyPlatform(instance: string, token: string): Platform {
           body: JSON.stringify({ i: token, text: tagLinks(text, 'misskey', post.kind), visibility: 'public' }),
         },
         'Misskey',
-      );
+      )) as { createdNote?: { id?: string } } | undefined;
+      return created?.createdNote?.id ? `${base}/notes/${created.createdNote.id}` : undefined;
     },
   };
 }

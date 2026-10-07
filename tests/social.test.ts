@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
   SOCIAL_LIMITS,
+  blueskyPostUrl,
   blueskyRichText,
   displayUrl,
   fitsBluesky,
   graphemeLength,
   hotPost,
   mastodonLength,
+  nowPost,
+  pendingRequest,
   planPosts,
   platformAllows,
+  platformLimit,
+  reachedDailyLimit,
+  recordManual,
   recordPost,
   risingPost,
   summaryPost,
@@ -198,6 +204,83 @@ describe('planPosts', () => {
     const risingDone = Array.from({ length: SOCIAL_LIMITS.maxRisingPerDay }, (_, n) => ({ key: `rising:r${n}`, at: at('08:00').toISOString() }));
     // 急上昇が上限なら、次の種類（10秒でわかるニュース）に回る
     expect(planPosts({ posted: risingDone }, context(now, { rising, summaries: [summary('s')] })).map((post) => post.key)).toEqual(['summary:s']);
+  });
+});
+
+describe('管理画面の「今すぐ投稿」', () => {
+  const hot = [
+    topic('h1', { coverage: 6, score: 80, latestAt: at('10:00').toISOString() }),
+    topic('h2', { coverage: 5, score: 70, latestAt: at('09:00').toISOString() }),
+    topic('h3', { coverage: 4, score: 60, latestAt: at('08:00').toISOString() }),
+  ];
+
+  it('深夜・間隔・種類ごとの上限を待たずに、まだ投稿していない話題を1件投稿する', () => {
+    // 深夜でも投稿する
+    expect(planPosts(empty, context(at('03:00'), { hot }), { manual: true }).map((post) => post.key)).toEqual(['hot:h1']);
+    // 10分前に投稿していても（いつもは1時間あける）、急上昇から順に選ぶ
+    const state = recordPost(empty, hotPost(hot[0], context(at('10:00'))), at('10:00'));
+    const rising = [topic('r1', { gained: 2, coverage: 3 })];
+    expect(planPosts(state, context(at('10:10'), { hot, rising }))).toEqual([]);
+    expect(planPosts(state, context(at('10:10'), { hot, rising }), { manual: true }).map((post) => post.key)).toEqual(['rising:r1']);
+    // 種類ごとの1日の上限に達していても投稿する
+    const full: SocialState = { posted: Array.from({ length: SOCIAL_LIMITS.maxHotPerDay }, (_, n) => ({ key: `hot:x${n}`, at: at('08:00').toISOString() })) };
+    expect(planPosts(full, context(at('09:30'), { hot }), { manual: true }).map((post) => post.key)).toEqual(['hot:h1']);
+  });
+
+  it('新しい話題がなければ「いま話題のニュース」のまとめ（同じ時間帯は1回まで）', () => {
+    const state: SocialState = { posted: hot.map((entry) => ({ key: `hot:${entry.id}`, at: at('06:00').toISOString() })) };
+    const [post] = planPosts(state, context(at('14:20'), { hot }), { manual: true });
+    expect(post.key).toBe('now:2026-10-06T14');
+    const text = post.compose(fitsBluesky);
+    expect(text).toContain('【いま話題のニュース】10/6 14時');
+    expect(text).toContain('1. 話題h1の見出し（6社）');
+    expect(text).toContain('https://example.com/site/');
+    expect(post.link.title).toBe('いま話題のニュース｜テスト');
+    const after = recordPost(state, post, at('14:20'));
+    expect(planPosts(after, context(at('14:50'), { hot }), { manual: true })).toEqual([]);
+    expect(planPosts(after, context(at('15:05'), { hot }), { manual: true }).map((entry) => entry.key)).toEqual(['now:2026-10-06T15']);
+    // まとめは3件以上の話題があるときだけ
+    expect(nowPost(hot.slice(0, 2), at('14:20'), context(at('14:20')))).toBeUndefined();
+    // 「今すぐ投稿」のまとめのあとは、いつもの自動投稿も1時間あける
+    expect(planPosts(after, context(at('15:00'), { rising: [topic('r9', { gained: 3, coverage: 4 })] }))).toEqual([]);
+  });
+
+  it('24時間の上限は「今すぐ投稿」では広げる（誤って何度も押したときの歯止めは残す）', () => {
+    const posts = (count: number): SocialState => ({ posted: Array.from({ length: count }, (_, n) => ({ key: `digest:x${n}`, at: at('09:00').toISOString(), platforms: ['Bluesky'] })) });
+    const twelve = posts(SOCIAL_LIMITS.maxPerDay);
+    expect(reachedDailyLimit(twelve, at('10:00'))).toBe(true);
+    expect(reachedDailyLimit(twelve, at('10:00'), true)).toBe(false);
+    expect(planPosts(twelve, context(at('10:00'), { hot }), { manual: true }).map((post) => post.key)).toEqual(['hot:h1']);
+    expect(platformAllows('Bluesky', twelve, at('10:00'))).toBe(false);
+    expect(platformAllows('Bluesky', twelve, at('10:00'), platformLimit(true))).toBe(true);
+    const max = posts(SOCIAL_LIMITS.manualMaxPerDay);
+    expect(reachedDailyLimit(max, at('10:00'), true)).toBe(true);
+    expect(planPosts(max, context(at('10:00'), { hot }), { manual: true })).toEqual([]);
+  });
+
+  it('依頼は ID で照らし合わせ、処理済み・古すぎる依頼は投稿しない', () => {
+    const now = at('12:00');
+    const request = { id: 'req-1', at: at('11:58').toISOString() };
+    expect(pendingRequest(empty, undefined, now)).toBeUndefined();
+    expect(pendingRequest(empty, request, now)).toEqual({ request, expired: false });
+    // 30分より古い依頼は投稿しない（更新が遅れたときに、思わぬ時間に投稿しないように）
+    expect(pendingRequest(empty, { id: 'recent', at: at('11:31').toISOString() }, now)?.expired).toBe(false);
+    expect(pendingRequest(empty, { id: 'old', at: at('11:29').toISOString() }, now)?.expired).toBe(true);
+    expect(pendingRequest(empty, { id: 'bad', at: 'いつか' }, now)?.expired).toBe(true);
+    const done = recordManual(empty, request, now, { result: 'none' });
+    expect(done.manual).toEqual({ id: 'req-1', requestedAt: request.at, at: now.toISOString(), result: 'none' });
+    expect(pendingRequest(done, request, now)).toBeUndefined();
+    // 投稿を記録しても「今すぐ投稿」の結果は残る。投稿のページの URL も残す
+    const posted = recordPost(done, hotPost(hot[0], context(now)), now, ['Bluesky'], { Bluesky: 'https://bsky.app/profile/a.bsky.social/post/3abc' });
+    expect(posted.manual?.id).toBe('req-1');
+    expect(posted.posted.at(-1)).toEqual({ key: 'hot:h1', at: now.toISOString(), platforms: ['Bluesky'], urls: { Bluesky: 'https://bsky.app/profile/a.bsky.social/post/3abc' } });
+  });
+
+  it('Bluesky の投稿の URI から、アプリで開ける URL を作る', () => {
+    expect(blueskyPostUrl('at://did:plc:abc/app.bsky.feed.post/3mxbz5nmwsm2u', 'topiatsume.bsky.social')).toBe(
+      'https://bsky.app/profile/topiatsume.bsky.social/post/3mxbz5nmwsm2u',
+    );
+    expect(blueskyPostUrl(undefined, 'x')).toBeUndefined();
   });
 });
 

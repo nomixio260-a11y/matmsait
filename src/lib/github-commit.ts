@@ -110,11 +110,15 @@ export function createGitHubClient(token: string, { owner, repo }: Repository, f
     return { login: data.login ?? '' };
   }
 
-  /** あるコミット時点のファイルの中身。存在しなければ null */
-  async function readFile(path: string, ref: string): Promise<string | null> {
+  /**
+   * あるコミット（ブランチ）時点のファイルの中身。存在しなければ null。
+   * fresh: ブラウザのキャッシュを使わない（GitHub の応答は60秒キャッシュされるので、更新を待つときに使う）
+   */
+  async function readFile(path: string, ref: string, { fresh = false }: { fresh?: boolean } = {}): Promise<string | null> {
     try {
       const res = await api(`/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`, {
         accept: 'application/vnd.github.raw+json',
+        ...(fresh ? { cache: 'no-store' as const } : {}),
       });
       return await res.text();
     } catch (error) {

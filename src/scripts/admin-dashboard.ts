@@ -1,7 +1,10 @@
 /**
  * 管理画面の「概要」（/admin/）: サイトの状態（最終更新・自動更新・最近の実行）、きょうの数字（アクセス解析・記事・要約・通知）、
- * やること（更新が止まっている・取得できていない収集元・要約のない話題の記事・お知らせとピックアップの期限など）
+ * やること（更新が止まっている・取得できていない収集元・要約のない話題の記事・お知らせとピックアップの期限など）、
+ * SNS（Bluesky）の自動投稿（最近の投稿・「今すぐ投稿」・下書き）
  */
+import type { ManualResult, PostedEntry, SocialRequest } from '../../scripts/lib/social.ts';
+import type { Repository } from '../lib/github-commit.ts';
 import type { EditorPick, Notice } from '../lib/editorial-core.ts';
 import { requireSession, watchSession } from './admin-common.ts';
 import {
@@ -14,9 +17,11 @@ import {
   loadAdminData,
   numberFormat,
   serverApi,
+  setStatus,
   setupConnectionCheck,
   setupRunsPanel,
   type AdminDataCommon,
+  type GitHubClient,
 } from './admin-shared.ts';
 
 interface SocialDraft {
@@ -32,8 +37,14 @@ interface DashboardData extends AdminDataCommon {
   notice?: Notice | null;
   picks?: (EditorPick & { article?: { title: string } })[];
   social?: SocialDraft[];
-  /** 自動投稿の記録（新しい順） */
-  socialLog?: { key: string; at: string; platforms?: string[] }[];
+  /** 自動投稿の記録（新しい順。サイトのビルドのときのもの） */
+  socialLog?: PostedEntry[];
+}
+
+/** 自動投稿の記録のファイル（data/social.json）のうち、ここで使うもの */
+interface SocialFile {
+  posted?: PostedEntry[];
+  manual?: ManualResult;
 }
 
 const POST_KINDS: Record<string, string> = {
@@ -44,10 +55,39 @@ const POST_KINDS: Record<string, string> = {
   rising: '急上昇',
   hot: 'いま話題',
   summary: '10秒でわかるニュース',
+  now: 'いま話題のまとめ',
 };
 
-/** 自動投稿の記録（いつ・何を・どのサービスに。リンクはサイトのページ） */
-function renderSocialLog(log: NonNullable<DashboardData['socialLog']>): void {
+/** 投稿のリンク先（サイトのページ） */
+function postPath(key: string): string {
+  const [kind, id] = key.split(':');
+  switch (kind) {
+    case 'rising':
+    case 'hot':
+      return `/topic/${id}/`;
+    case 'digest':
+      return `/daily/${id}/`;
+    case 'ai':
+      return '/tag/ai/';
+    case 'summary':
+      return `/summary/${id}/`;
+    case 'now':
+      return '/';
+    default:
+      return '/ranking/';
+  }
+}
+
+function externalLink(text: string, href: string, className = ''): HTMLAnchorElement {
+  const link = el('a', className, text);
+  link.href = href;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  return link;
+}
+
+/** 自動投稿の記録（いつ・何を・どのサービスに。リンクはサイトのページと、投稿そのもの） */
+function renderSocialLog(log: PostedEntry[]): void {
   const list = $('social-log');
   if (log.length === 0) {
     list.replaceChildren(el('li', 'pick-meta', 'まだ投稿していません（Secrets を登録すると、次の更新から投稿が始まります。深夜0〜7時は投稿しません）。'));
@@ -55,30 +95,177 @@ function renderSocialLog(log: NonNullable<DashboardData['socialLog']>): void {
   }
   list.replaceChildren(
     ...log.slice(0, 15).map((entry) => {
-      const [kind, id] = entry.key.split(':');
+      const [kind] = entry.key.split(':');
       const li = el('li', 'draft');
       const head = el('div', 'draft-head');
       head.append(el('span', 'badge', POST_KINDS[kind] ?? kind), ` ${dateFormat.format(new Date(entry.at))}`);
       if (entry.platforms?.length) head.append(el('span', 'pick-meta', `（${entry.platforms.join('・')}）`));
       li.append(head);
-      const path =
-        kind === 'rising' || kind === 'hot'
-          ? `/topic/${id}/`
-          : kind === 'digest'
-            ? `/daily/${id}/`
-            : kind === 'ai'
-              ? '/tag/ai/'
-              : kind === 'summary'
-                ? `/summary/${id}/`
-                : '/ranking/';
-      const link = el('a', 'pick-meta', `${base}${path}`);
-      link.href = `${base}${path}`;
-      link.target = '_blank';
-      link.rel = 'noopener';
-      li.append(link);
+      const path = postPath(entry.key);
+      li.append(externalLink(`${base}${path}`, `${base}${path}`, 'pick-meta'));
+      for (const [name, url] of Object.entries(entry.urls ?? {})) li.append(' ', externalLink(`${name} で見る`, url, 'pick-meta'));
       return li;
     }),
   );
+}
+
+// ===== 今すぐ投稿（管理画面から Bluesky に投稿する） =====
+
+const SOCIAL_PATH = 'data/social.json';
+const REQUEST_PATH = 'data/social-request.json';
+/** 結果を確かめる間隔と、待つ時間の上限（記事の取り込み・サイトの更新・投稿で、ふだんは2〜3分） */
+const POST_POLL_MS = 10_000;
+const POST_WAIT_MS = 12 * 60_000;
+/** 「今すぐ投稿」も含めた24時間の上限（scripts/lib/social.ts の SOCIAL_LIMITS.manualMaxPerDay と同じ） */
+const MANUAL_MAX_PER_DAY = 24;
+
+function parseJson<T>(text: string | null): T | undefined {
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+const newRequestId = () => (typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
+
+/** 「今すぐ投稿」の結果の説明 */
+function manualMessage(manual: ManualResult): { text: string; kind: 'ok' | 'error' | '' } {
+  switch (manual.result) {
+    case 'posted':
+      return { text: `Bluesky に投稿しました（${dateFormat.format(new Date(manual.at))}）。`, kind: 'ok' };
+    case 'none':
+      return {
+        text: 'いま投稿できる新しい話題がありませんでした（まだ投稿していない急上昇・いま話題・AI 要約がなく、「いま話題のニュース」のまとめもこの時間帯に投稿済みか、話題が足りませんでした。同じ話題は二度投稿しません）。',
+        kind: '',
+      };
+    case 'no-credentials':
+      return { text: 'Bluesky のアプリパスワードが GitHub の Secrets（BLUESKY_APP_PASSWORD）に登録されていないため、投稿できませんでした。', kind: 'error' };
+    case 'limit':
+      return { text: `24時間の投稿数の上限（${MANUAL_MAX_PER_DAY}件）に達しているため、投稿しませんでした。`, kind: 'error' };
+    case 'expired':
+      return { text: '依頼から時間がたっていたため、投稿しませんでした。もう一度押してください。', kind: 'error' };
+    default: {
+      const error = manual.error ?? '原因が分かりません';
+      const hint = /HTTP 401|AuthenticationRequired/.test(error) ? '（Bluesky にログインできませんでした。アプリパスワードが正しいか、Bluesky の設定で削除していないかを確かめてください）' : '';
+      return { text: `投稿に失敗しました: ${error}${hint}`, kind: 'error' };
+    }
+  }
+}
+
+/** 「今すぐ Bluesky に投稿」のボタン（投稿の依頼を GitHub に保存すると、サイトの更新が始まり、そのあとに投稿される） */
+function setupPostNow(options: { client: () => GitHubClient; repository: Repository; onState: (state: SocialFile) => void }): { check(): Promise<void> } {
+  const button = $<HTMLButtonElement>('post-now');
+  const status = $('post-now-status');
+  const links = $<HTMLUListElement>('post-now-links');
+  const github = `https://github.com/${options.repository.owner}/${options.repository.repo}`;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const showLinks = (items: HTMLElement[]) => {
+    links.replaceChildren(...items);
+    links.hidden = items.length === 0;
+  };
+  const linkItem = (...nodes: (Node | string)[]) => {
+    const li = el('li');
+    li.append(...nodes);
+    return li;
+  };
+  const actionsItem = () => linkItem(externalLink('実行状況（GitHub）', `${github}/actions`));
+
+  function showResult(manual: ManualResult): void {
+    const message = manualMessage(manual);
+    setStatus(status, message.text, message.kind);
+    const items = (manual.posts ?? []).map((post) => {
+      const [kind] = post.key.split(':');
+      const path = postPath(post.key);
+      const nodes: (Node | string)[] = [el('span', 'badge', POST_KINDS[kind] ?? kind), ' '];
+      for (const [name, url] of Object.entries(post.urls ?? {})) nodes.push(externalLink(`${name} で見る`, url), ' ');
+      nodes.push(externalLink('サイトのページ', `${base}${path}`));
+      return linkItem(...nodes);
+    });
+    if (manual.result === 'no-credentials') items.push(linkItem(externalLink('Secrets に BLUESKY_APP_PASSWORD を登録する（GitHub）', `${github}/settings/secrets/actions/new`)));
+    if (manual.result === 'failed') items.push(actionsItem());
+    showLinks(items);
+  }
+
+  /** 依頼の結果が data/social.json に記録されるまで待つ */
+  function wait(request: SocialRequest, branch: string): void {
+    clearTimeout(timer);
+    button.disabled = true;
+    showLinks([]);
+    const started = Date.parse(request.at);
+    const tick = async () => {
+      let state: SocialFile | undefined;
+      try {
+        state = parseJson<SocialFile>(await options.client().readFile(SOCIAL_PATH, branch, { fresh: true }));
+      } catch {
+        // 一時的に読めなくても待ち続ける
+      }
+      if (state) options.onState(state);
+      if (state?.manual?.id === request.id) {
+        showResult(state.manual);
+        button.disabled = false;
+        return;
+      }
+      const elapsed = Date.now() - started;
+      if (elapsed > POST_WAIT_MS) {
+        setStatus(status, '投稿の結果がまだ記録されていません。サイトの更新に時間がかかっているか、失敗している可能性があります。', 'error');
+        showLinks([actionsItem()]);
+        button.disabled = false;
+        return;
+      }
+      setStatus(status, `投稿の準備をしています（${Math.max(0, Math.round(elapsed / 1000))}秒）。最新の記事を取り込み、サイトを更新してから投稿します…`);
+      timer = setTimeout(() => void tick(), POST_POLL_MS);
+    };
+    void tick();
+  }
+
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    showLinks([]);
+    setStatus(status, '投稿を依頼しています…');
+    try {
+      const client = options.client();
+      const { defaultBranch } = await client.repository();
+      const request: SocialRequest = { id: newRequestId(), at: new Date().toISOString() };
+      // この保存（push）で、サイトの更新（update.yml）が始まる。更新のあとの通知の処理が依頼を見て投稿し、結果を記録する
+      await client.commitFiles(defaultBranch, 'SNS に今すぐ投稿（管理画面から）', async () => [{ path: REQUEST_PATH, content: `${JSON.stringify(request)}\n` }]);
+      wait(request, defaultBranch);
+    } catch (error) {
+      setStatus(status, `依頼できませんでした: ${errorText(error)}`, 'error');
+      button.disabled = false;
+    }
+  });
+
+  /** ページを開いたとき: いまの投稿の記録を読み、処理中の依頼があれば結果を待つ */
+  async function check(): Promise<void> {
+    try {
+      const client = options.client();
+      const { defaultBranch } = await client.repository();
+      const [stateText, requestText] = await Promise.all([
+        client.readFile(SOCIAL_PATH, defaultBranch, { fresh: true }),
+        client.readFile(REQUEST_PATH, defaultBranch, { fresh: true }),
+      ]);
+      const state = parseJson<SocialFile>(stateText);
+      if (state) options.onState(state);
+      const request = parseJson<SocialRequest>(requestText);
+      if (!request?.id || request.id === state?.manual?.id) return;
+      const age = Date.now() - Date.parse(request.at);
+      if (age < POST_WAIT_MS) wait(request, defaultBranch);
+      else if (age < 24 * 3_600_000) {
+        setStatus(
+          status,
+          `${dateFormat.format(new Date(request.at))} の「今すぐ投稿」の依頼が処理されていません（サイトの更新が失敗している可能性があります。30分以上たった依頼は投稿しません）。`,
+          'error',
+        );
+        showLinks([actionsItem()]);
+      }
+    } catch {
+      // 読めなくても、サイトのビルドのときの記録を表示したままにする
+    }
+  }
+  return { check };
 }
 
 /** SNS の投稿の下書き（Bluesky の投稿画面を開くリンクと、コピーのボタン） */
@@ -282,6 +469,13 @@ async function main(): Promise<void> {
   renderTodos(todos);
   renderDrafts(data.social ?? []);
   renderSocialLog(data.socialLog ?? []);
+  // 最近の投稿は GitHub の最新の記録で表示し直す（サイトのビルドのあとに投稿したものも出す）
+  const postNow = setupPostNow({
+    client,
+    repository: data.repository,
+    onState: (state) => renderSocialLog(Array.isArray(state.posted) ? state.posted.slice(-30).reverse() : []),
+  });
+  void postNow.check();
 
   // 数字（記事・要約は管理画面用データから、アクセスと通知はサーバーから）
   const stats = $('stats');

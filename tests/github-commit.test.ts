@@ -6,6 +6,7 @@ interface Call {
   url: string;
   body?: unknown;
   accept?: string;
+  cache?: RequestCache;
 }
 
 /** GitHub API のふりをする fetch。PATCH（ブランチ更新）を何回目で成功させるかを指定できる */
@@ -19,7 +20,7 @@ function fakeGitHub({ patchFailures = 0, files = {} as Record<string, string> } 
     const url = String(input);
     const method = init.method ?? 'GET';
     const headers = init.headers as Record<string, string>;
-    calls.push({ method, url, body: init.body ? JSON.parse(String(init.body)) : undefined, accept: headers.Accept });
+    calls.push({ method, url, body: init.body ? JSON.parse(String(init.body)) : undefined, accept: headers.Accept, cache: init.cache });
     if (url === 'https://api.github.com/user') return respond(200, { login: 'operator' });
     const path = url.replace('https://api.github.com/repos/owner/repo', '');
     if (path === '') return respond(200, { default_branch: 'main', permissions: { push: true } });
@@ -45,6 +46,15 @@ function fakeGitHub({ patchFailures = 0, files = {} as Record<string, string> } 
 }
 
 describe('createGitHubClient', () => {
+  it('更新を待つときは、ブラウザのキャッシュを使わずにファイルを読む（fresh）', async () => {
+    const { fetchImpl, calls } = fakeGitHub({ files: { 'data/social.json': '{"posted":[]}\n' } });
+    const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
+    expect(await client.readFile('data/social.json', 'main', { fresh: true })).toBe('{"posted":[]}\n');
+    expect(await client.readFile('data/social.json', 'main')).toBe('{"posted":[]}\n');
+    expect(await client.readFile('data/social-request.json', 'main', { fresh: true })).toBeNull();
+    expect(calls.map((call) => call.cache)).toEqual(['no-store', undefined, 'no-store']);
+  });
+
   it('既定ブランチと書き込み権限を調べる', async () => {
     const { fetchImpl } = fakeGitHub();
     const client = createGitHubClient('token', { owner: 'owner', repo: 'repo' }, fetchImpl);
