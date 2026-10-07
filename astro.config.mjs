@@ -78,7 +78,7 @@ export default defineConfig({
         const path = new URL(item.url).pathname.slice(base.replace(/\/$/, '').length);
         const daily = path.match(/^\/daily\/(\d{4}-\d{2}-\d{2})\/$/);
         const summary = path.match(/^\/summary\/([0-9a-f]+)\/$/);
-        if (/^\/(?:topic|tag|word)\/[^/]+\/$|^\/(?:rising|tags|words|trends|genres)\/$/.test(path)) {
+        if (/^\/(?:topic|tag|word)\/[^/]+\/$|^\/(?:rising|tags|words|trends|weekly|genres)\/$/.test(path)) {
           // 中身が少なくて noindex にしたページは入れない。話題のページは最後に報じられた日時を最終更新にする
           const html = builtHtml(path);
           if (/<meta name="robots" content="noindex/.test(html)) return undefined;

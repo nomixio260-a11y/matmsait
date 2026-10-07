@@ -14,11 +14,13 @@ import { overrideLinks } from './topic-overrides-core.ts';
 import {
   HOUR,
   LIFECYCLE_LABELS,
+  TOPIC_DAYS,
   analyzeTopic,
   durationText,
   genreSpread,
   genreTemperature,
   heatSeries,
+  isNewWord,
   lifecycleOf,
   momentumOf,
   newTopics,
@@ -41,8 +43,6 @@ import {
 } from './topic-core.ts';
 import type { Item, SummaryRecord } from './types.ts';
 
-/** 話題をまとめる対象（新しい記事から何日分か。1週間のランキングに足りる分） */
-const TOPIC_DAYS = 8;
 /** 話題のページを検索エンジンに出す条件（報じたメディアの数。AI 要約のある話題は数にかかわらず出す） */
 const INDEX_MIN_COVERAGE = 3;
 
@@ -360,7 +360,7 @@ let trendCache: TrendWord[] | undefined;
 export function getTrendWords(limit = 12): TrendWord[] {
   if (!trendCache) {
     const vocabulary = [...getSummaries().flatMap((record) => record.keywords ?? []), ...tagDefinitions.flatMap((tag) => tag.words)];
-    trendCache = trendingWords(getItems(), vocabulary, builtAt.getTime(), { limit: 30 });
+    trendCache = trendingWords(getItems(), vocabulary, builtAt.getTime(), { limit: 60 });
   }
   return trendCache.slice(0, limit);
 }
@@ -562,7 +562,7 @@ export function getTodayChanges(limit = 5): TodayChange[] {
   // 急に増えた言葉
   const word = getTrendWords(1)[0];
   if (word) {
-    const pace = word.baseline > 0 ? `ふだん（それまでの6日間の平均）の${paceText(word.count / word.baseline)}です` : 'それまでの6日間はほとんど出てこなかった言葉です';
+    const pace = isNewWord(word.previous) ? 'それまでの7日間はほとんど出てこなかった言葉です' : `ふだん（それまでの7日間の平均）の${paceText(word.count / word.baseline)}です`;
     changes.push({
       kind: 'word',
       text: `「${word.word}」を含む見出しが、24時間で${word.count}件（${word.sources}媒体）。${pace}。`,

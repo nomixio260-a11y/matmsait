@@ -1,0 +1,154 @@
+---
+/**
+ * 昨日との違い: 急増・急減（言葉とジャンル）、新登場・収束（トピック）。
+ * 直近24時間とその前の24時間を数字で比べ、良い・悪いの判断はしない
+ */
+import Icon from './Icon.astro';
+import { href } from '../lib/items.ts';
+import { getYesterdayDiff, type DiffEntry } from '../lib/trends.ts';
+
+const diff = getYesterdayDiff();
+const groups: { key: keyof typeof diff; title: string; icon: string; tone: string; text: string; empty: string }[] = [
+  { key: 'surge', title: '昨日から急増', icon: 'up', tone: 'heat', text: '見出しの言葉・ジャンルのトピックが大きく増えた', empty: '大きく増えた言葉・ジャンルはありません' },
+  { key: 'drop', title: '昨日から急減', icon: 'down', tone: 'muted', text: '見出しの言葉・ジャンルのトピックが大きく減った', empty: '大きく減った言葉・ジャンルはありません' },
+  { key: 'appeared', title: '新しく登場', icon: 'new', tone: 'rise', text: '24時間以内に報じられ始め、3媒体以上が報じたトピック', empty: '新しく3媒体以上に広がったトピックはありません' },
+  { key: 'cooled', title: '話題が収束', icon: 'time', tone: 'muted', text: '昨日の同じ時刻には話題度が高かったが、新しい報道が12時間以上ない', empty: '収束したトピックはありません' },
+];
+const kindLabel: Record<DiffEntry['kind'], string> = { genre: 'ジャンル', word: '言葉', topic: 'トピック' };
+---
+
+<div class="diff">
+  {
+    groups.map((group) => (
+      <section class:list={['diff-group', `is-${group.tone}`]} aria-labelledby={`diff-${group.key}`}>
+        <h3 id={`diff-${group.key}`}>
+          <Icon name={group.icon} />
+          {group.title}
+        </h3>
+        <p class="diff-text">{group.text}</p>
+        {diff[group.key].length > 0 ? (
+          <ul>
+            {diff[group.key].map((entry) => (
+              <li class:list={[`kind-${entry.kind}`]}>
+                <span class="diff-kind">{kindLabel[entry.kind]}</span>
+                {entry.href ? (
+                  <a class="diff-label" href={href(entry.href)}>
+                    {entry.kind === 'topic' ? entry.label : `「${entry.label}」`}
+                  </a>
+                ) : (
+                  <span class="diff-label">{entry.label}</span>
+                )}
+                <span class="diff-change num">{entry.change}</span>
+                {entry.note && <span class="diff-note">{entry.note}</span>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="diff-empty">{group.empty}</p>
+        )}
+      </section>
+    ))
+  }
+</div>
+
+<style>
+  .diff {
+    display: grid;
+    gap: 1px;
+    background: var(--border);
+  }
+  @media (min-width: 720px) {
+    .diff {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .diff-group {
+    min-width: 0;
+    padding: 12px 16px 14px;
+    background: var(--surface);
+  }
+  .diff-group h3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: var(--fs-small);
+  }
+  .is-heat h3 :global(.icon) {
+    color: var(--heat);
+  }
+  .is-rise h3 :global(.icon) {
+    color: var(--rise);
+  }
+  .is-muted h3 :global(.icon) {
+    color: var(--muted);
+  }
+  .diff-text,
+  .diff-empty {
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    line-height: 1.6;
+  }
+  .diff-empty {
+    margin-top: 8px;
+  }
+  .diff-group ul {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+  }
+  .diff-group li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 8px;
+    row-gap: 2px;
+    align-items: baseline;
+    font-size: var(--fs-small);
+    line-height: 1.55;
+  }
+  .diff-kind {
+    min-width: 5.4em;
+    padding: 0 6px;
+    text-align: center;
+    border-radius: 4px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .diff-label {
+    min-width: 0;
+    color: var(--text);
+    font-weight: 600;
+    text-decoration: none;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  a.diff-label:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .diff-change {
+    grid-column: 2;
+    color: var(--text-2);
+    font-size: var(--fs-caption);
+  }
+  .is-heat .diff-change {
+    color: var(--heat);
+  }
+  .is-rise .diff-change {
+    color: var(--rise);
+  }
+  .diff-note {
+    grid-column: 2;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+</style>

@@ -1,0 +1,150 @@
+---
+/**
+ * ジャンルの変化の表: ジャンルごとのトピック（2媒体以上）と記事の数を、比べる期間（昨日の同じ時刻・前の日・前の週）と並べる。
+ * 増えた・減ったを数字で示すだけで、良い・悪いの判断はしない
+ */
+import { getCategory, href } from '../lib/items.ts';
+
+export interface GenreChangeRow {
+  category: string;
+  topics: number;
+  articles: number;
+  /** 比べる期間の数（なければ比べない） */
+  previous?: { topics: number; articles: number };
+}
+
+interface Props {
+  rows: GenreChangeRow[];
+  /** 比べる期間の呼び方（「昨日」「前の日」「前の週」） */
+  previousLabel: string;
+  /** 表の説明（読み上げ用） */
+  label: string;
+}
+const { rows, previousLabel, label } = Astro.props;
+const delta = (now: number, before: number | undefined) => {
+  if (before === undefined) return undefined;
+  const diff = now - before;
+  return { text: diff === 0 ? '±0' : diff > 0 ? `+${diff}` : `${diff}`, tone: diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat' };
+};
+const visible = rows.filter((row) => row.topics + row.articles + (row.previous?.topics ?? 0) + (row.previous?.articles ?? 0) > 0);
+---
+
+<div class="genre-wrap" role="region" aria-label={label} tabindex="0">
+  <table class="genre-table">
+    <thead>
+      <tr>
+        <th scope="col">ジャンル</th>
+        <th scope="col" class="n">トピック</th>
+        <th scope="col" class="n">記事</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        visible.map((row) => {
+          const category = getCategory(row.category);
+          const topics = delta(row.topics, row.previous?.topics);
+          const articles = delta(row.articles, row.previous?.articles);
+          return (
+            <tr>
+              <th scope="row">
+                {category ? (
+                  <a href={href(`/category/${category.slug}/`)}>
+                    <span class="dot" style={`--c:${category.color}`} />
+                    {category.name}
+                  </a>
+                ) : (
+                  row.category
+                )}
+              </th>
+              <td class="n">
+                <b class="num">{row.topics}</b>
+                {topics && <span class:list={['delta', `is-${topics.tone}`]}>{topics.text}</span>}
+                {row.previous && (
+                  <span class="before">
+                    {previousLabel} {row.previous.topics}
+                  </span>
+                )}
+              </td>
+              <td class="n">
+                <b class="num">{row.articles}</b>
+                {articles && <span class:list={['delta', `is-${articles.tone}`]}>{articles.text}</span>}
+                {row.previous && (
+                  <span class="before">
+                    {previousLabel} {row.previous.articles}
+                  </span>
+                )}
+              </td>
+            </tr>
+          );
+        })
+      }
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .genre-wrap {
+    overflow-x: auto;
+  }
+  .genre-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-small);
+  }
+  .genre-table th,
+  .genre-table td {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+  }
+  .genre-table thead th {
+    border-top: 0;
+    color: var(--muted);
+    font-size: 0.6875rem;
+    font-weight: 700;
+  }
+  .genre-table tbody th {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .genre-table a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .genre-table a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .n {
+    width: 8.5em;
+    text-align: right !important;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .delta {
+    display: inline-block;
+    min-width: 2.6em;
+    margin-left: 6px;
+    font-size: var(--fs-caption);
+    font-weight: 700;
+    text-align: right;
+  }
+  .delta.is-up {
+    color: var(--heat);
+  }
+  .delta.is-down {
+    color: var(--text-2);
+  }
+  .delta.is-flat {
+    color: var(--muted);
+  }
+  .before {
+    display: block;
+    color: var(--muted);
+    font-size: 0.6875rem;
+  }
+</style>

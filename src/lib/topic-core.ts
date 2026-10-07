@@ -11,6 +11,9 @@ import type { Item } from './types.ts';
 
 export const HOUR = 60 * 60 * 1000;
 
+/** トピックにまとめる記事の期間（新しい記事から何日分か。1週間のランキングに足りる分。サイトと日ごとの集計で同じにする） */
+export const TOPIC_DAYS = 8;
+
 /** 話題度スコアで、1つの報道の重みが半分になるまでの時間 */
 export const HALF_LIFE_HOURS = 12;
 /** スコアの目盛り（熱さがこの値のとき約63点。報道4件が直後なら約63点、8件なら約86点） */
@@ -552,6 +555,12 @@ const TREND_STOP_WORDS = new Set(
     'キャンペーン',
     'アップデート',
     'ニュース',
+    '登場',
+    '対応',
+    '最大',
+    '世界',
+    '注目',
+    '話題',
   ].map((word) => normalizeWord(word)),
 );
 
@@ -563,6 +572,27 @@ export function normalizeWord(text: string): string {
     .join('')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** 言葉の候補（表示する形と、比べるための形） */
+export interface VocabularyWord {
+  label: string;
+  key: string;
+}
+
+/**
+ * 候補の言葉を、比べるための形（normalizeWord）で1つずつにする。
+ * 短すぎる・長すぎる言葉、日付・数字だけの言葉、stopWords（既定は注目ワードにしない言葉）は除く
+ */
+export function prepareVocabulary(words: readonly string[], stopWords: ReadonlySet<string> = TREND_STOP_WORDS): VocabularyWord[] {
+  const labels = new Map<string, string>();
+  for (const word of words) {
+    const key = normalizeWord(word);
+    const length = Array.from(key).length;
+    if (length < 2 || length > 30 || stopWords.has(key) || /^[\d\s年月日時分.,:/-]+$/.test(key) || /^\d+月\d+日$/.test(key)) continue;
+    if (!labels.has(key)) labels.set(key, word.normalize('NFKC').trim());
+  }
+  return [...labels].map(([key, label]) => ({ key, label }));
 }
 
 const ALNUM = /[a-z0-9]/;
@@ -583,6 +613,14 @@ export function containsWord(normalizedTitle: string, key: string): boolean {
   return false;
 }
 
+/** 注目ワードの「ふだん」: 直近24時間より前の何日間と比べるか */
+export const WORD_BASELINE_DAYS = 7;
+
+/** 急に現れた言葉か: それまでの期間に、ほとんど（1件以下しか）見出しに出てこなかった言葉 */
+export function isNewWord(previous: number): boolean {
+  return previous <= 1;
+}
+
 export interface TrendWord {
   /** 表示する言葉 */
   word: string;
@@ -592,6 +630,8 @@ export interface TrendWord {
   sources: number;
   /** それまでの期間に、同じ長さあたりで出てきた見出しの数 */
   baseline: number;
+  /** それまでの期間（baselineDays 日）に出てきた見出しの数の合計 */
+  previous: number;
   /** 増え方（大きいほど急に増えた） */
   score: number;
 }
@@ -613,7 +653,7 @@ export function trendingWords(
   now: number,
   {
     hours = 24,
-    baselineDays = 6,
+    baselineDays = WORD_BASELINE_DAYS,
     limit = 12,
     minCount = 2,
     minSources = 2,
@@ -630,15 +670,8 @@ export function trendingWords(
     else if (time > baselineFrom) older.push(normalizeWord(entry.title));
   }
   const windows = (baselineDays * 24) / hours;
-  const labels = new Map<string, string>();
-  for (const word of vocabulary) {
-    const key = normalizeWord(word);
-    if (Array.from(key).length < 2 || TREND_STOP_WORDS.has(key) || /^[\d\s年月日時分.,:/-]+$/.test(key)) continue;
-    if (/^\d+月\d+日$/.test(key)) continue;
-    if (!labels.has(key)) labels.set(key, word.normalize('NFKC').trim());
-  }
   const scored: TrendWord[] = [];
-  for (const [key, word] of labels) {
+  for (const { key, label: word } of prepareVocabulary(vocabulary)) {
     let count = 0;
     const sources = new Set<string>();
     for (const entry of recent) {
@@ -647,8 +680,9 @@ export function trendingWords(
       sources.add(entry.sourceId);
     }
     if (count < minCount || sources.size < minSources) continue;
-    const baseline = older.filter((title) => containsWord(title, key)).length / windows;
-    scored.push({ word, count, sources: sources.size, baseline, score: count / (baseline + 1) });
+    const previous = older.filter((title) => containsWord(title, key)).length;
+    const baseline = previous / windows;
+    scored.push({ word, count, sources: sources.size, baseline, previous, score: count / (baseline + 1) });
   }
   // 同じ数なら長い言葉（「山本」より「山本由伸」）を先にする
   scored.sort(

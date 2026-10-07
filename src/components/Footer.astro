@@ -25,6 +25,7 @@ const year = builtAt.getFullYear();
         <li><a href={href('/ranking/')}>話題のトピック</a></li>
         <li><a href={href('/rising/')}>急上昇のトピック</a></li>
         <li><a href={href('/trends/')}>トレンド（今日の変化・注目ワード）</a></li>
+        <li><a href={href('/weekly/')}>今週のトピあつめ</a></li>
         <li><a href={href('/genres/')}>ジャンル一覧</a></li>
         {
           (getPopular('day', 1).length > 0 || getPopular('week', 1).length > 0) && (

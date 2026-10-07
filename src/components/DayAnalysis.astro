@@ -1,0 +1,386 @@
+---
+/**
+ * その日の分析（日別のページ）: 日ごとの集計（data/trends/）から、その日の数字（前の日との比較）・最も話題だったトピック・
+ * 最も速く広がったトピック・最も広がったニュース・注目ワード・ニュースの温度・ジャンル別の変化を出す。
+ * 集計のない日（集計を始める前の日）は何も出さない
+ */
+import GenreChangeTable from './GenreChangeTable.astro';
+import Icon from './Icon.astro';
+import { dateFromKey, jstDateKey } from '../lib/dates.ts';
+import { formatDateTime, getCategory, href } from '../lib/items.ts';
+import { isNewWord } from '../lib/topic-core.ts';
+import { isCompleteDay, dayWordTrends, type DayTopic } from '../lib/trend-core.ts';
+import { dayTopicView, getDayTrend, trendsBefore } from '../lib/trends.ts';
+import { paceText } from '../lib/topics.ts';
+import { wordHref } from '../lib/words.ts';
+
+interface Props {
+  date: string;
+}
+const { date } = Astro.props;
+const day = getDayTrend(date);
+const before = day ? trendsBefore(date) : [];
+// 前の日（その日の0時の12時間前が含まれる日）
+const previousDate = jstDateKey(new Date(dateFromKey(date).getTime() - 12 * 60 * 60 * 1000));
+const previous = before.find((other) => other.date === previousDate);
+
+const complete = day ? isCompleteDay(day) : false;
+const pick = (list: DayTopic[], score: (topic: DayTopic) => number, min: number, limit = 3) =>
+  [...list]
+    .filter((topic) => score(topic) >= min)
+    .sort((a, b) => score(b) - score(a) || b.peak - a.peak || a.id.localeCompare(b.id))
+    .slice(0, limit);
+// 最も話題だったトピックは上位3件、最も速く広がった・最も広がったは1件ずつ（同じトピックが並びすぎないように）
+const highlights = day
+  ? [
+      { key: 'peak', title: '最も話題だったトピック', icon: 'heat', tone: 'heat', list: pick(day.top, (topic) => topic.peak, 1), metric: (topic: DayTopic) => `最高話題度 ${topic.peak}` },
+      { key: 'burst', title: '最も速く広がったトピック', icon: 'rise', tone: 'rise', list: pick(day.top, (topic) => topic.burst, 3, 1), metric: (topic: DayTopic) => `3時間で${topic.burst}媒体` },
+      { key: 'added', title: '最も広がったニュース', icon: 'spread', tone: 'muted', list: pick(day.top, (topic) => topic.added, 2, 1), metric: (topic: DayTopic) => `この日に${topic.added}媒体が報道` },
+    ].filter((entry) => entry.list.length > 0)
+  : [];
+const words = day ? dayWordTrends(day, before, { limit: 12 }) : [];
+const genres = day
+  ? Object.entries(day.genres)
+      .filter(([, genre]) => genre.heat > 0)
+      .sort(([, a], [, b]) => b.heat - a.heat)
+  : [];
+const maxHeat = Math.max(...genres.map(([, genre]) => genre.heat), 0.001);
+const genreRows = day
+  ? [...new Set([...Object.keys(day.genres), ...Object.keys(previous?.genres ?? {})])]
+      .map((category) => ({
+        category,
+        topics: day.genres[category]?.topics ?? 0,
+        articles: day.genres[category]?.articles ?? 0,
+        previous: previous ? { topics: previous.genres[category]?.topics ?? 0, articles: previous.genres[category]?.articles ?? 0 } : undefined,
+      }))
+      .sort((a, b) => b.topics - a.topics || b.articles - a.articles)
+  : [];
+const change = (before: number | undefined) => (before === undefined ? '' : `前の日 ${before.toLocaleString('ja-JP')}`);
+---
+
+{
+  day && (
+    <section class="panel analysis" aria-labelledby="analysis-title">
+      <div class="panel-head">
+        <h2 id="analysis-title">
+          <Icon name="trend" class="h-icon" />
+          その日の分析
+        </h2>
+        <span class="note">{complete ? '日ごとの集計から' : `${formatDateTime(day.until)}までの集計`}</span>
+      </div>
+
+      <dl class="totals">
+        <div>
+          <dt>記事</dt>
+          <dd>
+            <b class="num">{day.articles.toLocaleString('ja-JP')}</b>件<span class="vs">{change(previous?.articles)}</span>
+          </dd>
+        </div>
+        <div>
+          <dt>トピック（2媒体以上）</dt>
+          <dd>
+            <b class="num">{day.topics}</b>件<span class="vs">{change(previous?.topics)}</span>
+          </dd>
+        </div>
+        <div>
+          <dt>媒体</dt>
+          <dd>
+            <b class="num">{day.media}</b>媒体
+          </dd>
+        </div>
+      </dl>
+
+      {highlights.length > 0 && (
+        <div class="highlights">
+          {highlights.map((entry) => (
+            <section class:list={['hl', `is-${entry.tone}`]} aria-labelledby={`hl-${entry.key}`}>
+              <h3 id={`hl-${entry.key}`}>
+                <Icon name={entry.icon} />
+                {entry.title}
+              </h3>
+              <ol class:list={{ single: entry.list.length === 1 }}>
+                {entry.list.map((topic) => {
+                  const view = dayTopicView(topic);
+                  return (
+                    <li>
+                      <a href={view.external ? view.link : href(view.link)} {...(view.external ? { rel: 'noopener', target: '_blank' } : {})}>
+                        {view.title}
+                      </a>
+                      <span class="hl-metric">
+                        <b class="num">{entry.metric(topic)}</b>・計{view.coverage}媒体{view.external && view.source && `・初報 ${view.source}`}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {words.length > 0 && (
+        <div class="block">
+          <h3 class="block-title">
+            <Icon name="word" />
+            注目ワード
+          </h3>
+          <p class="definition">
+            その日の見出しに3件以上・2媒体以上出てきた言葉。
+            {words[0].baseline !== undefined ? `前の${words[0].baselineDays}日間の1日平均と比べた増え方の順です（「新」はそれまでほとんど出てこなかった言葉）。` : '多い順です。'}
+          </p>
+          <ul class="chips">
+            {words.map((word) => (
+              <li>
+                <a href={href(wordHref(word.word))}>
+                  {word.word}
+                  <small>{word.articles}件</small>
+                  {word.baseline !== undefined &&
+                    (isNewWord(word.baseline * word.baselineDays) ? (
+                      <small class="up">新</small>
+                    ) : (
+                      <small class="up">×{paceText(word.articles / word.baseline).replace('倍', '')}</small>
+                    ))}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {genres.length > 0 && (
+        <div class="block">
+          <h3 class="block-title">
+            <Icon name="heat" />
+            その日のニュースの温度
+          </h3>
+          <p class="definition">ジャンルごとの、その日に記事があったトピックの熱さの合計（{complete ? 'その日の終わりの時点' : 'いまの時点'}）。</p>
+          <ol class="temp">
+            {genres.map(([slug, genre]) => {
+              const category = getCategory(slug);
+              return (
+                <li>
+                  <span class="temp-name">
+                    <span class="dot" style={`--c:${category?.color ?? 'var(--muted)'}`} />
+                    {category?.name ?? slug}
+                  </span>
+                  <span class="temp-bar" aria-hidden="true">
+                    <span style={`width:${Math.max(3, Math.round((genre.heat / maxHeat) * 100))}%`} />
+                  </span>
+                  <span class="temp-num">
+                    <b class="num">{genre.topics}</b>トピック
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+
+      <div class="block">
+        <h3 class="block-title">
+          <Icon name="genre" />
+          ジャンル別の変化
+        </h3>
+        <p class="definition">{previous ? 'その日と前の日の、ジャンルごとのトピック（2媒体以上）と記事の数です。' : 'その日のジャンルごとのトピック（2媒体以上）と記事の数です。'}</p>
+      </div>
+      <GenreChangeTable rows={genreRows} previousLabel="前の日" label="ジャンルごとのトピックと記事の数（前の日との比較）" />
+    </section>
+  )
+}
+
+<style>
+  .note {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .totals {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    margin: 0;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .totals > div {
+    min-width: 0;
+    padding: 10px 12px;
+    background: var(--surface);
+  }
+  .totals dt {
+    color: var(--muted);
+    font-size: 0.6875rem;
+    font-weight: 700;
+  }
+  .totals dd {
+    margin: 2px 0 0;
+    font-size: var(--fs-caption);
+  }
+  .totals dd b {
+    font-size: var(--fs-h1);
+    line-height: 1.2;
+  }
+  .vs {
+    display: block;
+    color: var(--muted);
+    font-size: 0.6875rem;
+  }
+  .highlights {
+    display: grid;
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  @media (min-width: 720px) {
+    .highlights {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .hl:first-child {
+      grid-column: 1 / -1;
+    }
+  }
+  .hl {
+    min-width: 0;
+    padding: 12px 16px;
+    background: var(--surface);
+  }
+  .hl h3,
+  .block-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: var(--fs-small);
+  }
+  .is-heat h3 :global(.icon) {
+    color: var(--heat);
+  }
+  .is-rise h3 :global(.icon) {
+    color: var(--rise);
+  }
+  .is-muted h3 :global(.icon),
+  .block-title :global(.icon) {
+    color: var(--muted);
+  }
+  .hl ol {
+    margin: 6px 0 0;
+    padding-left: 1.3em;
+    display: grid;
+    gap: 6px;
+    font-size: var(--fs-small);
+  }
+  .hl ol.single {
+    padding-left: 0;
+    list-style: none;
+  }
+  .hl a {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    color: var(--text);
+    font-weight: 600;
+    line-height: 1.55;
+    text-decoration: none;
+  }
+  .hl a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .hl-metric {
+    display: block;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .is-heat .hl-metric b {
+    color: var(--heat);
+  }
+  .is-rise .hl-metric b {
+    color: var(--rise);
+  }
+  .block {
+    padding: 12px 16px 0;
+  }
+  .block .definition {
+    padding: 4px 0 0;
+  }
+  .chips {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 0 14px;
+  }
+  .chips a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--text);
+    font-size: var(--fs-small);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .chips a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .chips small {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .chips small.up {
+    color: var(--rise);
+    font-weight: 700;
+  }
+  .temp {
+    list-style: none;
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 10px 0 14px;
+  }
+  .temp li {
+    display: grid;
+    grid-template-columns: 8.6em minmax(0, 1fr) 6.2em;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--fs-small);
+  }
+  .temp-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .temp-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .temp-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+    background: var(--heat);
+  }
+  .temp-num {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .temp-num b {
+    color: var(--text);
+    margin-right: 2px;
+  }
+</style>

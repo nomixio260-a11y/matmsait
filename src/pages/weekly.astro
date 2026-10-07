@@ -1,0 +1,441 @@
+---
+/**
+ * 今週のトピあつめ（直近7日間）: 日ごとの集計（data/trends/）から、7日間の数字の推移・話題になったトピック・速く広がったトピック・
+ * よく出てきた言葉・ジャンルの変化をまとめる。前の7日間の集計があれば比べる
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import GenreChangeTable from '../components/GenreChangeTable.astro';
+import Icon from '../components/Icon.astro';
+import { site } from '../config/site.ts';
+import { dailyPath, formatDay, getDailySnapshots } from '../lib/daily.ts';
+import { jstDateKey } from '../lib/dates.ts';
+import { builtAt, formatDateTime, href } from '../lib/items.ts';
+import { clampDescription } from '../lib/seo.ts';
+import { isNewWord } from '../lib/topic-core.ts';
+import { dayTopicView, getWeekSummary } from '../lib/trends.ts';
+import type { DayTopic } from '../lib/trend-core.ts';
+import { wordHref } from '../lib/words.ts';
+
+const week = getWeekSummary();
+const first = week.dates[0];
+const last = week.dates[week.dates.length - 1];
+const range = `${formatDay(first)}〜${formatDay(last)}`;
+const snapshots = new Set(getDailySnapshots().map((snapshot) => snapshot.date));
+const byDate = new Map(week.days.map((day) => [day.date, day]));
+const maxTopics = Math.max(...week.days.map((day) => day.topics), 1);
+const startedAt = week.days[0]?.date;
+const partial = week.days.length < 7;
+
+/** トピックの表示: いまのトピックのページがあれば、その見出しと数字を使う */
+const shown = (topic: DayTopic) => {
+  const view = dayTopicView(topic);
+  return { ...view, link: view.external ? view.link : href(view.link) };
+};
+const top = week.topics.slice(0, 10);
+const fastest = [...week.topics]
+  .filter((topic) => topic.burst >= 3)
+  .sort((a, b) => b.burst - a.burst || b.peak - a.peak)
+  .slice(0, 5);
+const words = week.words.slice(0, 24);
+const percent = (now: number, before: number) => (before > 0 ? `${now >= before ? '+' : ''}${Math.round(((now - before) / before) * 100)}%` : undefined);
+const dayLabel = (date: string) => formatDay(date).replace(/^\d+年/, '');
+// グラフの下の日付は短く（「10/7」と曜日）
+const shortDate = (date: string) => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
+const weekday = (date: string) => formatDay(date).match(/\((.)\)$/)?.[1] ?? '';
+
+const title = `今週のトピあつめ（${range}）`;
+const description = clampDescription(
+  top[0]
+    ? `${range}の7日間に話題になったトピック・速く広がったトピック・よく出てきた言葉・ジャンルの変化を、日ごとの集計からまとめています。今週いちばん話題になったのは「${shown(top[0]).title}」。`
+    : `${range}の7日間のニュースの変化を、日ごとの集計からまとめています。`,
+);
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  noindex={week.days.length < 2}
+  current="trends"
+  breadcrumbs={[{ name: 'トレンド', path: '/trends/' }, { name: '今週のトピあつめ' }]}
+>
+  <div class="page-head">
+    <h1>今週のトピあつめ</h1>
+    <p>
+      直近7日間（{range}）のニュースの変化を、日ごとの集計からまとめています（{formatDateTime(builtAt)}時点）。今日の分は集計の途中です。
+      {partial && startedAt && <>日ごとの集計は{formatDay(startedAt)}の分からなので、それより前の日は含まれていません。</>}
+    </p>
+  </div>
+
+  {
+    week.days.length === 0 ? (
+      <p class="empty">まだ集計がありません。1時間ごとの更新で、日ごとの集計がたまっていきます。</p>
+    ) : (
+      <div class="stack">
+        <section class="panel" aria-labelledby="numbers-title">
+          <div class="panel-head">
+            <h2 id="numbers-title">
+              <Icon name="trend" class="h-icon" />
+              7日間の数字
+            </h2>
+          </div>
+          <dl class="totals">
+            <div>
+              <dt>記事</dt>
+              <dd>
+                <b class="num">{week.articles.toLocaleString('ja-JP')}</b>件
+                {week.previous && (
+                  <span class="vs">
+                    前の週 {week.previous.articles.toLocaleString('ja-JP')}件{week.previous.days < 7 && `（${week.previous.days}日分）`}
+                  </span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>1日あたりのトピック</dt>
+              <dd>
+                <b class="num">{week.topicsPerDay.toFixed(1)}</b>件
+                {week.previous && (
+                  <span class="vs">
+                    前の週 {week.previous.topicsPerDay.toFixed(1)}件
+                    {percent(week.topicsPerDay, week.previous.topicsPerDay) && `（${percent(week.topicsPerDay, week.previous.topicsPerDay)}）`}
+                  </span>
+                )}
+              </dd>
+            </div>
+          </dl>
+          <p class="definition">トピックは2媒体以上が報じた出来事の数（その日に記事があったもの）。棒はその日のトピックの数で、押すとその日の分析を開きます。</p>
+          <ol class="days">
+            {week.dates.map((date) => {
+              const day = byDate.get(date);
+              const bar = (
+                <>
+                  <span class="day-count num">{day ? day.topics : '―'}</span>
+                  <span class="day-bar" style={`--h:${day ? Math.round((day.topics / maxTopics) * 100) : 0}%`} aria-hidden="true" />
+                  <span class="day-label">
+                    {date === last ? '今日' : shortDate(date)}
+                    <small>{weekday(date)}</small>
+                  </span>
+                  <span class="day-articles">{day ? `${day.articles}記事` : '集計なし'}</span>
+                </>
+              );
+              return (
+                <li class:list={{ 'is-today': date === last, 'is-empty': !day }}>
+                  {snapshots.has(date) ? <a href={href(dailyPath(date))}>{bar}</a> : <span>{bar}</span>}
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+
+        {top.length > 0 && (
+          <section class="panel" aria-labelledby="top-title">
+            <div class="panel-head">
+              <h2 id="top-title">
+                <Icon name="heat" class="h-icon is-heat" />
+                今週のトップトピック
+              </h2>
+            </div>
+            <p class="definition">7日間に最も話題度が高くなったトピックの順です（話題度は報じた媒体の数・新しさ・広がりから計算）。</p>
+            <ol class="week-topics">
+              {top.map((topic, index) => {
+                const view = shown(topic);
+                return (
+                  <li>
+                    <span class="rank num">{index + 1}</span>
+                    <span class="wt-body">
+                      <a class="wt-title" href={view.link} {...(view.external ? { rel: 'noopener', target: '_blank' } : {})}>
+                        {view.title}
+                      </a>
+                      <span class="wt-meta">
+                        <span class="wt-score">
+                          最高話題度 <b class="num">{topic.peak}</b>
+                        </span>
+                        <span>{view.coverage}媒体</span>
+                        <span>最初の報道 {dayLabel(jstDateKey(topic.firstAt))}</span>
+                        {view.external && view.source && <span>初報: {view.source}（元の記事へ）</span>}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        )}
+
+        {fastest.length > 0 && (
+          <section class="panel" aria-labelledby="fast-title">
+            <div class="panel-head">
+              <h2 id="fast-title">
+                <Icon name="rise" class="h-icon is-rise" />
+                速く広がったトピック
+              </h2>
+              <a class="more" href={href('/rising/')}>いまの急上昇 →</a>
+            </div>
+            <p class="definition">7日間のうちに、3時間で報じた媒体がいちばん多く増えたトピックです。</p>
+            <ol class="week-topics">
+              {fastest.map((topic) => {
+                const view = shown(topic);
+                return (
+                  <li>
+                    <span class="burst num">+{topic.burst}</span>
+                    <span class="wt-body">
+                      <a class="wt-title" href={view.link} {...(view.external ? { rel: 'noopener', target: '_blank' } : {})}>
+                        {view.title}
+                      </a>
+                      <span class="wt-meta">
+                        <span>3時間で{topic.burst}媒体が報道</span>
+                        <span>計{view.coverage}媒体</span>
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        )}
+
+        {words.length > 0 && (
+          <section class="panel" aria-labelledby="words-title">
+            <div class="panel-head">
+              <h2 id="words-title">
+                <Icon name="word" class="h-icon" />
+                今週よく出てきた言葉
+              </h2>
+              <a class="more" href={href('/trends/')}>いまの注目ワード →</a>
+            </div>
+            <p class="definition">
+              7日間の見出しに出てきた数の多い順です（AI要約のキーワードとテーマの言葉）。{week.previous ? '前の週と比べた増減つき。' : ''}
+            </p>
+            <ul class="chips">
+              {words.map((word) => (
+                <li>
+                  <a href={href(wordHref(word.word))}>
+                    {word.word}
+                    <small>{word.articles}件</small>
+                    {word.previous !== undefined &&
+                      (isNewWord(word.previous) ? (
+                        <small class="up">新</small>
+                      ) : (
+                        <small class:list={[word.articles >= word.previous ? 'up' : 'down']}>{percent(word.articles, word.previous)}</small>
+                      ))}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section class="panel" aria-labelledby="genre-title">
+          <div class="panel-head">
+            <h2 id="genre-title">
+              <Icon name="genre" class="h-icon" />
+              ジャンルの変化
+            </h2>
+            <a class="more" href={href('/genres/')}>ジャンル →</a>
+          </div>
+          <p class="definition">
+            7日間のトピック（日ごとの数の合計）と記事の数です。{week.previous ? '「前の週」はその前の7日間の数です。' : '前の週の集計がたまると、比べて表示します。'}
+          </p>
+          <GenreChangeTable
+            rows={week.genres.map((genre) => ({ category: genre.category, topics: genre.topics, articles: genre.articles, previous: genre.previous }))}
+            previousLabel="前の週"
+            label="ジャンルごとのトピックと記事の数（前の週との比較）"
+          />
+        </section>
+
+        <p class="note">
+          {site.name}の数字は、掲載しているメディアの記事から機械的に数えたものです。掲載するメディアが増えると、記事やトピックの数も増えます。
+        </p>
+      </div>
+    )
+  }
+</BaseLayout>
+
+<style>
+  .empty,
+  .note {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    line-height: 1.7;
+  }
+  .totals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    margin: 0;
+    background: var(--border);
+  }
+  .totals > div {
+    padding: 12px 16px;
+    background: var(--surface);
+  }
+  .totals dt {
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    font-weight: 700;
+  }
+  .totals dd {
+    margin: 2px 0 0;
+    font-size: var(--fs-small);
+  }
+  .totals dd b {
+    font-size: var(--fs-display);
+    line-height: 1.2;
+  }
+  .vs {
+    display: block;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .days {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    height: 180px;
+    margin: 0;
+    padding: 12px 12px 12px;
+  }
+  .days li > a,
+  .days li > span {
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    justify-items: center;
+    align-items: end;
+    gap: 3px;
+    height: 100%;
+    border-radius: 6px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .days li > a:hover {
+    background: var(--surface-2);
+  }
+  .day-count {
+    color: var(--text-2);
+    font-size: var(--fs-caption);
+  }
+  .day-bar {
+    align-self: end;
+    width: 70%;
+    max-width: 34px;
+    height: var(--h);
+    min-height: 2px;
+    border-radius: 4px 4px 0 0;
+    background: color-mix(in srgb, var(--heat) 40%, var(--surface-2));
+  }
+  .is-today .day-bar {
+    background: var(--heat);
+  }
+  .is-empty .day-bar {
+    background: transparent;
+  }
+  .day-label {
+    display: grid;
+    justify-items: center;
+    color: var(--text-2);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .day-label small {
+    color: var(--muted);
+    font-size: 0.625rem;
+    font-weight: 400;
+  }
+  .is-today .day-label {
+    color: var(--heat);
+  }
+  .day-articles {
+    color: var(--muted);
+    font-size: 0.625rem;
+    white-space: nowrap;
+  }
+  .week-topics {
+    list-style: none;
+    margin: 0;
+    padding: 4px 16px 10px;
+  }
+  .week-topics li {
+    display: grid;
+    grid-template-columns: 2.4em minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    padding: 10px 0;
+  }
+  .week-topics li + li {
+    border-top: 1px solid var(--border);
+  }
+  .rank {
+    color: var(--muted);
+    font-size: var(--fs-title);
+    text-align: center;
+  }
+  .burst {
+    color: var(--rise);
+    font-size: var(--fs-small);
+    text-align: center;
+  }
+  .wt-body {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+  .wt-title {
+    color: var(--text);
+    font-weight: 700;
+    line-height: 1.55;
+    text-decoration: none;
+  }
+  .wt-title:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .wt-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .wt-score b {
+    color: var(--heat);
+  }
+  .chips {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 12px 16px 14px;
+  }
+  .chips a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--text);
+    font-size: var(--fs-small);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .chips a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .chips small {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .chips small.up {
+    color: var(--rise);
+    font-weight: 700;
+  }
+  .chips small.down {
+    color: var(--text-2);
+  }
+</style>

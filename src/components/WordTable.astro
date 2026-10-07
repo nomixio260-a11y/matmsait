@@ -1,0 +1,186 @@
+---
+/**
+ * 注目ワードの表: 24時間の見出しの数・それまでの7日間の1日平均・増え方・推移（24時間ごと）・関連するトピックと言葉。
+ * 言葉を押すとキーワードのページ（なければサイト内検索）
+ */
+import { href } from '../lib/items.ts';
+import { isNewWord } from '../lib/topic-core.ts';
+import { paceText, topicPath } from '../lib/topics.ts';
+import type { TrendWordRow } from '../lib/trends.ts';
+import { wordHref, wordPath } from '../lib/words.ts';
+
+interface Props {
+  rows: TrendWordRow[];
+}
+const { rows } = Astro.props;
+const average = (value: number) => (value >= 10 ? value.toFixed(0) : value.toFixed(1));
+const windowLabel = (index: number, length: number) => (index === length - 1 ? '直近24時間' : `${length - 1 - index}日前`);
+---
+
+<div class="word-wrap" role="region" aria-label="注目ワードの表" tabindex="0">
+  <table class="word-table">
+    <thead>
+      <tr>
+        <th scope="col">言葉</th>
+        <th scope="col" class="n" title="直近24時間に、その言葉が入った見出しの数">24時間</th>
+        <th scope="col" class="n" title="それまでの7日間の、1日あたりの見出しの数">7日平均</th>
+        <th scope="col" class="n" title="7日平均の何倍か（「新」はそれまでほとんど出てこなかった言葉）">増え方</th>
+        <th scope="col" class="spark-col" title="24時間ごとの見出しの数（右端が直近24時間）">推移</th>
+      </tr>
+    </thead>
+    {
+      rows.map((row) => {
+        const fresh = isNewWord(row.word.previous);
+        const max = Math.max(...row.windows, 1);
+        return (
+          <tbody>
+            <tr class="main">
+              <th scope="row">
+                <a class="word" href={href(row.view ? wordPath(row.view.slug) : wordHref(row.word.word))}>
+                  {row.word.word}
+                </a>
+              </th>
+              <td class="n num">{row.word.count}</td>
+              <td class="n">{average(row.word.baseline)}</td>
+              <td class:list={['n', 'pace']}>{fresh ? '新' : `×${paceText(row.word.count / row.word.baseline).replace('倍', '')}`}</td>
+              <td class="spark-col">
+                <span class="spark" title={row.windows.map((count, index) => `${windowLabel(index, row.windows.length)} ${count}件`).join('、')} aria-hidden="true">
+                  {row.windows.map((count, index) => (
+                    <span class:list={{ 'is-now': index === row.windows.length - 1 }} style={`--h:${Math.round((count / max) * 100)}%`} />
+                  ))}
+                </span>
+              </td>
+            </tr>
+            <tr class="detail">
+              <td colspan="5">
+                <span class="word-line">
+                  <span class="word-meta">{row.word.sources}媒体の見出し</span>
+                  {row.topic && (
+                    <a class="word-topic" href={href(topicPath(row.topic.id))}>
+                      {row.topic.lead.title}
+                    </a>
+                  )}
+                </span>
+                {row.related.length > 0 && <span class="word-related">一緒に出てくる言葉: {row.related.map((view) => view.word).join('・')}</span>}
+              </td>
+            </tr>
+          </tbody>
+        );
+      })
+    }
+  </table>
+</div>
+
+<style>
+  .word-wrap {
+    overflow-x: auto;
+  }
+  .word-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-small);
+  }
+  .word-table th,
+  .word-table td {
+    padding: 9px 6px 2px;
+    text-align: left;
+    vertical-align: baseline;
+  }
+  .word-table th:first-child,
+  .word-table td:first-child {
+    padding-left: 16px;
+  }
+  .word-table th:last-child,
+  .word-table td:last-child {
+    padding-right: 16px;
+  }
+  .word-table thead th {
+    padding-bottom: 6px;
+    color: var(--muted);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+  .word-table tbody {
+    border-top: 1px solid var(--border);
+  }
+  .word-table tbody th {
+    font-weight: 400;
+  }
+  .word-table tbody tr:last-child > * {
+    padding-bottom: 10px;
+  }
+  .word {
+    color: var(--text);
+    font-weight: 800;
+    text-decoration: none;
+  }
+  .word:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .word-line {
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+    font-size: var(--fs-caption);
+  }
+  .word-meta {
+    flex: none;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .detail td {
+    /* 長い見出しで表が広がらないように（1行に切り詰める） */
+    max-width: 0;
+    padding-top: 0;
+  }
+  .word-topic {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-2);
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .word-topic:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .word-related {
+    display: block;
+    color: var(--muted);
+    font-size: 0.6875rem;
+  }
+  .n {
+    width: 1%;
+    text-align: right !important;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .pace {
+    color: var(--rise);
+    font-weight: 800;
+  }
+  .spark-col {
+    width: 1%;
+  }
+  .spark {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    align-items: end;
+    gap: 2px;
+    width: 48px;
+    height: 20px;
+  }
+  .spark span {
+    height: var(--h);
+    min-height: 2px;
+    border-radius: 1px;
+    background: color-mix(in srgb, var(--rise) 30%, var(--surface-2));
+  }
+  .spark span.is-now {
+    background: var(--rise);
+  }
+</style>

@@ -283,7 +283,7 @@ export function aiPost(topics: SocialTopic[], date: string, { pageUrl, siteName 
 
 export function weeklyPost(topics: SocialTopic[], date: string, { pageUrl, siteName }: PlanContext): SocialPost | undefined {
   if (topics.length < 3) return undefined;
-  const url = pageUrl('/ranking/#week');
+  const url = pageUrl('/weekly/');
   return listPost(
     `weekly:${date}`,
     'weekly',
@@ -293,8 +293,8 @@ export function weeklyPost(topics: SocialTopic[], date: string, { pageUrl, siteN
     hashtagLine(['ニュースまとめ', '週間ランキング']),
     {
       url,
-      title: `今週の話題のニュースランキング｜${siteName}`,
-      description: `「${truncate(topics[0].title, 60)}」ほか、この1週間に多くのメディアが報じたニュースのランキングです。`,
+      title: `今週のトピあつめ｜${siteName}`,
+      description: `「${truncate(topics[0].title, 60)}」ほか、この1週間に多くのメディアが報じたトピックと、よく出てきた言葉・ジャンルの変化をまとめています。`,
     },
   );
 }

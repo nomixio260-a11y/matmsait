@@ -156,7 +156,7 @@ describe('planPosts', () => {
     const sunday = at('19:00', '2026-10-11');
     const [post] = planPosts(empty, context(sunday, { weekly }));
     expect(post.key).toBe('weekly:2026-10-11');
-    expect(post.compose(() => true)).toContain('/ranking/#week');
+    expect(post.compose(() => true)).toContain('/weekly/');
     expect(planPosts(empty, context(at('19:00'), { weekly }))).toEqual([]);
   });
 

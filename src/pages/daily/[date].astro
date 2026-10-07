@@ -1,6 +1,7 @@
 ---
 import type { GetStaticPaths } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import DayAnalysis from '../../components/DayAnalysis.astro';
 import ItemList from '../../components/ItemList.astro';
 import ShareButtons from '../../components/ShareButtons.astro';
 import { categories, site } from '../../config/site.ts';
@@ -69,6 +70,8 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: ranked.
 
   <div class="stack">
     <ShareButtons url={url} text={`${shortLabel}の話題のニュースまとめ｜${site.name}`} />
+
+    <DayAnalysis date={snapshot.date} />
 
     {
       ranked.length > 0 && (

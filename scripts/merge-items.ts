@@ -7,9 +7,11 @@ import { getTopicOverrides } from '../src/lib/topic-overrides.ts';
 import { overrideLinks } from '../src/lib/topic-overrides-core.ts';
 import { updateDailySnapshots } from './lib/daily.ts';
 import { mergeItems, pruneItems, readItemsFile, withSourceSettings, writeItemsFile } from './lib/store.ts';
+import { updateTrendFiles } from './lib/trends.ts';
 
 const ITEMS_PATH = resolve(process.cwd(), 'data/items.json');
 const DAILY_DIR = resolve(process.cwd(), 'data/daily');
+const TRENDS_DIR = resolve(process.cwd(), 'data/trends');
 
 const otherPath = process.argv[2];
 if (!otherPath) {
@@ -29,5 +31,7 @@ const other = readItemsFile(otherPath).filter((item) => known(item.sourceId));
 const hasSummary = (id: string) => Boolean(getSummary(id));
 const merged = pruneItems(withSourceSettings(mergeItems(current, other, isAggregator, hasSummary), sources), { now });
 writeItemsFile(ITEMS_PATH, merged);
-const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep: (item) => known(item.sourceId), hasSummary, links: overrideLinks(getTopicOverrides()) });
-console.log(`マージ後 ${merged.length} 件（日別まとめを更新: ${days.join(', ') || 'なし'}）`);
+const links = overrideLinks(getTopicOverrides());
+const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep: (item) => known(item.sourceId), hasSummary, links });
+const trendDays = updateTrendFiles(merged, TRENDS_DIR, now, { links });
+console.log(`マージ後 ${merged.length} 件（日別まとめを更新: ${days.join(', ') || 'なし'} / 日ごとの集計を更新: ${trendDays.join(', ') || 'なし'}）`);

@@ -22,7 +22,11 @@ const topTitle = (day: (typeof days)[number]) => day.items[0]?.title;
 >
   <div class="page-head">
     <h1>日別アーカイブ</h1>
-    <p>その日に話題になったニュースを1日ごとにまとめています。</p>
+    <p>
+      その日に話題になったニュースと、その日の分析（最も話題だったトピック・速く広がったトピック・注目ワード・ジャンル別の変化）を1日ごとにまとめています。7日間をまとめて見るなら<a
+        href={href('/weekly/')}>今週のトピあつめ</a
+      >へ。
+    </p>
   </div>
   <div class="stack">
     {

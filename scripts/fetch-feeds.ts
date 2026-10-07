@@ -21,10 +21,12 @@ import { closeConnections, decodeBody, httpGet, type HttpResponse } from './lib/
 import { buildExcerpt, cleanTitle, itemId, normalizePublishedAt, normalizeUrl } from './lib/normalize.ts';
 import { mergeItems, pruneItems, readItemsFile, withSourceSettings, writeItemsFile } from './lib/store.ts';
 import { jitter, retryDelay, shuffle, sleep } from './lib/timing.ts';
+import { updateTrendFiles } from './lib/trends.ts';
 
 const ITEMS_PATH = resolve(process.cwd(), 'data/items.json');
 const FEEDS_PATH = resolve(process.cwd(), 'data/feeds.json');
 const DAILY_DIR = resolve(process.cwd(), 'data/daily');
+const TRENDS_DIR = resolve(process.cwd(), 'data/trends');
 /** 同時にアクセスするサイト数（同じ運営元のサイトへは常に1件ずつ） */
 const SITE_CONCURRENCY = 6;
 
@@ -207,11 +209,15 @@ async function main() {
   const keep = (item: Item) => sourceById.has(item.sourceId);
   const pruned = pruneDailySnapshots(DAILY_DIR, keep);
   if (pruned.length > 0) console.log(`日別まとめから外した掲載元の記事を削除: ${pruned.join(', ')}`);
-  const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep, hasSummary, links: overrideLinks(getTopicOverrides()) });
+  const links = overrideLinks(getTopicOverrides());
+  const days = updateDailySnapshots(merged, DAILY_DIR, now, { keep, hasSummary, links });
+  // 日ごとの集計（トレンド・週間・日別の分析に使う。記事が消えたあとも残す）
+  const trendDays = updateTrendFiles(merged, TRENDS_DIR, now, { links });
   console.log(
     `新規 ${added} 件 / 合計 ${merged.length} 件を保存しました（成功 ${sources.length - failed.length} / 失敗 ${failed.length}）`,
   );
   console.log(`日別まとめを更新: ${days.join(', ') || 'なし'}`);
+  console.log(`日ごとの集計を更新: ${trendDays.join(', ') || 'なし'}`);
 
   if (failed.length === sources.length) {
     console.error('すべてのフィードの取得に失敗しました');

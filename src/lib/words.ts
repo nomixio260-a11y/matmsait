@@ -8,7 +8,7 @@ import { tags as tagDefinitions, type TagDefinition } from '../config/tags.ts';
 import { jstDateKey } from './dates.ts';
 import { builtAt, getItems } from './items.ts';
 import { getSummaries } from './summaries.ts';
-import { HOUR, containsWord, normalizeWord, rankHot } from './topic-core.ts';
+import { HOUR, WORD_BASELINE_DAYS, containsWord, normalizeWord, prepareVocabulary, rankHot } from './topic-core.ts';
 import { tagsOfItem, topicViewOf, type TopicView } from './topics.ts';
 import type { Item } from './types.ts';
 
@@ -20,8 +20,8 @@ const INDEX_ARTICLES = 8;
 const INDEX_SOURCES = 3;
 /** ページの数の上限（記事の多い順） */
 const MAX_WORDS = 400;
-/** 数える期間（日） */
-const WINDOW_DAYS = 8;
+/** 数える期間（日）: 直近24時間と、その前の「ふだん」の期間 */
+const WINDOW_DAYS = 1 + WORD_BASELINE_DAYS;
 /** キーワードにしない言葉（ニュースの見出しによく出る、何の話か分からない言葉） */
 const STOP_WORDS = new Set(['発表', '発売', '開始', '公開', '開催', '決定', '新型', '登場', '対応', '最大', '最新', '日本', '世界', '速報', '注目', '話題', 'ニュース'].map(normalizeWord));
 
@@ -43,9 +43,11 @@ export interface WordView {
   sources: number;
   /** その言葉の記事を含むトピック（2媒体以上。話題度の順） */
   topics: TopicView[];
-  /** 直近24時間の記事の数と、それまでの6日間の1日あたりの平均 */
+  /** 直近24時間の記事の数と、それまでの7日間（WORD_BASELINE_DAYS）の1日あたりの平均 */
   today: number;
   baseline: number;
+  /** それまでの7日間の記事の数の合計 */
+  previous: number;
   /** 日ごとの記事の数（古い順に7日分。今日を含む） */
   daily: WordDay[];
   /** 当てはまるタグ */
@@ -77,17 +79,11 @@ export function getWordViews(): WordView[] {
     const items = getItems().filter((item) => Date.parse(item.publishedAt) >= cutoff);
     const titles = items.map((item) => normalizeWord(item.title));
     // 候補: AI 要約のキーワードとタグの言葉（同じ形の言葉は1つに）
-    const labels = new Map<string, string>();
-    for (const word of [...getSummaries().flatMap((record) => record.keywords ?? []), ...tagDefinitions.flatMap((tag) => tag.words)]) {
-      const key = normalizeWord(word);
-      const length = Array.from(key).length;
-      if (length < 2 || length > 30 || STOP_WORDS.has(key) || /^[\d\s年月日時分.,:/-]+$/.test(key) || /^\d+月\d+日$/.test(key)) continue;
-      if (!labels.has(key)) labels.set(key, word.normalize('NFKC').trim());
-    }
+    const vocabulary = prepareVocabulary([...getSummaries().flatMap((record) => record.keywords ?? []), ...tagDefinitions.flatMap((tag) => tag.words)], STOP_WORDS);
     const days = Array.from({ length: 7 }, (_, index) => jstDateKey(new Date(now - (6 - index) * 24 * HOUR)));
     const slugs = new Set<string>();
     const result: WordView[] = [];
-    for (const [key, word] of labels) {
+    for (const { key, label: word } of vocabulary) {
       const matched = items.filter((_, index) => containsWord(titles[index], key));
       const sources = new Set(matched.map((item) => item.sourceId)).size;
       if (matched.length < MIN_ARTICLES || sources < MIN_SOURCES) continue;
@@ -107,7 +103,7 @@ export function getWordViews(): WordView[] {
         const day = jstDateKey(item.publishedAt);
         if (dayCounts.has(day)) dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
         if (time > now - 24 * HOUR) recent++;
-        else if (time > now - 7 * 24 * HOUR) older++;
+        else older++;
       }
       const tagSlugs = new Set(matched.flatMap((item) => tagsOfItem(item).map((tag) => tag.slug)));
       const topics = rankHot([...topicMap.values()]);
@@ -119,7 +115,8 @@ export function getWordViews(): WordView[] {
         sources,
         topics,
         today: recent,
-        baseline: older / 6,
+        baseline: older / WORD_BASELINE_DAYS,
+        previous: older,
         daily: days.map((date) => ({ date, count: dayCounts.get(date) ?? 0 })),
         tags: tagDefinitions.filter((tag) => tagSlugs.has(tag.slug)),
         indexable: matched.length >= INDEX_ARTICLES && sources >= INDEX_SOURCES && topics.length > 0,

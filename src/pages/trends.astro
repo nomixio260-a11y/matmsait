@@ -1,30 +1,63 @@
 ---
 /**
- * トレンド: 今日、何が変わったか（昨日の同じ時刻との比較・急に増えた言葉・ジャンルの温度・報じられ始めたトピック）。
- * ニュースの一覧ではなく「変化」を見るページ
+ * トレンド: 今日、何が変わったか。昨日との違い（急増・急減・新登場・収束）・急に現れた言葉・注目ワードの表・
+ * 一緒に出始めた言葉・ジャンルの変化・報じられ始めたトピック。ニュースの一覧ではなく「変化」を見るページ
  */
 import BaseLayout from '../layouts/BaseLayout.astro';
+import GenreChangeTable from '../components/GenreChangeTable.astro';
 import Icon from '../components/Icon.astro';
 import NewsTemperature from '../components/NewsTemperature.astro';
 import TodayChanges from '../components/TodayChanges.astro';
 import TopicList from '../components/TopicList.astro';
-import TrendWords from '../components/TrendWords.astro';
-import { builtAt, formatDateTime, href } from '../lib/items.ts';
-import { getNewTopics, getTrendWords } from '../lib/topics.ts';
+import WordTable from '../components/WordTable.astro';
+import YesterdayDiff from '../components/YesterdayDiff.astro';
+import { dailyPath, getDailySnapshots } from '../lib/daily.ts';
+import { jstDateKey } from '../lib/dates.ts';
+import { builtAt, formatDateTime, formatTime, href } from '../lib/items.ts';
+import { getGenreTemperature, getNewTopics, topicPath } from '../lib/topics.ts';
+import { getEmergingPairs, getEmergingWords, getGenreArticleShifts, getTrendWordRows } from '../lib/trends.ts';
+import { wordHref, wordPath } from '../lib/words.ts';
 
-const words = getTrendWords(30);
+const rows = getTrendWordRows(20);
+const emerging = getEmergingWords(8);
+const pairs = getEmergingPairs(8);
 const fresh = getNewTopics({ hours: 6, limit: 8 });
+const articleShifts = getGenreArticleShifts();
+const genreRows = getGenreTemperature().map((genre) => {
+  const articles = articleShifts.get(genre.category) ?? { recent: 0, previous: 0 };
+  return {
+    category: genre.category,
+    topics: genre.topics,
+    articles: articles.recent,
+    previous: { topics: genre.previousTopics, articles: articles.previous },
+  };
+});
+const today = jstDateKey(builtAt);
+const hasToday = getDailySnapshots().some((snapshot) => snapshot.date === today);
 ---
 
 <BaseLayout
   title="トレンド（今日、何が変わったか）"
-  description="昨日の同じ時刻と比べたジャンルごとのニュースの温度、24時間の見出しに急に増えた言葉、報じられ始めたトピックなど、今日のニュースの変化をまとめています。"
+  description="昨日と比べて急増・急減した言葉やジャンル、新しく登場したトピックと収束したトピック、急に現れた言葉、一緒に出始めた言葉など、今日のニュースの変化を数字でまとめています。"
   current="trends"
   breadcrumbs={[{ name: 'トレンド' }]}
 >
   <div class="page-head">
     <h1>トレンド</h1>
-    <p>今日、何が変わったか。昨日の同じ時刻との比較と、急に増えた言葉から、ニュースの変化を見られます（{formatDateTime(builtAt)}時点・1時間ごとに更新）。</p>
+    <p>
+      今日、何が変わったか。直近24時間と昨日（その前の24時間）を比べ、ニュースの変化を数字で見られます（{formatDateTime(builtAt)}時点・1時間ごとに更新）。
+    </p>
+    <ul class="page-links">
+      <li><a href={href('/weekly/')}>今週のトピあつめ →</a></li>
+      {
+        hasToday && (
+          <li>
+            <a href={href(dailyPath(today))}>今日の分析 →</a>
+          </li>
+        )
+      }
+      <li><a href={href('/words/')}>キーワード一覧 →</a></li>
+    </ul>
   </div>
 
   <div class="stack">
@@ -38,20 +71,52 @@ const fresh = getNewTopics({ hours: 6, limit: 8 });
       <TodayChanges limit={6} />
     </section>
 
-    <section class="panel" aria-labelledby="temp-title">
+    <section class="panel" aria-labelledby="diff-title">
       <div class="panel-head">
-        <h2 id="temp-title">
-          <Icon name="heat" class="h-icon is-heat" />
-          今日のニュースの温度
+        <h2 id="diff-title">
+          <Icon name="compare" class="h-icon" />
+          昨日との違い
         </h2>
-        <a class="more" href={href('/genres/')}>ジャンル →</a>
       </div>
-      <p class="definition">ジャンルごとのトピックの熱さ（報じた媒体の数・新しさ・広がりの合計）。矢印は昨日の同じ時刻との比較です。</p>
-      <NewsTemperature />
+      <p class="definition">直近24時間と、その前の24時間を比べています。言葉は見出しの数、ジャンルは2媒体以上が報じたトピックの数です。</p>
+      <YesterdayDiff />
     </section>
 
     {
-      words.length > 0 && (
+      emerging.length > 0 && (
+        <section class="panel" aria-labelledby="emerging-title">
+          <div class="panel-head">
+            <h2 id="emerging-title">
+              <Icon name="new" class="h-icon is-rise" />
+              急に現れた言葉
+            </h2>
+          </div>
+          <p class="definition">
+            それまでの7日間は見出しにほとんど（1件以下しか）出てこなかったのに、この24時間で<b>3件以上・2媒体以上</b>の見出しに出てきた言葉です。新しく起きていることの手がかりになります。
+          </p>
+          <ul class="emerging">
+            {emerging.map((row) => (
+              <li>
+                <a class="emerging-word" href={href(row.view ? wordPath(row.view.slug) : wordHref(row.word.word))}>
+                  {row.word.word}
+                </a>
+                <span class="emerging-meta">
+                  <b class="num">{row.word.count}</b>件・{row.word.sources}媒体{row.firstAt && <>（最初は{formatTime(row.firstAt)}）</>}
+                </span>
+                {row.topic && (
+                  <a class="emerging-topic" href={href(topicPath(row.topic.id))}>
+                    {row.topic.lead.title}
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    {
+      rows.length > 0 && (
         <section class="panel" aria-labelledby="words-title">
           <div class="panel-head">
             <h2 id="words-title">
@@ -60,11 +125,67 @@ const fresh = getNewTopics({ hours: 6, limit: 8 });
             </h2>
             <a class="more" href={href('/words/')}>キーワード一覧 →</a>
           </div>
-          <p class="definition">24時間の見出しに、それまでの6日間より急に増えた言葉（×はふだんの何倍か、「新」はふだんほとんど出てこない言葉）。</p>
-          <TrendWords words={words} />
+          <p class="definition">
+            24時間の見出しの数を、それまでの7日間の1日平均と比べ、増え方の大きい順に並べています（「新」はそれまでほとんど出てこなかった言葉）。候補はAI要約のキーワードとテーマの言葉です。
+          </p>
+          <WordTable rows={rows} />
         </section>
       )
     }
+
+    {
+      pairs.length > 0 && (
+        <section class="panel" aria-labelledby="pairs-title">
+          <div class="panel-head">
+            <h2 id="pairs-title">
+              <Icon name="spread" class="h-icon" />
+              一緒に出始めた言葉
+            </h2>
+          </div>
+          <p class="definition">
+            この24時間に2媒体以上の見出しで一緒に使われた言葉の組のうち、それまでの7日間は一緒に出てこなかったものです（どちらも以前から見出しに出ていた言葉）。
+          </p>
+          <ul class="pairs">
+            {pairs.map((pair) => (
+              <li>
+                <span class="pair-words">
+                  <a href={href(wordHref(pair.a))}>{pair.a}</a>
+                  <span class="pair-b">
+                    <span class="pair-x" aria-hidden="true">
+                      ×
+                    </span>
+                    <span class="visually-hidden">と</span>
+                    <a href={href(wordHref(pair.b))}>{pair.b}</a>
+                  </span>
+                </span>
+                <span class="pair-meta">
+                  <b class="num">{pair.count}</b>件・{pair.sources}媒体
+                </span>
+                {pair.topic && (
+                  <a class="pair-topic" href={href(topicPath(pair.topic.id))}>
+                    {pair.topic.lead.title}
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <section class="panel" aria-labelledby="temp-title">
+      <div class="panel-head">
+        <h2 id="temp-title">
+          <Icon name="heat" class="h-icon is-heat" />
+          ジャンルの変化
+        </h2>
+        <a class="more" href={href('/genres/')}>ジャンル →</a>
+      </div>
+      <p class="definition">ニュースの温度は、ジャンルごとのトピックの熱さ（報じた媒体の数・新しさ・広がりの合計）。矢印は昨日の同じ時刻との比較です。</p>
+      <NewsTemperature />
+      <p class="definition">直近24時間のトピック（2媒体以上）と記事の数。「昨日」は、その前の24時間の数です。</p>
+      <GenreChangeTable rows={genreRows} previousLabel="昨日" label="ジャンルごとのトピックと記事の数（昨日との比較）" />
+    </section>
 
     {
       fresh.length > 0 && (
@@ -85,8 +206,117 @@ const fresh = getNewTopics({ hours: 6, limit: 8 });
 </BaseLayout>
 
 <style>
-  .note {
+  .page-links {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 10px 0 0;
+    padding: 0;
+    font-size: var(--fs-small);
+    font-weight: 700;
+  }
+  .page-links a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .page-links a:hover {
+    text-decoration: underline;
+  }
+  .emerging {
+    list-style: none;
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 12px 16px 14px;
+  }
+  @media (min-width: 720px) {
+    .emerging {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .emerging li {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--rise);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .emerging-word {
+    color: var(--text);
+    font-size: var(--fs-title);
+    font-weight: 800;
+    text-decoration: none;
+  }
+  .emerging-word:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .emerging-meta,
+  .pair-meta {
     color: var(--muted);
     font-size: var(--fs-caption);
+  }
+  .emerging-meta b,
+  .pair-meta b {
+    color: var(--rise);
+  }
+  .emerging-topic,
+  .pair-topic {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    color: var(--text-2);
+    font-size: var(--fs-small);
+    line-height: 1.55;
+    text-decoration: none;
+  }
+  .emerging-topic:hover,
+  .pair-topic:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .pairs {
+    list-style: none;
+    margin: 0;
+    padding: 4px 16px 12px;
+  }
+  .pairs li {
+    display: grid;
+    gap: 2px;
+    padding: 10px 0;
+  }
+  .pairs li + li {
+    border-top: 1px dashed var(--border);
+  }
+  .pair-words {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    font-weight: 800;
+  }
+  .pair-words a {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .pair-words a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .pair-b {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .pair-x {
+    flex: none;
+    color: var(--rise);
   }
 </style>

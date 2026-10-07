@@ -2,7 +2,7 @@
 /** 注目ワード（直近24時間の見出しに急に増えた言葉）。押すとキーワードのページ（なければサイト内検索）、タグの言葉はタグのページへ */
 import { tags } from '../config/tags.ts';
 import { href } from '../lib/items.ts';
-import { normalizeWord, type TrendWord } from '../lib/topic-core.ts';
+import { isNewWord, normalizeWord, type TrendWord } from '../lib/topic-core.ts';
 import { paceText, tagPath } from '../lib/topics.ts';
 import { wordHref } from '../lib/words.ts';
 
@@ -23,15 +23,15 @@ const tagByWord = new Map(tags.flatMap((tag) => [tag.name, ...tag.words].map((wo
         <li>
           <a
             href={link}
-            title={`24時間で${word.count}件の見出しに登場（${word.sources}媒体）。${word.baseline > 0 ? `ふだん（それまでの6日間の平均）の${paceText(word.count / word.baseline)}` : 'それまでの6日間はほとんど出てこなかった言葉'}`}
+            title={`24時間で${word.count}件の見出しに登場（${word.sources}媒体）。${isNewWord(word.previous) ? 'それまでの7日間はほとんど出てこなかった言葉' : `ふだん（それまでの7日間の平均）の${paceText(word.count / word.baseline)}`}`}
           >
             <span class="trend-rank">{index + 1}</span>
             <span class="trend-word">{word.word}</span>
             <span class="trend-count">{word.count}件</span>
-            {word.baseline > 0 ? (
-              <span class="trend-up">×{paceText(word.count / word.baseline).replace('倍', '')}</span>
-            ) : (
+            {isNewWord(word.previous) ? (
               <span class="trend-up">新</span>
+            ) : (
+              <span class="trend-up">×{paceText(word.count / word.baseline).replace('倍', '')}</span>
             )}
           </a>
         </li>

@@ -18,6 +18,7 @@ import {
   momentumOf,
   newTopics,
   normalizeWord,
+  prepareVocabulary,
   rankHot,
   rankImportant,
   rankRising,
@@ -301,7 +302,19 @@ describe('注目ワード', () => {
     const words = trendingWords(entries, ['山本由伸', 'ドジャース', 'ソニー', '新型', '10月15日', '山本'], NOW);
     expect(words.map((word) => word.word)).toEqual(['山本由伸', 'ドジャース']);
     expect(words[0]).toMatchObject({ count: 3, sources: 3, baseline: 0, score: 3 });
-    expect(words[1].baseline).toBeCloseTo(12 / 6);
+    // ふだん = それまでの7日間の1日あたり
+    expect(words[1].baseline).toBeCloseTo(12 / 7);
+  });
+
+  it('候補の言葉をそろえる（同じ形の言葉は1つに。短すぎる言葉・日付・注目ワードにしない言葉は除く）', () => {
+    const vocabulary = prepareVocabulary(['ソニー', 'そにー', 'Ｓｏｎｙ', 'A', '10月15日', '2026年', '発表', '話題', 'INZONE H9 II']);
+    expect(vocabulary).toEqual([
+      { key: 'そにー', label: 'ソニー' },
+      { key: 'sony', label: 'Sony' },
+      { key: 'inzone h9 ii', label: 'INZONE H9 II' },
+    ]);
+    // ほかの除外リストも使える（キーワードのページ）
+    expect(prepareVocabulary(['発表', '逮捕'], new Set()).map((word) => word.label)).toEqual(['発表', '逮捕']);
   });
 
   it('英数字の言葉は、英数字の続きの一部には当てはめない', () => {

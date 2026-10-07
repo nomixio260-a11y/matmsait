@@ -12,6 +12,7 @@ import { site } from '../../config/site.ts';
 import { formatDay } from '../../lib/daily.ts';
 import { builtAt, formatDateTime, href } from '../../lib/items.ts';
 import { clampDescription } from '../../lib/seo.ts';
+import { isNewWord } from '../../lib/topic-core.ts';
 import { paceText, tagPath } from '../../lib/topics.ts';
 import { getWordViews, relatedWords, wordPath, type WordView } from '../../lib/words.ts';
 
@@ -27,9 +28,9 @@ const related = relatedWords(view, 12);
 const pace =
   view.today === 0
     ? '直近24時間は見出しに出ていません'
-    : view.baseline > 0
-      ? `ふだん（それまでの6日間の1日あたり）の${paceText(view.today / view.baseline)}`
-      : 'それまでの6日間はほとんど出てこなかった言葉です';
+    : isNewWord(view.previous)
+      ? 'それまでの7日間はほとんど出てこなかった言葉です'
+      : `ふだん（それまでの7日間の1日あたり）の${paceText(view.today / view.baseline)}`;
 const title = `「${view.word}」のニュース・トピック`;
 const description = clampDescription(
   `「${view.word}」が見出しに入ったニュースを、同じ出来事の報道のまとまり（トピック）と新着でまとめています。直近7日間で${week}件・${view.sources}媒体、24時間で${view.today}件。` +
