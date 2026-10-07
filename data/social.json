@@ -24,6 +24,34 @@
    "urls": {
     "Bluesky": "https://bsky.app/profile/topiatsume.bsky.social/post/3mxc62tbisj2o"
    }
+  },
+  {
+   "key": "hot:705b03522ca67efc",
+   "at": "2026-10-07T15:20:17.277Z",
+   "platforms": [
+    "Bluesky"
+   ],
+   "urls": {
+    "Bluesky": "https://bsky.app/profile/topiatsume.bsky.social/post/3mxcannucg52m"
+   }
   }
- ]
+ ],
+ "manual": {
+  "id": "29a20586-b220-448c-94ee-6e8a7e2e2806",
+  "requestedAt": "2026-10-07T15:18:18.565Z",
+  "at": "2026-10-07T15:20:17.277Z",
+  "result": "posted",
+  "posts": [
+   {
+    "key": "hot:705b03522ca67efc",
+    "at": "2026-10-07T15:20:17.277Z",
+    "platforms": [
+     "Bluesky"
+    ],
+    "urls": {
+     "Bluesky": "https://bsky.app/profile/topiatsume.bsky.social/post/3mxcannucg52m"
+    }
+   }
+  ]
+ }
 }
