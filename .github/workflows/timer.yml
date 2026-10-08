@@ -3,6 +3,7 @@ name: 自動更新タイマー
 # 一定時間（既定60分）ごとに収集・公開（update.yml）を実行する。
 # GitHub の定期実行（schedule）は新しいリポジトリだと動かないことがあるため、このワークフローが
 # 「前回の更新から60分たつまで待つ → update.yml を実行 → 自分自身を次に予約」を繰り返す。
+# 待っている間に、前回の更新から30分たったら SNS の投稿だけ（social.yml）も実行する（投稿を30分ごとにするため。深夜は実行しない）。
 # 止まっても、update.yml が動くたびに（push・管理画面の「今すぐ更新」など）自動で再開する。
 # 待っている間も Actions の実行時間を使うので、公開リポジトリ（実行時間が無料）でだけ動く。
 on:
@@ -40,6 +41,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           # 更新の間隔（分）を変えるときは、リポジトリの変数 UPDATE_INTERVAL_MINUTES を設定する（15〜360）
           UPDATE_INTERVAL_MINUTES: ${{ vars.UPDATE_INTERVAL_MINUTES }}
+          # SNS の投稿の間隔（分）を変えるときは、リポジトリの変数 SOCIAL_INTERVAL_MINUTES を設定する（15〜360。0 で更新の合間の投稿をやめる）
+          SOCIAL_INTERVAL_MINUTES: ${{ vars.SOCIAL_INTERVAL_MINUTES }}
 
       # 一時的な失敗（npm や GitHub API の不調など）で止まらないよう、少し待ってから次のタイマーを予約する。
       # 失敗が3回続いているときは、繰り返さないよう止める（update.yml が動けば自動で再開する）

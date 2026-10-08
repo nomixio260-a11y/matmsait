@@ -1,0 +1,104 @@
+name: SNS に投稿（更新の合間）
+
+# 収集・公開（update.yml）の合間に、SNS（Bluesky など）への投稿だけを行う（収集・ビルド・公開はしない）。
+# 自動更新タイマー（timer.yml）が、前回の更新の30分後（リポジトリの変数 SOCIAL_INTERVAL_MINUTES で変えられる）に実行する。
+# 更新のあとの投稿（update.yml の notify）と合わせて、30分ごとに投稿する。
+# 投稿する内容は、公開しているサイトと同じデータ（リポジトリの data/）から決めるので、リンク先のページはすでに公開されている。
+# 深夜は投稿しない・前の投稿から間をあける・1日の上限などは scripts/lib/social.ts の SOCIAL_LIMITS のとおり
+on:
+  # 自動更新タイマー、Actions 画面の Run workflow から実行
+  workflow_dispatch:
+
+permissions:
+  # 投稿の記録（data/social.json）をコミットする
+  contents: write
+  # GitHub Pages に公開しているとき、サイトの URL を調べる
+  pages: read
+
+jobs:
+  post:
+    # 投稿は既定ブランチだけ
+    if: github.ref_name == github.event.repository.default_branch
+    # 同じ話題を二重に投稿しないよう、update.yml の通知・SNS 投稿（notify）と1つずつ実行する
+    concurrency:
+      group: notify
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # 投稿の記録（data/social.json）を含む最新のデータを使う
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # 投稿のリンク先（update.yml の「公開先を決める」と同じ。Cloudflare の Secrets があれば Cloudflare Pages、なければ GitHub Pages）
+      - name: 公開先の URL を調べる
+        id: target
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # update.yml の PROJECT（ルートの wrangler.jsonc の name）と同じ
+          PROJECT: topiatsume
+          CUSTOM_SITE_URL: ${{ vars.SITE_URL }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          site=''
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            site="${CUSTOM_SITE_URL%/}"
+            if [ -z "$site" ]; then
+              host=$(curl -fsS "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT" \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result.subdomain // empty') || host=''
+              [ -z "$host" ] || site="https://$host"
+            fi
+          else
+            site=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url // empty' 2>/dev/null) || site=''
+          fi
+          if [ -z "$site" ]; then
+            echo '::warning::公開先の URL がわからないため、今回は投稿しません'
+            exit 0
+          fi
+          echo "base_url=${site%/}" >> "$GITHUB_OUTPUT"
+          echo "公開先: ${site%/}"
+
+      - name: SNS に投稿
+        if: steps.target.outputs.base_url != ''
+        run: npm run notify
+        env:
+          SITE_BASE_URL: ${{ steps.target.outputs.base_url }}
+          # 検索エンジン・フィードへの通知は、更新のあと（update.yml）だけで行う
+          NOTIFY_SKIP_PING: '1'
+          # Bluesky のアカウント（update.yml と同じ。パスワードは Secrets の BLUESKY_APP_PASSWORD だけ）
+          BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER || vars.BLUESKY_IDENTIFIER || 'topiatsume.bsky.social' }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          MASTODON_URL: ${{ secrets.MASTODON_URL }}
+          MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
+          MISSKEY_URL: ${{ secrets.MISSKEY_URL }}
+          MISSKEY_TOKEN: ${{ secrets.MISSKEY_TOKEN }}
+
+      - name: 投稿の記録をコミット
+        if: steps.target.outputs.base_url != ''
+        run: |
+          [ -f data/social.json ] || exit 0
+          # 今回投稿していなければ（記録が変わっていなければ）何もしない（ほかで更新された記録を古い内容で上書きしないため）
+          [ -z "$(git status --porcelain -- data/social.json)" ] && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          cp data/social.json "$RUNNER_TEMP/social.json"
+          for attempt in 1 2 3; do
+            git fetch --quiet origin "$GITHUB_REF_NAME"
+            git reset --quiet --hard "origin/$GITHUB_REF_NAME"
+            cp "$RUNNER_TEMP/social.json" data/social.json
+            git add data/social.json
+            git diff --cached --quiet && exit 0
+            git commit --quiet -m 'chore: SNS 投稿の記録を更新'
+            git push --quiet origin "HEAD:$GITHUB_REF_NAME" && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1

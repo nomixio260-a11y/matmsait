@@ -7,10 +7,12 @@
  * - 昼（12〜14時台）: AI ニュース
  * - 日曜の夕方（18〜20時台）: 今週の話題ランキング
  * - 夜（21時以降）: 今日の話題ニュース（日別まとめ）
- * - 急上昇・いま話題・10秒でわかるニュース（AI 要約）: 前の投稿から1時間あけて1件ずつ（種類ごとに1日の上限あり）
+ * - 急上昇・いま話題・10秒でわかるニュース（AI 要約）: まとめの投稿がないときに1件ずつ（種類ごとに1日の上限あり）
  * - 管理画面の「今すぐ投稿」: 時間帯・間隔を待たずに、いちばん新しい話題を1件（なければ「いま話題のニュース」のまとめ）
  *
- * スパムにならないよう、深夜は投稿しない・1日の投稿数に上限を設ける・同じ話題は二度投稿しない。
+ * 自動の投稿は30分ごとに1件。投稿の機会は、毎時の収集・公開のあと（update.yml の notify）と、その30分後の
+ * 投稿だけの実行（social.yml。自動更新タイマー scripts/lib/timer.ts が実行する）。
+ * スパムにならないよう、深夜は投稿しない・前の投稿から間をあける・1日の投稿数に上限を設ける・同じ話題は二度投稿しない。
  * フォロー・いいね・返信の自動化はしない（相手の迷惑になり、アカウントの停止にもつながるため）。
  * リンクはこのサイトのページにし、どの投稿から来たかがアクセス解析で分かるよう utm_source などを付ける
  */
@@ -21,13 +23,17 @@ import type { DailySnapshot } from '../../src/lib/types.ts';
 export const SOCIAL_LIMITS = {
   /** この時刻より前（0時〜）は投稿しない */
   quietUntilHour: 7,
-  /** 24時間に投稿する数の上限（すべての種類の合計） */
-  maxPerDay: 12,
-  /** 急上昇・いま話題・10秒でわかるニュースの投稿の間隔（分） */
-  minGapMinutes: 60,
-  maxRisingPerDay: 4,
-  maxHotPerDay: 4,
-  maxSummaryPerDay: 3,
+  /** 24時間に投稿する数の上限（すべての種類の合計。30分ごとに1件で、7〜24時の34件に少し余裕をもたせる） */
+  maxPerDay: 40,
+  /**
+   * 自動の投稿の間隔（分。種類を問わず、前の投稿から）。投稿の機会は30分ごとで、実行の時刻が数分ずれても
+   * 投稿できるよう30分より短くしている（管理画面からの更新が続いたときに、次々と投稿しないための歯止め）
+   */
+  minGapMinutes: 20,
+  /** 種類ごとの24時間の上限（急上昇・いま話題がない時間は、10秒でわかるニュースで30分ごとの投稿を埋める） */
+  maxRisingPerDay: 12,
+  maxHotPerDay: 12,
+  maxSummaryPerDay: 30,
   /** 急上昇として投稿する条件: 直近3時間に新しく報じたメディアの数・報じたメディアの数 */
   risingMinGained: 2,
   risingMinCoverage: 3,
@@ -40,8 +46,8 @@ export const SOCIAL_LIMITS = {
   /** 日曜日の、今週のまとめ */
   weekly: [18, 21],
   digestHour: 21,
-  /** 管理画面の「今すぐ投稿」も含めた24時間の上限（誤って何度も押したときの歯止め） */
-  manualMaxPerDay: 24,
+  /** 管理画面の「今すぐ投稿」も含めた24時間の上限（誤って何度も押したときの歯止め。src/scripts/admin-dashboard.ts にも同じ数） */
+  manualMaxPerDay: 50,
   /** 「今すぐ投稿」の依頼がこれより古ければ投稿しない（分。更新の失敗などで処理が遅れたときに、思わぬ時間に投稿しないように） */
   requestExpiresMinutes: 30,
 } as const;
@@ -399,7 +405,10 @@ export interface PlanOptions {
   manual?: boolean;
 }
 
-/** 今回の実行で投稿するものを決める（上限と時間帯を守る） */
+/**
+ * 今回の実行で投稿するものを決める（上限と時間帯を守る）。自動の投稿は、前の投稿（種類を問わない。「今すぐ投稿」も含む）から
+ * 間をあけて1回1件（まとめの投稿が先。話題の投稿は次の機会に回る）
+ */
 export function planPosts(state: SocialState, context: PlanContext, { manual = false }: PlanOptions = {}): SocialPost[] {
   const { now, snapshots } = context;
   const hour = jstHour(now);
@@ -408,6 +417,8 @@ export function planPosts(state: SocialState, context: PlanContext, { manual = f
   const recent = recentPosts(state, now);
   const room = (manual ? SOCIAL_LIMITS.manualMaxPerDay : SOCIAL_LIMITS.maxPerDay) - recent.length;
   if (room <= 0) return [];
+  const lastPost = Math.max(0, ...recent.map((entry) => Date.parse(entry.at)));
+  if (!manual && now.getTime() - lastPost < SOCIAL_LIMITS.minGapMinutes * 60 * 1000) return [];
   const posted = new Set(state.posted.map((entry) => entry.key));
   const posts: SocialPost[] = [];
   const within = ([from, to]: readonly [number, number]) => hour >= from && hour < to;
@@ -431,38 +442,36 @@ export function planPosts(state: SocialState, context: PlanContext, { manual = f
     if (post) posts.push(post);
   }
 
-  // 急上昇・いま話題・10秒でわかるニュース（前の投稿から間をあけ、1回の実行で1件まで。同じ話題は二度投稿しない）
+  // 急上昇・いま話題・10秒でわかるニュース（1回の実行で1件まで。同じ話題は二度投稿しない）
   const eventPosts = recent.filter((entry) => /^(rising|hot|summary|now):/.test(entry.key));
-  const lastEvent = Math.max(0, ...eventPosts.map((entry) => Date.parse(entry.at)));
   // 10秒でわかるニュースで投稿した話題（記録は要約の記事 ID なので、要約から話題をたどる）
   const summaryTopics = new Set(context.summaries.filter((entry) => posted.has(`summary:${entry.id}`)).map((entry) => entry.topicId));
   const seenTopic = (id: string | undefined) =>
     id !== undefined && (posted.has(`rising:${id}`) || posted.has(`hot:${id}`) || summaryTopics.has(id));
-  if (manual || now.getTime() - lastEvent >= SOCIAL_LIMITS.minGapMinutes * 60 * 1000) {
-    // 種類ごとの1日の上限（「今すぐ投稿」では数えない）
-    const allows = (kind: PostKind, max: number) => manual || eventPosts.filter((entry) => entry.key.startsWith(`${kind}:`)).length < max;
-    const rising = context.rising.find(
-      (topic) => topic.gained >= SOCIAL_LIMITS.risingMinGained && topic.coverage >= SOCIAL_LIMITS.risingMinCoverage && !seenTopic(topic.id),
-    );
-    const hotCutoff = now.getTime() - 12 * HOUR;
-    const hot = context.hot.find(
-      (topic) =>
-        topic.coverage >= SOCIAL_LIMITS.hotMinCoverage &&
-        topic.score >= SOCIAL_LIMITS.hotMinScore &&
-        Date.parse(topic.latestAt) >= hotCutoff &&
-        !seenTopic(topic.id),
-    );
-    const summary = context.summaries.find((entry) => !posted.has(`summary:${entry.id}`) && !seenTopic(entry.topicId));
-    if (rising && allows('rising', SOCIAL_LIMITS.maxRisingPerDay)) posts.push(risingPost(rising, context));
-    else if (hot && allows('hot', SOCIAL_LIMITS.maxHotPerDay)) posts.push(hotPost(hot, context));
-    else if (summary && allows('summary', SOCIAL_LIMITS.maxSummaryPerDay)) posts.push(summaryPost(summary, context));
-    else if (manual) {
-      // 新しい話題がなければ、いま話題のニュースのまとめ（同じ時間帯に投稿済みなら何もしない）
-      const post = nowPost(context.hot.slice(0, 5), now, context);
-      if (post && !posted.has(post.key)) posts.push(post);
-    }
+  // 種類ごとの1日の上限（「今すぐ投稿」では数えない）
+  const allows = (kind: PostKind, max: number) => manual || eventPosts.filter((entry) => entry.key.startsWith(`${kind}:`)).length < max;
+  const rising = context.rising.find(
+    (topic) => topic.gained >= SOCIAL_LIMITS.risingMinGained && topic.coverage >= SOCIAL_LIMITS.risingMinCoverage && !seenTopic(topic.id),
+  );
+  const hotCutoff = now.getTime() - 12 * HOUR;
+  const hot = context.hot.find(
+    (topic) =>
+      topic.coverage >= SOCIAL_LIMITS.hotMinCoverage &&
+      topic.score >= SOCIAL_LIMITS.hotMinScore &&
+      Date.parse(topic.latestAt) >= hotCutoff &&
+      !seenTopic(topic.id),
+  );
+  const summary = context.summaries.find((entry) => !posted.has(`summary:${entry.id}`) && !seenTopic(entry.topicId));
+  if (rising && allows('rising', SOCIAL_LIMITS.maxRisingPerDay)) posts.push(risingPost(rising, context));
+  else if (hot && allows('hot', SOCIAL_LIMITS.maxHotPerDay)) posts.push(hotPost(hot, context));
+  else if (summary && allows('summary', SOCIAL_LIMITS.maxSummaryPerDay)) posts.push(summaryPost(summary, context));
+  else if (manual) {
+    // 新しい話題がなければ、いま話題のニュースのまとめ（同じ時間帯に投稿済みなら何もしない）
+    const post = nowPost(context.hot.slice(0, 5), now, context);
+    if (post && !posted.has(post.key)) posts.push(post);
   }
-  return posts.slice(0, room);
+  // 自動の投稿は1回1件（30分ごとに1件にする）。「今すぐ投稿」は、まとめの時間帯なら話題と合わせて投稿する
+  return posts.slice(0, manual ? room : Math.min(room, 1));
 }
 
 /** まだ処理していない「今すぐ投稿」の依頼（処理済み・依頼がなければ undefined）。古すぎる依頼は expired */

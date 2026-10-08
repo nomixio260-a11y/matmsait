@@ -119,7 +119,7 @@ const REQUEST_PATH = 'data/social-request.json';
 const POST_POLL_MS = 10_000;
 const POST_WAIT_MS = 12 * 60_000;
 /** 「今すぐ投稿」も含めた24時間の上限（scripts/lib/social.ts の SOCIAL_LIMITS.manualMaxPerDay と同じ） */
-const MANUAL_MAX_PER_DAY = 24;
+const MANUAL_MAX_PER_DAY = 50;
 
 function parseJson<T>(text: string | null): T | undefined {
   if (!text) return undefined;

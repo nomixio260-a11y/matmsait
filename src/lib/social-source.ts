@@ -24,12 +24,15 @@ export function socialTopic(view: TopicView, now: Date, gained = growthWithin(vi
   };
 }
 
-/** 直近 hours 時間に保存した AI 要約（多くのメディアが報じた話題を先に。同じ話題は1件だけ） */
+/**
+ * 直近 hours 時間に保存した AI 要約（多くのメディアが報じた話題を先に。同じ話題は1件だけ）。
+ * 30分ごとに投稿するので、古いニュースを投稿しないよう、記事の公開から hours 時間を過ぎたものは除く
+ */
 export function socialSummaries(now: Date, hours = 48): SocialSummary[] {
   const cutoff = now.getTime() - hours * HOUR;
   const seenTopics = new Set<string>();
   return getSummaries()
-    .filter((record) => Date.parse(record.summarizedAt) >= cutoff)
+    .filter((record) => Date.parse(record.summarizedAt) >= cutoff && Date.parse(record.publishedAt) >= cutoff)
     .map((record) => ({ record, view: topicViewOf(record.id) }))
     .sort((a, b) => (b.view?.coverage ?? 1) - (a.view?.coverage ?? 1) || b.record.summarizedAt.localeCompare(a.record.summarizedAt))
     .filter(({ view }) => {

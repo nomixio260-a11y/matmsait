@@ -257,7 +257,7 @@ jobs:
     # 数分かかることがある）を待たずに知らせる・投稿する（管理画面の「今すぐ投稿」を早くするため）。
     # GitHub Pages に公開しているときは、下の「GitHub Pages の公開を待つ」で公開を確かめてから知らせる
     needs: build
-    # 同じまとめを二重に投稿しないよう、通知・SNS 投稿も1つずつ
+    # 同じまとめを二重に投稿しないよう、通知・SNS 投稿も1つずつ（更新の合間の投稿 social.yml とも同じグループ）
     concurrency:
       group: notify
       cancel-in-progress: false

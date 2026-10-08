@@ -166,12 +166,12 @@ describe('planPosts', () => {
     expect(post.key).toBe('rising:up');
     expect(post.compose(() => true)).toContain('https://example.com/site/topic/up/');
     const state = recordPost(empty, post, at('11:00'));
-    // 間隔をあける（60分）
+    // 前の投稿から間をあける（20分）
     const hot = [topic('hot', { coverage: 5, score: 70, latestAt: at('10:30').toISOString() })];
-    expect(planPosts(state, context(at('11:40'), { rising, hot }))).toEqual([]);
-    expect(planPosts(state, context(at('12:05'), { rising, hot })).map((entry) => entry.key)).toEqual(['hot:hot']);
+    expect(planPosts(state, context(at('11:15'), { rising, hot }))).toEqual([]);
+    expect(planPosts(state, context(at('11:30'), { rising, hot })).map((entry) => entry.key)).toEqual(['hot:hot']);
     // 急上昇で投稿した話題は、いま話題としても投稿しない
-    expect(planPosts(state, context(at('12:05'), { hot: [topic('up', { coverage: 6, score: 80, latestAt: at('12:00').toISOString() })] }))).toEqual([]);
+    expect(planPosts(state, context(at('11:30'), { hot: [topic('up', { coverage: 6, score: 80, latestAt: at('11:20').toISOString() })] }))).toEqual([]);
   });
 
   it('急上昇・いま話題がなければ、10秒でわかるニュース（AI 要約）を投稿する。同じ話題を投稿済みなら投稿しない', () => {
@@ -204,6 +204,38 @@ describe('planPosts', () => {
     const risingDone = Array.from({ length: SOCIAL_LIMITS.maxRisingPerDay }, (_, n) => ({ key: `rising:r${n}`, at: at('08:00').toISOString() }));
     // 急上昇が上限なら、次の種類（10秒でわかるニュース）に回る
     expect(planPosts({ posted: risingDone }, context(now, { rising, summaries: [summary('s')] })).map((post) => post.key)).toEqual(['summary:s']);
+    const summaryDone = Array.from({ length: SOCIAL_LIMITS.maxSummaryPerDay }, (_, n) => ({ key: `summary:x${n}`, at: at('08:00').toISOString() }));
+    expect(planPosts({ posted: summaryDone }, context(now, { summaries: [summary('s')] }))).toEqual([]);
+  });
+
+  it('30分ごとの投稿の機会に1件ずつ投稿する（実行の時刻が数分ずれても投稿し、続けての実行では投稿しない）', () => {
+    const summaries = ['s1', 's2', 's3', 's4', 's5'].map((id) => summary(id));
+    let state = empty;
+    const keys: string[] = [];
+    // 毎時の更新のあと（数分かかる）と、その30分後の投稿だけの実行。11:41 は管理画面からの更新
+    for (const time of ['10:02', '10:31', '11:08', '11:31', '11:41', '12:03']) {
+      const posts = planPosts(state, context(at(time), { summaries }));
+      expect(posts.length).toBeLessThanOrEqual(1);
+      for (const post of posts) {
+        state = recordPost(state, post, at(time));
+        keys.push(`${time} ${post.key}`);
+      }
+    }
+    expect(keys).toEqual(['10:02 summary:s1', '10:31 summary:s2', '11:08 summary:s3', '11:31 summary:s4', '12:03 summary:s5']);
+  });
+
+  it('自動の投稿は1回1件。まとめの投稿が先で、話題は次の機会に投稿する', () => {
+    const important = [topic('i1'), topic('i2'), topic('i3')];
+    const rising = [topic('up', { gained: 3, coverage: 4 })];
+    const first = planPosts(empty, context(at('08:00'), { important, rising }));
+    expect(first.map((post) => post.key)).toEqual(['morning:2026-10-06']);
+    const state = recordPost(empty, first[0], at('08:00'));
+    expect(planPosts(state, context(at('08:30'), { important, rising })).map((post) => post.key)).toEqual(['rising:up']);
+    // まとめの投稿も、前の投稿から間をあける
+    const ai = [topic('a1'), topic('a2')];
+    const recent = recordPost(empty, summaryPost(summary('s'), context(at('11:55'))), at('11:55'));
+    expect(planPosts(recent, context(at('12:05'), { ai }))).toEqual([]);
+    expect(planPosts(recent, context(at('12:20'), { ai })).map((post) => post.key)).toEqual(['ai:2026-10-06']);
   });
 });
 
@@ -217,7 +249,7 @@ describe('管理画面の「今すぐ投稿」', () => {
   it('深夜・間隔・種類ごとの上限を待たずに、まだ投稿していない話題を1件投稿する', () => {
     // 深夜でも投稿する
     expect(planPosts(empty, context(at('03:00'), { hot }), { manual: true }).map((post) => post.key)).toEqual(['hot:h1']);
-    // 10分前に投稿していても（いつもは1時間あける）、急上昇から順に選ぶ
+    // 10分前に投稿していても（いつもは20分あける）、急上昇から順に選ぶ
     const state = recordPost(empty, hotPost(hot[0], context(at('10:00'))), at('10:00'));
     const rising = [topic('r1', { gained: 2, coverage: 3 })];
     expect(planPosts(state, context(at('10:10'), { hot, rising }))).toEqual([]);
@@ -241,18 +273,20 @@ describe('管理画面の「今すぐ投稿」', () => {
     expect(planPosts(after, context(at('15:05'), { hot }), { manual: true }).map((entry) => entry.key)).toEqual(['now:2026-10-06T15']);
     // まとめは3件以上の話題があるときだけ
     expect(nowPost(hot.slice(0, 2), at('14:20'), context(at('14:20')))).toBeUndefined();
-    // 「今すぐ投稿」のまとめのあとは、いつもの自動投稿も1時間あける
-    expect(planPosts(after, context(at('15:00'), { rising: [topic('r9', { gained: 3, coverage: 4 })] }))).toEqual([]);
+    // 「今すぐ投稿」のまとめのあとは、いつもの自動投稿も20分あける
+    const rising = [topic('r9', { gained: 3, coverage: 4 })];
+    expect(planPosts(after, context(at('14:30'), { rising }))).toEqual([]);
+    expect(planPosts(after, context(at('14:45'), { rising })).map((entry) => entry.key)).toEqual(['rising:r9']);
   });
 
   it('24時間の上限は「今すぐ投稿」では広げる（誤って何度も押したときの歯止めは残す）', () => {
     const posts = (count: number): SocialState => ({ posted: Array.from({ length: count }, (_, n) => ({ key: `digest:x${n}`, at: at('09:00').toISOString(), platforms: ['Bluesky'] })) });
-    const twelve = posts(SOCIAL_LIMITS.maxPerDay);
-    expect(reachedDailyLimit(twelve, at('10:00'))).toBe(true);
-    expect(reachedDailyLimit(twelve, at('10:00'), true)).toBe(false);
-    expect(planPosts(twelve, context(at('10:00'), { hot }), { manual: true }).map((post) => post.key)).toEqual(['hot:h1']);
-    expect(platformAllows('Bluesky', twelve, at('10:00'))).toBe(false);
-    expect(platformAllows('Bluesky', twelve, at('10:00'), platformLimit(true))).toBe(true);
+    const full = posts(SOCIAL_LIMITS.maxPerDay);
+    expect(reachedDailyLimit(full, at('10:00'))).toBe(true);
+    expect(reachedDailyLimit(full, at('10:00'), true)).toBe(false);
+    expect(planPosts(full, context(at('10:00'), { hot }), { manual: true }).map((post) => post.key)).toEqual(['hot:h1']);
+    expect(platformAllows('Bluesky', full, at('10:00'))).toBe(false);
+    expect(platformAllows('Bluesky', full, at('10:00'), platformLimit(true))).toBe(true);
     const max = posts(SOCIAL_LIMITS.manualMaxPerDay);
     expect(reachedDailyLimit(max, at('10:00'), true)).toBe(true);
     expect(planPosts(max, context(at('10:00'), { hot }), { manual: true })).toEqual([]);
