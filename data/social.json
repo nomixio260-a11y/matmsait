@@ -104,32 +104,32 @@
    "urls": {
     "Bluesky": "https://bsky.app/profile/topiatsume.bsky.social/post/3mxdkajp53t2y"
    }
+  },
+  {
+   "key": "rising:4b59bd302427939c",
+   "at": "2026-10-08T04:03:43.911Z",
+   "platforms": [
+    "Bluesky"
+   ],
+   "urls": {
+    "Bluesky": "https://bsky.app/profile/topiatsume.bsky.social/post/3mxdlcspyaz2o"
+   }
   }
  ],
  "manual": {
-  "id": "3ea945cf-5321-417d-8eb6-88ec32c7d306",
-  "requestedAt": "2026-10-08T03:42:39.927Z",
-  "at": "2026-10-08T03:44:33.872Z",
+  "id": "6b3860ca-94ef-4c57-b1dd-a1be6f114632",
+  "requestedAt": "2026-10-08T04:01:59.549Z",
+  "at": "2026-10-08T04:03:43.911Z",
   "result": "posted",
   "posts": [
    {
-    "key": "ai:2026-10-08",
-    "at": "2026-10-08T03:44:33.872Z",
+    "key": "rising:4b59bd302427939c",
+    "at": "2026-10-08T04:03:43.911Z",
     "platforms": [
      "Bluesky"
     ],
     "urls": {
-     "Bluesky": "https://bsky.app/profile/topiatsume.bsky.social/post/3mxdkajlczl2y"
-    }
-   },
-   {
-    "key": "rising:f0713b524ffee910",
-    "at": "2026-10-08T03:44:33.872Z",
-    "platforms": [
-     "Bluesky"
-    ],
-    "urls": {
-     "Bluesky": "https://bsky.app/profile/topiatsume.bsky.social/post/3mxdkajp53t2y"
+     "Bluesky": "https://bsky.app/profile/topiatsume.bsky.social/post/3mxdlcspyaz2o"
     }
    }
   ]
