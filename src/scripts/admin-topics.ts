@@ -324,7 +324,11 @@ function check(): void {
     selected.articles.map((article) => article.id),
   );
   accepted = result.note;
-  $('issues').replaceChildren(...result.issues.map((issue) => el('li', '', issue)));
+  // 受け付けなかった点・取り除いた点と、要確認（宣伝の言葉・定型文・推測など。保存はできる）
+  $('issues').replaceChildren(
+    ...result.issues.map((issue) => el('li', '', issue)),
+    ...(result.note ? (result.warnings ?? []).map((warning) => el('li', 'warn', `要確認: ${warning}`)) : []),
+  );
   if (result.note) {
     renderPreview(result.note);
     setStatus($('save-status'), '問題がなければ「保存して公開」を押してください。', 'ok');

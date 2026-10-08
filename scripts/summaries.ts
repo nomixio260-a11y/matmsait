@@ -57,7 +57,7 @@ function promptCommand(args: string[]) {
     return;
   }
   const prompt = buildSummaryPrompt(
-    batch.map((item) => ({ id: item.id, title: item.title, url: item.url, site: siteOf(item).label, excerpt: item.excerpt })),
+    batch.map((item) => ({ id: item.id, title: item.title, url: item.url, site: siteOf(item).label, excerpt: item.excerpt, publishedAt: item.publishedAt })),
     { siteName: site.name, length, points: !values['no-points'] },
   );
   if (values.out) {
@@ -93,7 +93,10 @@ function importCommand(args: string[]) {
     }
   }
 
-  const result = validateEntries(entries, (id) => (articles.has(id) ? { summarized: Boolean(getSummary(id)) } : undefined));
+  const result = validateEntries(entries, (id) => {
+    const article = articles.get(id);
+    return article ? { summarized: Boolean(getSummary(id)), title: article.title } : undefined;
+  });
   if (values['skip-existing']) {
     for (const accepted of result.accepted.filter((entry) => entry.replaces)) {
       result.skipped.push({ id: accepted.id, reason: 'すでに要約があるため上書きしません' });
@@ -102,6 +105,10 @@ function importCommand(args: string[]) {
   }
   for (const issue of result.errors) console.error(`エラー  ${issue.id}: ${issue.reason}`);
   for (const issue of result.skipped) console.error(`見送り  ${issue.id}: ${issue.reason}`);
+  // 要約の決まりに合っていない可能性がある点（保存はする。記事と見比べて、必要なら直す）
+  for (const accepted of result.accepted) {
+    for (const warning of accepted.warnings ?? []) console.error(`要確認  ${accepted.id}: ${warning.message}`);
+  }
 
   const now = new Date();
   const records = result.accepted.map((accepted) => toSummaryRecord(articles.get(accepted.id)!, accepted, now));
@@ -115,7 +122,8 @@ function importCommand(args: string[]) {
     }
     console.error(`${values['dry-run'] ? '（確認のみ）' : ''}${path}: ${group.length}件を保存（合計 ${merged.length}件）`);
   }
-  console.error(`保存 ${records.length}件 ・ 見送り ${result.skipped.length}件 ・ エラー ${result.errors.length}件`);
+  const flagged = result.accepted.filter((accepted) => accepted.warnings?.length).length;
+  console.error(`保存 ${records.length}件（うち要確認 ${flagged}件） ・ 見送り ${result.skipped.length}件 ・ エラー ${result.errors.length}件`);
   if (result.errors.length > 0) process.exitCode = 1;
 }
 

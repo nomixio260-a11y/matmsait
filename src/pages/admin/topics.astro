@@ -168,6 +168,9 @@ import { href } from '../../lib/items.ts';
   .issues:empty {
     display: none;
   }
+  .issues :global(li.warn) {
+    color: var(--warn);
+  }
   .sub {
     margin: 16px 0 6px;
     font-size: 0.85rem;

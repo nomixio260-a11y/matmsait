@@ -3,6 +3,7 @@ import {
   ANSWER_FILE_NAME,
   ARTICLE_TEXT_MAX,
   PASTE_MARKER,
+  buildFixPrompt,
   buildSummaryPrompt,
   comparePastedUrl,
   editSummaryRecord,
@@ -12,6 +13,7 @@ import {
   normalizeEntries,
   parsePastedText,
   parseSummaryFile,
+  promptPublished,
   splitPastedBlocks,
   splitPromptArticles,
   serializeSummaryFile,
@@ -48,6 +50,56 @@ describe('buildSummaryPrompt', () => {
     expect(prompt).toContain('"points"');
     expect(prompt).toContain('"id": "abc"');
     expect(prompt).toContain('"url": "https://example.com/a"');
+  });
+
+  it('要約の書き方（改善指示書の基準）を指示する', () => {
+    const prompt = buildSummaryPrompt([{ id: 'abc', title: '記事', url: 'https://example.com/a', site: '例' }], {
+      siteName: 'テスト',
+      length: 'normal',
+      points: true,
+    });
+    // 目的と3原則・優先順位
+    expect(prompt).toContain('重要な情報は残す。不要な情報は削る。記事にないことは書かない。');
+    expect(prompt).toContain('1. 正確さ 2. 重要な情報を残す');
+    // 1文目で核心・見出しの言い換えにしない・重要な情報の順・数字と単位・条件・日付
+    expect(prompt).toContain('1文目でニュースの核心');
+    expect(prompt).toContain('見出しの言い換えだけにしない');
+    expect(prompt).toContain('今回起きたこと → 結果 → 何が変わったか');
+    expect(prompt).toContain('単位（円・万円・億円・ドル・%');
+    expect(prompt).toContain('「月10回まで無料で使える」');
+    expect(prompt).toContain('published（記事の公開日時・日本時間）をもとに「10月7日」');
+    // 推測・主張・宣伝・不確定・発表と発売・否定・続報・速報・障害・サービス終了・SNS
+    expect(prompt).toContain('推測・予想・意見を加えない');
+    expect(prompt).toContain('「〜と発表した」「〜としている」');
+    expect(prompt).toContain('革新的・画期的・圧倒的・業界最高・究極・世界を変える');
+    expect(prompt).toContain('「発表」「公開」「発売」「提供開始」');
+    expect(prompt).toContain('「検討している」を「実施する」と書かない');
+    expect(prompt).toContain('今回新しく分かったこと・前回からの変更を中心に');
+    expect(prompt).toContain('「発生中」「復旧済み」「一部復旧」');
+    expect(prompt).toContain('終了日・新規受付の終了日・移行の期限');
+    expect(prompt).toContain('数件の投稿を「大きな話題」としない');
+    // 文体・文の長さ・接続詞・定型文・長さは情報量しだい・AI のニュースも特別扱いしない・ジャンル別の目安
+    expect(prompt).toContain('常体（だ・である調）で統一');
+    expect(prompt).toContain('1文は40〜80字程度');
+    expect(prompt).toContain('「今後の動向が注目される」');
+    expect(prompt).toContain('長さは情報量に合わせて変える');
+    expect(prompt).toContain('AI のニュースでもモデル名や提供形態を必ず書くといった特別な扱いはせず');
+    expect(prompt).toContain('- スポーツ: 誰が・何をしたか');
+    // 出力前の確認
+    expect(prompt).toContain('1文目で核心が分かるか。見出しの言い換えだけになっていないか');
+  });
+
+  it('記事の公開日時（日本時間）を記事一覧に入れる', () => {
+    const prompt = buildSummaryPrompt(
+      [{ id: 'abc', title: '記事', url: 'https://example.com/a', site: '例', publishedAt: '2026-10-06T15:05:00.000Z' }],
+      { siteName: 'テスト', length: 'normal', points: true },
+    );
+    expect(prompt).toContain('"published": "2026-10-07 00:05"');
+    expect(promptPublished('壊れた日時')).toBeUndefined();
+    // 公開日時がなければ入れない
+    expect(buildSummaryPrompt([{ id: 'abc', title: '記事', url: 'https://example.com/a', site: '例' }], { siteName: 'テスト', length: 'normal', points: true })).not.toContain(
+      '"published"',
+    );
   });
 
   it('要点なしの指定では points を常に空の配列にさせる', () => {
@@ -337,6 +389,45 @@ describe('validateEntries', () => {
     // AI が開けなかった記事（unavailable と断り文）には印を付ける（管理画面が記録して、次から自動で選ばない）
     expect(result.skipped.map((issue) => issue.unavailable === true)).toEqual([true, true, false]);
     expect(result.errors.map((issue) => issue.id)).toEqual(['e', 'zzz']);
+  });
+});
+
+describe('品質の注意と、直してもらうプロンプト', () => {
+  it('見出しが分かれば、見出しの言い換えだけの要約や定型文に注意を付ける（保存は止めない）', () => {
+    const { accepted } = validateEntries(
+      [
+        { id: 'a', status: 'ok', summary: 'Appleが新型iPhoneを発表した。今後の動向が注目される。', points: [] },
+        { id: 'b', status: 'ok', summary: longSummary, points: [] },
+      ],
+      (id) => ({ summarized: false, title: id === 'a' ? 'Apple、新型iPhoneを発表' : '新製品の価格と発売日' }),
+    );
+    expect(accepted.map((entry) => entry.id)).toEqual(['a', 'b']);
+    expect(accepted[0].warnings?.map((warning) => warning.kind)).toEqual(['title', 'cliche']);
+    expect(accepted[1]).not.toHaveProperty('warnings');
+  });
+
+  it('直す要約と指摘を渡し、最初と同じ形式で、その記事の分だけ出力させる', () => {
+    const prompt = buildFixPrompt(
+      [
+        {
+          id: 'abc',
+          title: '記事',
+          summary: 'Appleが新型iPhoneを発表した。',
+          points: [],
+          keywords: ['Apple'],
+          issues: ['見出しの言い換えに近い要約です。'],
+        },
+      ],
+      { length: 'normal', points: true, answer: 'codeblock' },
+    );
+    expect(prompt).toContain('「直す要約」の1件');
+    expect(prompt).toContain('本文に書かれている言い方そのままで、直す必要がないものは直さなくてかまわない');
+    expect(prompt).toContain('```json で始まり ``` で終わるコードブロック1つだけ');
+    expect(prompt).toContain('「直す要約」の id を1文字も変えずに');
+    expect(prompt).toContain('"issues": [\n      "見出しの言い換えに近い要約です。"\n    ]');
+    expect(prompt).toContain('"background": ""');
+    // ファイルでの回答も同じ指定に従う
+    expect(buildFixPrompt([], { length: 'normal', points: false, answer: 'file' })).toContain(`ファイル名は ${ANSWER_FILE_NAME}`);
   });
 });
 

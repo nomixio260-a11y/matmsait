@@ -12,6 +12,7 @@ import { createGitHubClient, GitHubError, type Repository } from '../lib/github-
 import {
   ARTICLE_TEXT_MAX,
   PASTE_MARKER,
+  buildFixPrompt,
   buildSummaryPrompt,
   comparePastedUrl,
   editSummaryRecord,
@@ -36,6 +37,7 @@ import {
   type SummaryLength,
   type ValidationResult,
 } from '../lib/summary-core.ts';
+import { summaryWarnings, type QualityWarning } from '../lib/summary-quality.ts';
 import type { Item, SummaryRecord } from '../lib/types.ts';
 import {
   TEXT_KEYS_PATH,
@@ -206,6 +208,8 @@ const ui = {
   pastePromptPanel: $('paste-prompt-panel'),
   includeSummarized: $<HTMLInputElement>('include-summarized'),
   savedFilter: $<HTMLInputElement>('saved-filter'),
+  savedWarnOnly: $<HTMLInputElement>('saved-warn-only'),
+  savedWarnCount: $('saved-warn-count'),
   hideSelected: $<HTMLButtonElement>('hide-selected'),
   hideStatus: $('hide-status'),
   hiddenCount: $('hidden-count'),
@@ -472,12 +476,13 @@ function promptOptions(): PromptOptions {
 
 const maxChars = () => Number(ui.maxChars.value) || 0;
 
-const toPromptArticle = ({ id, title, url, site, excerpt }: AdminArticle): PromptArticle => ({
+const toPromptArticle = ({ id, title, url, site, excerpt, publishedAt }: AdminArticle): PromptArticle => ({
   id,
   title,
   url,
   site,
   excerpt,
+  publishedAt,
   text: texts.get(id),
 });
 
@@ -1368,6 +1373,81 @@ function renderSaveArea() {
       : '確認できた要約はまだありません。';
 }
 
+/** 品質の注意の一覧（要約の決まりに合っていない可能性がある点） */
+function warningList(warnings: QualityWarning[]): HTMLElement {
+  const list = el('ul', 'warn-list');
+  list.setAttribute('aria-label', '要確認の点');
+  list.append(...warnings.map((warning) => el('li', '', warning.message)));
+  return list;
+}
+
+/**
+ * 要確認の要約を AI に直してもらう手順: 直してもらうプロンプトのコピーと、直った回答の取り込み
+ * （直った回答の要約で、今の回答の同じ id の要約を置き換えて、もう一度確認する）
+ */
+function fixBox(flagged: AcceptedSummary[]): HTMLElement {
+  const box = el('div', 'fix-box');
+  box.append(
+    el(
+      'p',
+      'note',
+      `要確認 ${flagged.length}件: 要約の決まり（見出しの言い換え・宣伝の言葉・中身のない定型文・推測・あいまいな日付・文体・長すぎる文など）に合っていない可能性がある点を、機械的に見つけました。記事と見比べて直したほうがよければ、「直してもらうプロンプト」をコピーして最初と同じ AI のチャットに貼り付け、直った回答をこの下に貼って「取り込む」を押してください（その要約だけが置き換わります）。そのまま保存することもできます。`,
+    ),
+  );
+  const copy = el('button', 'small', '直してもらうプロンプトをコピー');
+  copy.type = 'button';
+  const input = el('textarea');
+  input.rows = 5;
+  input.spellcheck = false;
+  input.setAttribute('aria-label', 'AI が直した回答');
+  input.placeholder = 'AI が直した回答（JSON）を貼り付け';
+  const apply = el('button', 'small', '直した回答を取り込む');
+  apply.type = 'button';
+  const status = el('p', 'status');
+  status.setAttribute('aria-live', 'polite');
+  const actions = el('div', 'actions');
+  actions.append(apply);
+  box.append(copy, input, actions, status);
+
+  copy.addEventListener('click', async () => {
+    const prompt = buildFixPrompt(
+      flagged.map((entry) => ({
+        id: entry.id,
+        title: findArticle(entry.id)?.article.title ?? '',
+        summary: entry.summary,
+        points: entry.points,
+        background: entry.background,
+        keywords: entry.keywords,
+        issues: (entry.warnings ?? []).map((warning) => warning.message),
+      })),
+      promptOptions(),
+    );
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setStatus(status, `${flagged.length}件の直してもらうプロンプトをコピーしました。最初と同じ AI のチャットに貼り付けてください。`, 'ok');
+    } catch {
+      input.value = prompt;
+      input.select();
+      setStatus(status, 'コピーできなかったので、プロンプトを上の欄に入れました（Ctrl+C でコピーしてから、欄を空にして回答を貼ってください）。', 'error');
+    }
+  });
+  apply.addEventListener('click', () => {
+    try {
+      const fixes = normalizeEntries(extractJson(input.value));
+      const current = normalizeEntries(extractJson(ui.response.value));
+      const byId = new Map(fixes.map((entry) => [entry.id, entry]));
+      const merged = [...current.map((entry) => byId.get(entry.id) ?? entry), ...fixes.filter((entry) => !current.some((other) => other.id === entry.id))];
+      ui.response.value = JSON.stringify(merged, null, 1);
+      saveDraft();
+      checkResponse({ record: false });
+      setStatus(ui.saveStatus, `直した回答を取り込みました（${fixes.length}件）。内容を確かめてから保存してください。`, 'ok');
+    } catch (error) {
+      setStatus(status, `取り込めませんでした: ${errorText(error)}`, 'error');
+    }
+  });
+  return box;
+}
+
 /** AI の回答を確認する。record が false なら（作業を戻したときなど）、AI が開けなかった記事の記録や自動取得の依頼はしない */
 function checkResponse({ record = true }: { record?: boolean } = {}) {
   validation = undefined;
@@ -1391,7 +1471,7 @@ function checkResponse({ record = true }: { record?: boolean } = {}) {
 
   validation = validateEntries(entries, (id) => {
     const found = findArticle(id);
-    return found ? { summarized: found.summarized } : undefined;
+    return found ? { summarized: found.summarized, title: found.article.title } : undefined;
   });
   const answered = new Set(entries.map((entry) => entry.id));
   const missing = [...new Set(promptGroupsFor(answered).flat())]
@@ -1401,9 +1481,11 @@ function checkResponse({ record = true }: { record?: boolean } = {}) {
       return found ? [found.article] : [];
     });
 
+  const flagged = validation.accepted.filter((entry) => entry.warnings?.length);
   const summary = el('div', 'result-summary');
   summary.append(
     el('span', 'badge ok', `保存できる ${validation.accepted.length}件`),
+    ...(flagged.length > 0 ? [el('span', 'badge warn', `うち要確認 ${flagged.length}件`)] : []),
     el('span', 'badge', `見送り ${validation.skipped.length + missing.length}件`),
     el('span', 'badge', `エラー ${validation.errors.length}件`),
   );
@@ -1436,7 +1518,9 @@ function checkResponse({ record = true }: { record?: boolean } = {}) {
     }
     if (entry.background) body.append(el('div', 'pick-meta', `背景: ${entry.background}`));
     if (entry.keywords?.length) body.append(el('div', 'pick-meta', `キーワード: ${entry.keywords.join('、')}`));
-    row.append(include, body, el('td', 'result-state ok', entry.replaces ? 'OK（上書き）' : 'OK'));
+    if (entry.warnings?.length) body.append(warningList(entry.warnings));
+    const state = `${entry.replaces ? 'OK（上書き）' : 'OK'}${entry.warnings?.length ? '・要確認' : ''}`;
+    row.append(include, body, el('td', `result-state ok${entry.warnings?.length ? ' warn' : ''}`, state));
     table.append(row);
   }
   const issues = [
@@ -1452,7 +1536,8 @@ function checkResponse({ record = true }: { record?: boolean } = {}) {
     row.append(el('td'), body, el('td', `result-state ${issue.kind}`, issue.kind === 'error' ? 'エラー' : '見送り'));
     table.append(row);
   }
-  ui.checkResult.append(summary, table);
+  // 要確認があれば、件数のすぐ下に直してもらう手順を出す（一覧が長くても見つけやすいように）
+  ui.checkResult.append(summary, ...(flagged.length > 0 ? [fixBox(flagged)] : []), table);
 
   // AI が開けなかった記事を記録し、「AI が開けない記事」に移す（次からは自動で選ばない）
   const unavailable = validation.skipped.filter((issue) => issue.unavailable).map((issue) => issue.id);
@@ -1665,11 +1750,23 @@ function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
   cancel.type = 'button';
   const actions = el('div', 'actions');
   actions.append(save, cancel);
-  editor.append(summaryField, pointsField, backgroundField, keywordsField, actions, status);
+  // 書いている要約の注意（要約の決まりに合っていない可能性がある点）
+  const warnArea = el('div', 'editor-warnings');
+  warnArea.setAttribute('aria-live', 'polite');
+  editor.append(summaryField, pointsField, backgroundField, keywordsField, warnArea, actions, status);
 
   const updateCount = () => (summaryCount.textContent = `${Array.from(summaryInput.value.trim()).length}字`);
+  const updateWarnings = () => {
+    const current = summaryWarnings(
+      { summary: summaryInput.value, points: pointsInput.value.split('\n').map((line) => line.trim()).filter(Boolean), background: backgroundInput.value },
+      { title: record.title },
+    );
+    warnArea.replaceChildren(...(current.length > 0 ? [warningList(current)] : []));
+  };
   summaryInput.addEventListener('input', updateCount);
+  for (const input of [summaryInput, pointsInput, backgroundInput]) input.addEventListener('input', updateWarnings);
   updateCount();
+  updateWarnings();
   cancel.addEventListener('click', () => editor.remove());
   save.addEventListener('click', async () => {
     const points = pointsInput.value.split('\n').map((line) => line.trim()).filter(Boolean);
@@ -1677,7 +1774,7 @@ function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
     // AI の回答と同じ基準で確かめる（断り文の判定はしない）
     const checked = validateEntries(
       [{ id: record.id, status: 'ok', summary: summaryInput.value, points, background: backgroundInput.value, keywords }],
-      () => ({ summarized: true }),
+      () => ({ summarized: true, title: record.title }),
       { checkRefusal: false },
     );
     const accepted = checked.accepted[0];
@@ -1710,11 +1807,15 @@ function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
 function renderSavedList() {
   if (!data) return;
   const all = savedSummaries();
+  // 要約の決まりに合っていない可能性がある点（保存済みの要約にも同じ確認をする）
+  const warnings = new Map(all.map((record) => [record.id, summaryWarnings(record, { title: record.title })]));
+  const flagged = all.filter((record) => (warnings.get(record.id) ?? []).length > 0);
   const query = ui.savedFilter.value.trim().toLowerCase();
-  const list = query
-    ? all.filter((record) => `${record.title} ${record.summary} ${record.points.join(' ')}`.toLowerCase().includes(query))
-    : all;
+  const list = (ui.savedWarnOnly.checked ? flagged : all).filter(
+    (record) => !query || `${record.title} ${record.summary} ${record.points.join(' ')}`.toLowerCase().includes(query),
+  );
   ui.savedCount.textContent = `${all.length}件`;
+  ui.savedWarnCount.textContent = String(flagged.length);
   const checked = new Set<string>();
   const sync = () => {
     ui.deleteSelected.disabled = checked.size === 0;
@@ -1735,10 +1836,13 @@ function renderSavedList() {
       });
       const meta = el('span', 'pick-meta', `${articleMeta(record)} ・ 要約 ${dateFormat.format(new Date(record.summarizedAt))}`);
       if (edits.has(record.id)) meta.append(el('span', 'badge-inline', '手直し済み（反映待ち）'));
+      const recordWarnings = warnings.get(record.id) ?? [];
+      if (recordWarnings.length > 0) meta.append(el('span', 'badge-inline warn', '要確認'));
       label.append(box, el('span', 'pick-title', record.title), meta, el('span', 'pick-summary', record.summary));
       if (record.points.length > 0) label.append(el('span', 'pick-summary', record.points.map((point) => `・${point}`).join(' ')));
       if (record.background) label.append(el('span', 'pick-meta', `背景: ${record.background}`));
       if (record.keywords?.length) label.append(el('span', 'pick-meta', `キーワード: ${record.keywords.join('、')}`));
+      if (recordWarnings.length > 0) label.append(warningList(recordWarnings));
       const editButton = el('button', 'ghost small edit-button', '編集');
       editButton.type = 'button';
       editButton.setAttribute('aria-label', `${record.title} の要約を編集`);
@@ -1756,7 +1860,9 @@ function renderSavedList() {
     }),
   );
   if (list.length === 0) {
-    ui.savedList.append(el('li', 'pick-meta', all.length === 0 ? '保存済みの要約はまだありません。' : '条件に合う要約はありません。'));
+    ui.savedList.append(
+      el('li', 'pick-meta', all.length === 0 ? '保存済みの要約はまだありません。' : ui.savedWarnOnly.checked && flagged.length === 0 ? '要確認の要約はありません。' : '条件に合う要約はありません。'),
+    );
   }
   sync();
 
@@ -2048,6 +2154,7 @@ async function main() {
   ui.count.addEventListener('change', refresh);
   ui.includeSummarized.addEventListener('change', refresh);
   ui.savedFilter.addEventListener('input', renderSavedList);
+  ui.savedWarnOnly.addEventListener('change', renderSavedList);
   ui.category.addEventListener('change', refresh);
   ui.sort.addEventListener('change', refresh);
   $('reselect').addEventListener('click', refresh);

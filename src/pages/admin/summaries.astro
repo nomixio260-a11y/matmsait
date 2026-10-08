@@ -208,9 +208,13 @@ import { href } from '../../lib/items.ts';
       <summary><span class="summary-title">保存済みの要約</span><span class="badge" id="saved-count">0件</span></summary>
       <div class="card-body">
         <p class="hint">
-          「編集」で要約・要点を直接直せます。内容に問題がある要約は、選んで削除できます（削除した記事は要約待ちに戻ります）。AI で作り直したいときは、手順1の「要約済みの記事も選べるようにする」を使ってください。
+          「編集」で要約・要点を直接直せます。内容に問題がある要約は、選んで削除できます（削除した記事は要約待ちに戻ります）。AI で作り直したいときは、手順1の「要約済みの記事も選べるようにする」を使ってください。「要確認」は、要約の決まり（見出しの言い換え・宣伝の言葉・中身のない定型文・推測・あいまいな日付・文体・長すぎる文など）に合っていない可能性がある点を機械的に見つけたものです。記事と見比べて、必要なら編集か作り直しをしてください。
         </p>
         <input id="saved-filter" class="filter" type="search" placeholder="タイトル・要約で絞り込み" aria-label="保存済みの要約を絞り込む" />
+        <label class="check">
+          <input id="saved-warn-only" type="checkbox" />
+          要確認の要約だけ表示（<span id="saved-warn-count">0</span>件）
+        </label>
         <ul class="pick-list" id="saved-list"></ul>
         <div class="actions">
           <button type="button" id="delete-selected" class="danger" disabled>選んだ要約を削除</button>
@@ -904,6 +908,50 @@ import { href } from '../../lib/items.ts';
   }
   :global(.result-state.error) {
     color: var(--hot);
+  }
+  :global(.result-state.ok.warn) {
+    color: var(--warn);
+  }
+  /* 要確認（要約の決まりに合っていない可能性がある点） */
+  :global(.warn-list) {
+    margin: 6px 0 0;
+    padding: 6px 10px 6px 1.6em;
+    border-radius: 6px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-size: 0.75rem;
+    line-height: 1.6;
+  }
+  :global(.badge.warn),
+  :global(.badge-inline.warn) {
+    border-color: var(--warn);
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+  :global(.fix-box) {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--warn);
+    border-radius: 8px;
+    background: var(--warn-soft);
+  }
+  :global(.fix-box .note) {
+    margin: 0;
+    color: var(--text-2);
+  }
+  :global(.fix-box > button) {
+    justify-self: start;
+  }
+  :global(.fix-box textarea) {
+    font-size: 0.8rem;
+  }
+  :global(.fix-box .actions) {
+    margin-top: 0;
+  }
+  :global(.editor-warnings:empty) {
+    display: none;
   }
   @media (prefers-color-scheme: dark) {
     :global(:root:not([data-theme='light']) .badge.ok) {

@@ -40,6 +40,60 @@ describe('AI 整理のプロンプト', () => {
     // 抜粋のない記事には excerpt を入れない
     expect(prompt).not.toContain('"excerpt": ""');
   });
+
+  it('要約と同じ基準（核心を先に・重複なし・単位・日付・主張と事実・宣伝の言葉・予想を書かない）を伝える', () => {
+    const prompt = buildTopicNotePrompt(topic, { siteName: 'トピあつめ' });
+    expect(prompt).toContain('重要な情報は残し、不要な情報は削り、記事にないことは書かない');
+    expect(prompt).toContain('1つ目にはニュースの核心（誰が・何を・どうした）');
+    expect(prompt).toContain('同じ事実を何度も書かない');
+    expect(prompt).toContain('勝手に1つにまとめず、「A は10人、B は12人と書いている」');
+    expect(prompt).toContain('将来の予想・評価・感想（「〜だろう」「大きな影響を与える」「今後の動向が注目される」）は書かない');
+    expect(prompt).toContain('単位（円・%・人 など）');
+    expect(prompt).toContain('publishedAt をもとに「10月7日」');
+    expect(prompt).toContain('「〜と発表した」「〜としている」「〜によると」');
+    expect(prompt).toContain('革新的・画期的・圧倒的');
+    // 出力例の整理・解釈も、予想や「注目」を書かない
+    expect(prompt).not.toContain('注目が集まっている可能性がある');
+  });
+});
+
+describe('AI 整理の要確認', () => {
+  it('宣伝の言葉・定型文・予想・あいまいな日付を要確認に出す（保存は止めない）', () => {
+    const result = parseTopicNoteAnswer(
+      answer({
+        status: 'ok',
+        common: [{ text: 'ソニーは本日、画期的な新色を発表した。', sources: [ids[0], ids[1]] }],
+        emphasis: [],
+        differences: [],
+        background: '',
+        interpretation: 'ゲーム市場に大きな影響を与えるだろう。',
+      }),
+      ids,
+    );
+    expect(result.note).toBeDefined();
+    expect(result.warnings).toEqual([
+      expect.stringMatching(/^共通して報じられていること: 宣伝・評価の言葉「画期的」/),
+      expect.stringMatching(/^共通して報じられていること: 「本日」は/),
+      expect.stringMatching(/^整理・解釈: 中身のない定型文・評価「大きな影響を与える」/),
+      expect.stringMatching(/^整理・解釈: 推測の言い方「だろう」/),
+    ]);
+  });
+
+  it('問題のない整理には要確認を付けない', () => {
+    const result = parseTopicNoteAnswer(
+      answer({
+        status: 'ok',
+        common: [{ text: 'ソニーは10月7日、INZONE E9 の新色を10月22日に発売すると発表した。', sources: [ids[0], ids[1]] }],
+        emphasis: [],
+        differences: [],
+        background: '',
+        interpretation: '3つの記事とも発売日を中心に伝えており、価格はどの記事も伝えていない。',
+      }),
+      ids,
+    );
+    expect(result.note).toBeDefined();
+    expect(result).not.toHaveProperty('warnings');
+  });
 });
 
 describe('AI 整理の回答の検証', () => {
