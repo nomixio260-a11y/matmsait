@@ -9,7 +9,7 @@
  * - 1回の実行で取得するのは少しだけにし、同じサイトへは間隔を空けて1件ずつ
  * 取得した本文は公開しない。運営者の公開鍵で暗号化して返す
  */
-import { pendingRequests, TEXT_STATUS_LABELS, type TextRequest, type TextResult } from '../../src/lib/article-texts.ts';
+import { pendingRequests, TEXT_STATUS_LABELS, type TextRequest, type TextResult, type TextStatus } from '../../src/lib/article-texts.ts';
 import { encryptText, type PublicTextKey } from '../../src/lib/text-crypto.ts';
 import { MIN_TEXT_LENGTH, extractArticleText } from './article-text.ts';
 import { decodeBody, type HttpGetOptions, type HttpResponse } from './http.ts';
@@ -36,10 +36,12 @@ export interface FetchTextsOptions {
   log?: (message: string) => void;
 }
 
+type Get = (url: string, options: HttpGetOptions) => Promise<HttpResponse>;
+
 /** robots.txt を読む（4xx は「ルールなし」、読めないとき・5xx は取得しない） */
-async function loadRobots(origin: string, options: FetchTextsOptions): Promise<RobotsGroup[] | 'error'> {
+export async function loadRobots(origin: string, get: Get): Promise<RobotsGroup[] | 'error'> {
   try {
-    const res = await options.get(`${origin}/robots.txt`, { kind: 'document', timeoutMs: 15_000 });
+    const res = await get(`${origin}/robots.txt`, { kind: 'document', timeoutMs: 15_000 });
     if (res.status >= 200 && res.status < 300) return parseRobots(decodeBody(res.body, res.headers['content-type']));
     if (res.status >= 400 && res.status < 500) return [];
     return 'error';
@@ -48,26 +50,43 @@ async function loadRobots(origin: string, options: FetchTextsOptions): Promise<R
   }
 }
 
-async function fetchOne(request: TextRequest, robots: RobotsGroup[], options: FetchTextsOptions): Promise<TextResult> {
-  const base = { id: request.id, url: request.url, fetchedAt: new Date().toISOString() };
-  const target = new URL(request.url);
+/** 記事の本文の取得の結果（取得できたときは本文。本文は公開しない） */
+export type ArticleText = { status: 'ok'; text: string; length: number } | { status: Exclude<TextStatus, 'ok'>; detail?: string };
+
+/**
+ * 記事のページから本文を取る。robots.txt（クローラー全般・主な AI のクローラー）・ページの noai・アクセスの拒否を守る。
+ * 本文の自動取得（暗号化して置く）と AI の自動要約（その場で要約して、本文は保存しない）で共通
+ */
+export async function fetchArticleText(url: string, robots: RobotsGroup[], get: Get): Promise<ArticleText> {
+  const target = new URL(url);
   const pathAndQuery = target.pathname + target.search;
-  if (!isAllowed(robots, GENERIC_AGENT, pathAndQuery)) return { ...base, status: 'robots' };
+  if (!isAllowed(robots, GENERIC_AGENT, pathAndQuery)) return { status: 'robots' };
   const optOut = aiOptOut(robots, pathAndQuery);
-  if (optOut) return { ...base, status: 'ai-optout', detail: `robots.txt で ${optOut} を拒否` };
+  if (optOut) return { status: 'ai-optout', detail: `robots.txt で ${optOut} を拒否` };
   try {
-    const res = await options.get(request.url, { kind: 'document', timeoutMs: 20_000 });
-    if (BLOCKED_STATUSES.has(res.status)) return { ...base, status: 'blocked', detail: `HTTP ${res.status}` };
-    if (res.status === 404 || res.status === 410) return { ...base, status: 'not-found', detail: `HTTP ${res.status}` };
-    if (res.status !== 200) return { ...base, status: 'error', detail: `HTTP ${res.status}` };
+    const res = await get(url, { kind: 'document', timeoutMs: 20_000 });
+    if (BLOCKED_STATUSES.has(res.status)) return { status: 'blocked', detail: `HTTP ${res.status}` };
+    if (res.status === 404 || res.status === 410) return { status: 'not-found', detail: `HTTP ${res.status}` };
+    if (res.status !== 200) return { status: 'error', detail: `HTTP ${res.status}` };
     const type = String(res.headers['content-type'] ?? '');
-    if (type && !/html/i.test(type)) return { ...base, status: 'error', detail: `HTML ではありません（${type}）` };
+    if (type && !/html/i.test(type)) return { status: 'error', detail: `HTML ではありません（${type}）` };
     const tagValues = [res.headers['x-robots-tag']].flat().filter((value): value is string => typeof value === 'string');
     const article = extractArticleText(decodeBody(res.body, type));
-    if (hasNoAiDirective([...tagValues, ...article.robots])) return { ...base, status: 'ai-optout', detail: 'ページに noai の指定' };
+    if (hasNoAiDirective([...tagValues, ...article.robots])) return { status: 'ai-optout', detail: 'ページに noai の指定' };
     const length = Array.from(article.text).length;
-    if (length < MIN_TEXT_LENGTH) return { ...base, status: 'no-text', detail: `${length}字` };
-    return { ...base, status: 'ok', length, enc: await encryptText(article.text, options.keys) };
+    if (length < MIN_TEXT_LENGTH) return { status: 'no-text', detail: `${length}字` };
+    return { status: 'ok', text: article.text, length };
+  } catch (error) {
+    return { status: 'error', detail: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function fetchOne(request: TextRequest, robots: RobotsGroup[], options: FetchTextsOptions): Promise<TextResult> {
+  const base = { id: request.id, url: request.url, fetchedAt: new Date().toISOString() };
+  const article = await fetchArticleText(request.url, robots, options.get);
+  if (article.status !== 'ok') return { ...base, status: article.status, ...(article.detail ? { detail: article.detail } : {}) };
+  try {
+    return { ...base, status: 'ok', length: article.length, enc: await encryptText(article.text, options.keys) };
   } catch (error) {
     return { ...base, status: 'error', detail: error instanceof Error ? error.message : String(error) };
   }
@@ -105,7 +124,7 @@ export async function fetchTexts(options: FetchTextsOptions): Promise<TextResult
   const worker = async () => {
     for (let entry = queue.shift(); entry; entry = queue.shift()) {
       const [origin, list] = entry;
-      const robots = await loadRobots(origin, options);
+      const robots = await loadRobots(origin, options.get);
       for (const [i, request] of list.entries()) {
         if (i > 0) await wait();
         const result: TextResult =

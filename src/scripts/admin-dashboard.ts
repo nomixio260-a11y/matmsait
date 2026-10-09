@@ -6,6 +6,7 @@
 import type { ManualResult, PostedEntry, SocialRequest } from '../../scripts/lib/social.ts';
 import type { Repository } from '../lib/github-commit.ts';
 import type { EditorPick, Notice } from '../lib/editorial-core.ts';
+import type { AutoSummaryStatus } from '../lib/auto-summary-state.ts';
 import { requireSession, watchSession } from './admin-common.ts';
 import {
   $,
@@ -41,6 +42,8 @@ interface DashboardData extends AdminDataCommon {
   social?: SocialDraft[];
   /** 自動投稿の記録（新しい順。サイトのビルドのときのもの） */
   socialLog?: PostedEntry[];
+  /** AI の自動要約の状況（まだ動いていなければ null） */
+  autoSummary?: AutoSummaryStatus | null;
 }
 
 /** 自動投稿の記録のファイル（data/social.json）のうち、ここで使うもの */
@@ -426,6 +429,27 @@ function dataTodos(data: DashboardData, now: number): Todo[] {
       text: `4媒体以上が報じたトピックで、AI 整理（各メディアの視点）がまだのものがあります（${unnoted.length}件）。各媒体の報じ方の違いは、このサイトにしかない内容になります。`,
       details: unnoted.slice(0, 3).map((topic) => `${shorten(topic.title, 28)}（${topic.coverage}媒体）`),
       link: { label: 'トピック整理', href: `${base}/admin/topics/` },
+    });
+  }
+  // AI の自動要約（無料枠を使い切ったのは翌日に戻るので出さない）
+  const problem = data.autoSummary?.problem;
+  if (problem && problem.kind !== 'quota') {
+    todos.push({
+      kind: 'warn',
+      text:
+        problem.kind === 'auth'
+          ? 'AI の自動要約が止まっています（Workers AI を使う権限がありません）。Workers AI の権限のある API トークンを作り、GitHub の Secrets に CLOUDFLARE_AI_TOKEN として登録してください（README の「AI の自動要約」）。'
+          : `AI の自動要約がうまく動いていません: ${shorten(problem.message, 80)}`,
+      link: { label: '自動要約の状況', href: `${base}/admin/summaries/#auto-card` },
+    });
+  }
+  const automatic = data.summarized.filter((record) => record.generator && !record.updatedAt && now - Date.parse(record.summarizedAt) < 24 * 3_600_000);
+  if (automatic.length > 0) {
+    todos.push({
+      kind: 'ok',
+      text: `AI が直近24時間に${automatic.length}件の要約を自動で作りました。時間のあるときに、記事と見比べて確かめてください（直すときは「保存済みの要約」の「編集」）。`,
+      details: automatic.slice(0, 3).map((record) => shorten(record.title, 28)),
+      link: { label: '自動で作った要約', href: `${base}/admin/summaries/#auto-card` },
     });
   }
   if (data.counts && data.counts.summariesToday === 0) {

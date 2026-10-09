@@ -6,7 +6,7 @@
  * 2分: 要約・要点に、背景・用語、ほかのメディアの要約にしかない要点、報道の広がり、キーワードを足す
  */
 import { formatDateTime, getSource, href, siteOf } from '../lib/items.ts';
-import { firstSentence } from '../lib/summary-view.ts';
+import { firstSentence, isAutoSummary } from '../lib/summary-view.ts';
 import { summaryPath } from '../lib/summaries.ts';
 import { wordHref } from '../lib/words.ts';
 import type { TopicView } from '../lib/topics.ts';
@@ -143,9 +143,11 @@ const tabs = [
   </div>
 
   <p class="ai-note">
-    この要約はAIが元記事をもとに作成し、運営者が確認して掲載しています。正確な内容や詳細は元記事でご確認ください。要約の作り方は<a
-      href={href('/editorial/')}>編集方針</a
-    >をご覧ください。
+    {
+      isAutoSummary(record)
+        ? 'この要約はAIが元記事の本文をもとに自動で作成し、機械的な確認だけで掲載しています（運営者があとから確認・修正することがあります）。誤りを含むことがあるため、正確な内容や詳細は元記事でご確認ください。'
+        : 'この要約はAIが元記事をもとに作成し、運営者が確認して掲載しています。正確な内容や詳細は元記事でご確認ください。'
+    }要約の作り方は<a href={href('/editorial/')}>編集方針</a>をご覧ください。
   </p>
   <div class="level-actions">
     <a class="read-original" href={record.url} target="_blank" rel="noopener" data-aid={record.id} data-src={record.sourceId} data-cat={record.category}>

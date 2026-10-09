@@ -60,4 +60,6 @@ export interface SummaryRecord extends Item {
   summarizedAt: string;
   /** 管理画面で要約を手直しした日時（ISO 8601。手直ししていなければなし） */
   updatedAt?: string;
+  /** AI が自動で作った要約のモデル（例: @cf/qwen/qwen3-30b-a3b-fp8。運営者がチャット AI で作った要約にはない） */
+  generator?: string;
 }

@@ -29,6 +29,7 @@ import { matchTopicNote } from '../../lib/topic-notes-core.ts';
 import { isHidden } from '../../lib/blocklist.ts';
 import type { Item } from '../../lib/types.ts';
 import { NOTICE_PATH, PICKS_PATH, parseNotice, parsePicks } from '../../lib/editorial-core.ts';
+import { AUTO_SUMMARY_STATE_PATH, autoSummaryStatus, parseAutoSummaryState } from '../../lib/auto-summary-state.ts';
 
 /** 同じ話題（同じ出来事を報じた記事のまとまり）を見分けるキー。AI が開けない記事の代わりに、同じ話題の別の記事を選ぶのに使う */
 function topicKey(id: string): string | undefined {
@@ -230,6 +231,12 @@ function socialLog() {
   }
 }
 
+/** AI による自動要約の状況（data/auto-summary.json。自動要約がまだ動いていなければ null） */
+function autoSummary() {
+  const text = readData(AUTO_SUMMARY_STATE_PATH);
+  return text ? autoSummaryStatus(parseAutoSummaryState(text, builtAt), builtAt) : null;
+}
+
 /** 管理画面用のデータ（要約待ちの記事、保存済みの要約、非表示の設定、収集元の状況、お知らせ・ピックアップ、SNS の下書き） */
 export function GET({ site: siteUrl }: APIContext) {
   const data = {
@@ -247,8 +254,12 @@ export function GET({ site: siteUrl }: APIContext) {
         ...(record.background ? { background: record.background } : {}),
         ...(record.keywords?.length ? { keywords: record.keywords } : {}),
         summarizedAt: record.summarizedAt,
+        // AI が自動で作った要約（そのモデル）と、手直しした日時
+        ...(record.generator ? { generator: record.generator } : {}),
+        ...(record.updatedAt ? { updatedAt: record.updatedAt } : {}),
       })),
     counts: counts(),
+    autoSummary: autoSummary(),
     // お知らせ（掲載期間の前後も含めて、保存してある内容）とピックアップ
     notice: parseNotice(readData(NOTICE_PATH)) ?? null,
     picks: picks(),

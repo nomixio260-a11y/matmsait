@@ -56,7 +56,8 @@ export interface AdminDataCommon {
   repository: Repository;
   categories: { slug: string; name: string }[];
   pending: AdminArticleInfo[];
-  summarized: (AdminArticleInfo & { summary: string; summarizedAt: string })[];
+  /** generator は AI が自動で作った要約のモデル、updatedAt は手直しした日時 */
+  summarized: (AdminArticleInfo & { summary: string; summarizedAt: string; generator?: string; updatedAt?: string })[];
   counts?: { items: number; itemsToday: number; summaries: number; summariesToday: number; sources: number };
   sources?: { id: string; name: string; category: string; siteUrl: string; count: number; latest: string | null; okAt?: string | null; failures?: number; error?: string | null }[];
 }

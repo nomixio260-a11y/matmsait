@@ -15,6 +15,7 @@
     "check": "astro check",
     "merge": "tsx scripts/merge-items.ts",
     "notify": "tsx scripts/notify.ts",
+    "auto-summary": "tsx scripts/auto-summary.ts",
     "summaries": "tsx scripts/summaries.ts",
     "timer": "tsx scripts/timer.ts",
     "texts": "tsx scripts/fetch-texts.ts",

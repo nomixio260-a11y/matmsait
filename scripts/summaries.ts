@@ -7,6 +7,7 @@
 //   npm run summaries -- import <AIの回答.json> [--dry-run] [--skip-existing]
 //       AI の回答（または管理画面の「保存用JSON」）を検証して data/summaries/ に保存する
 //       --skip-existing: すでに要約がある記事は上書きしない（自動要約の取り込みで使う）
+//       自動要約の結果（npm run auto-summary の --out）は要約ごとに作ったモデル（generator）を持ち、AI が自動で作った要約として保存する
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -110,8 +111,16 @@ function importCommand(args: string[]) {
     for (const warning of accepted.warnings ?? []) console.error(`要確認  ${accepted.id}: ${warning.message}`);
   }
 
+  // AI が自動で作った要約のモデル（自動要約の結果にだけある）
+  const generators = new Map<string, string>();
+  for (const entry of Array.isArray(raw) ? (raw as { id?: unknown; generator?: unknown }[]) : []) {
+    if (typeof entry?.id === 'string' && typeof entry.generator === 'string' && entry.generator.trim()) generators.set(entry.id, entry.generator.trim());
+  }
   const now = new Date();
-  const records = result.accepted.map((accepted) => toSummaryRecord(articles.get(accepted.id)!, accepted, now));
+  const records = result.accepted.map((accepted) => {
+    const generator = generators.get(accepted.id);
+    return { ...toSummaryRecord(articles.get(accepted.id)!, accepted, now), ...(generator ? { generator } : {}) };
+  });
   for (const [path, group] of groupByFile(records)) {
     const absolute = resolve(process.cwd(), path);
     const current = parseSummaryFile(existsSync(absolute) ? readFileSync(absolute, 'utf8') : null);

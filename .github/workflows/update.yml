@@ -111,6 +111,23 @@ jobs:
           PUBLIC_ANALYTICS_URL: ${{ steps.target.outputs.analytics || vars.PUBLIC_ANALYTICS_URL }}
           SITE_URL: ${{ steps.target.outputs.site_url }}
 
+      # AI による自動要約（Cloudflare Workers AI の無料枠で Qwen3 を使う。仕組みは scripts/lib/auto-summary.ts）。
+      # 要約のない話題の記事を1回に最大4件。無料枠（1日1万ニューロン）の手前で止めるので料金はかからない。
+      # 定期の更新と「今すぐ更新」（workflow_dispatch）のときだけ動かす（管理画面の保存などの push のたびに待たせないため）。
+      # 止めるときは変数 AUTO_SUMMARY_PER_RUN を 0 にする。失敗しても収集・公開は続ける
+      - name: AI で自動要約
+        if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        timeout-minutes: 9
+        run: npm run auto-summary -- --out "$RUNNER_TEMP/auto-summaries.json"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Workers AI の権限のある API トークン（登録していなければ、公開に使う CLOUDFLARE_API_TOKEN を試す）
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          AUTO_SUMMARY_PER_RUN: ${{ vars.AUTO_SUMMARY_PER_RUN }}
+          AUTO_SUMMARY_PER_DAY: ${{ vars.AUTO_SUMMARY_PER_DAY }}
+          AUTO_SUMMARY_MODEL: ${{ vars.AUTO_SUMMARY_MODEL }}
+
       - name: 取得したデータをコミット
         id: commit
         run: |
@@ -125,6 +142,8 @@ jobs:
           if [ -f data/texts.json ]; then cp data/texts.json "$RUNNER_TEMP/texts.json"; fi
           # よく読まれている記事は、今回取ってきたもので上書きする
           if [ -f data/popular.json ]; then cp data/popular.json "$RUNNER_TEMP/popular.json"; fi
+          # AI の自動要約の記録は、この実行で書き換えたときだけ今回の結果で上書きする（作った要約は、下で最新の要約に足す）
+          if [ -n "$(git status --porcelain -- data/auto-summary.json)" ]; then cp data/auto-summary.json "$RUNNER_TEMP/auto-summary.json"; fi
           for attempt in 1 2 3; do
             git fetch --quiet origin "$GITHUB_REF_NAME"
             git reset --quiet --hard "origin/$GITHUB_REF_NAME"
@@ -133,6 +152,11 @@ jobs:
             cp "$RUNNER_TEMP/feeds.json" data/feeds.json
             if [ -f "$RUNNER_TEMP/texts.json" ]; then npm run --silent texts -- --merge "$RUNNER_TEMP/texts.json"; fi
             if [ -f "$RUNNER_TEMP/popular.json" ]; then cp "$RUNNER_TEMP/popular.json" data/popular.json; fi
+            if [ -f "$RUNNER_TEMP/auto-summary.json" ]; then cp "$RUNNER_TEMP/auto-summary.json" data/auto-summary.json; fi
+            # 自動で作った要約を取り込む（その間に運営者が保存した要約は上書きしない。失敗してもデータのコミットは続ける）
+            if [ -f "$RUNNER_TEMP/auto-summaries.json" ]; then
+              npm run --silent summaries -- import "$RUNNER_TEMP/auto-summaries.json" --skip-existing || echo '::warning::自動で作った要約の取り込みに失敗しました'
+            fi
             git add data
             if git diff --cached --quiet; then
               echo '更新なし'

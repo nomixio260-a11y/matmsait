@@ -40,3 +40,11 @@ export function restSentences(text: string): string {
 export function readingSeconds(text: string): number {
   return Math.max(5, Math.round((Array.from(text.replace(/\s+/g, '')).length / 500) * 60));
 }
+
+/**
+ * AI が自動で作り、運営者がまだ手直ししていない要約か（generator は自動要約の取り込み（npm run auto-summary）で付く。
+ * 管理画面で手直しすると updatedAt が付き、チャット AI で作り直すと generator のない要約に置き換わる）
+ */
+export function isAutoSummary(record: { generator?: string; updatedAt?: string }): boolean {
+  return Boolean(record.generator) && !record.updatedAt;
+}

@@ -118,7 +118,7 @@ export function sentencesOf(text: string): string[] {
 }
 
 /** 文字の組（2文字）。見出しとの重なりを測る */
-function bigrams(text: string): Set<string> {
+export function bigrams(text: string): Set<string> {
   const chars = Array.from(text.normalize('NFKC').toLowerCase().replace(/[\s、。，．,.!！?？「」『』（）()【】[\]・:：;；"'“”‘’〜~\-–—…]/g, ''));
   const grams = new Set<string>();
   for (let i = 0; i + 1 < chars.length; i++) grams.add(chars[i] + chars[i + 1]);

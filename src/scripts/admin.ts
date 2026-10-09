@@ -38,6 +38,7 @@ import {
   type ValidationResult,
 } from '../lib/summary-core.ts';
 import { summaryWarnings, type QualityWarning } from '../lib/summary-quality.ts';
+import type { AutoSummaryState, AutoSummaryStatus } from '../lib/auto-summary-state.ts';
 import type { Item, SummaryRecord } from '../lib/types.ts';
 import {
   TEXT_KEYS_PATH,
@@ -68,6 +69,10 @@ interface AdminSummary extends AdminArticle {
   background?: string;
   keywords?: string[];
   summarizedAt: string;
+  /** AI が自動で作った要約のモデル（運営者がチャット AI で作った要約にはない） */
+  generator?: string;
+  /** 手直しした日時 */
+  updatedAt?: string;
 }
 
 interface HiddenArticle extends AdminArticle {
@@ -101,6 +106,8 @@ interface AdminData {
   hidden?: HiddenArticle[];
   /** 本文の自動取得に登録してある公開鍵の ID */
   textKeys?: string[];
+  /** AI の自動要約の状況（まだ動いていなければ null） */
+  autoSummary?: AutoSummaryStatus | null;
 }
 
 const KEYS = {
@@ -210,6 +217,10 @@ const ui = {
   savedFilter: $<HTMLInputElement>('saved-filter'),
   savedWarnOnly: $<HTMLInputElement>('saved-warn-only'),
   savedWarnCount: $('saved-warn-count'),
+  savedAutoOnly: $<HTMLInputElement>('saved-auto-only'),
+  savedAutoCount: $('saved-auto-count'),
+  autoBadge: $('auto-badge'),
+  autoStatus: $<HTMLUListElement>('auto-status'),
   hideSelected: $<HTMLButtonElement>('hide-selected'),
   hideStatus: $('hide-status'),
   hiddenCount: $('hidden-count'),
@@ -1804,6 +1815,51 @@ function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
   return editor;
 }
 
+/** AI が自動で作り、まだ手直ししていない要約か（手直し済み（反映待ち）のものも除く） */
+function isUnreviewedAuto(record: AdminSummary): boolean {
+  return Boolean(record.generator) && !record.updatedAt && !readEdits().has(record.id);
+}
+
+/** 自動要約の問題の説明（運営者がすること） */
+function autoProblemText(problem: NonNullable<AutoSummaryState['problem']>): string {
+  if (problem.kind === 'auth') {
+    return `Workers AI を使う権限がないため、自動要約が止まっています。README の「AI の自動要約」の手順で Workers AI の権限のある API トークンを作り、GitHub の Secrets に CLOUDFLARE_AI_TOKEN として登録してください。詳細: ${problem.message}`;
+  }
+  if (problem.kind === 'quota') return `今日の無料枠を使い切ったため止めています。日本時間の9時（UTC の0時）に無料枠が戻ると再開します。詳細: ${problem.message}`;
+  return `${problem.message}。続くようなら、変数 AUTO_SUMMARY_MODEL で別のモデルを選ぶか、README の「AI の自動要約」を確認してください。`;
+}
+
+/** AI の自動要約の状況（毎時の更新で記録したもの。サイトのビルドのときの内容） */
+function renderAutoSummary() {
+  if (!data) return;
+  const status = data.autoSummary;
+  if (!status) {
+    ui.autoBadge.textContent = '記録なし';
+    ui.autoStatus.replaceChildren(
+      el('li', '', 'まだ自動要約の記録がありません。毎時の更新で動き始めます（Cloudflare の Secrets がないときや、変数 AUTO_SUMMARY_PER_RUN が 0 のときは動きません）。'),
+    );
+    return;
+  }
+  const rows: HTMLElement[] = [];
+  if (status.problem) rows.push(el('li', 'warn', `${dateFormat.format(new Date(status.problem.at))} ${autoProblemText(status.problem)}`));
+  if (status.lastRun) {
+    const { at, saved, tried, message } = status.lastRun;
+    rows.push(el('li', '', `最後の実行: ${dateFormat.format(new Date(at))}（保存 ${saved}件・AI に依頼 ${tried}件${message ? `。${message}` : ''}）`));
+  }
+  rows.push(
+    el(
+      'li',
+      '',
+      `今日（日本時間の9時に切り替わり）: 保存 ${status.saved}件・使った量の見積もり ${status.neurons.toLocaleString('ja-JP')} / ${status.freeNeurons.toLocaleString('ja-JP')}ニューロン（無料枠）`,
+    ),
+  );
+  if (status.recent.length > 0) rows.push(el('li', '', `直近24時間に試した記事: ${status.recent.map((entry) => `${entry.label} ${entry.count}件`).join('・')}`));
+  ui.autoStatus.replaceChildren(...rows);
+  ui.autoBadge.textContent = status.problem?.kind === 'auth' ? '要対応' : `今日 ${status.saved}件`;
+  ui.autoBadge.className = `badge${status.problem?.kind === 'auth' ? '' : ' ok'}`;
+  ui.autoBadge.style.color = status.problem?.kind === 'auth' ? 'var(--hot)' : '';
+}
+
 function renderSavedList() {
   if (!data) return;
   const all = savedSummaries();
@@ -1811,11 +1867,15 @@ function renderSavedList() {
   const warnings = new Map(all.map((record) => [record.id, summaryWarnings(record, { title: record.title })]));
   const flagged = all.filter((record) => (warnings.get(record.id) ?? []).length > 0);
   const query = ui.savedFilter.value.trim().toLowerCase();
+  const automatic = all.filter(isUnreviewedAuto);
   const list = (ui.savedWarnOnly.checked ? flagged : all).filter(
-    (record) => !query || `${record.title} ${record.summary} ${record.points.join(' ')}`.toLowerCase().includes(query),
+    (record) =>
+      (!ui.savedAutoOnly.checked || isUnreviewedAuto(record)) &&
+      (!query || `${record.title} ${record.summary} ${record.points.join(' ')}`.toLowerCase().includes(query)),
   );
   ui.savedCount.textContent = `${all.length}件`;
   ui.savedWarnCount.textContent = String(flagged.length);
+  ui.savedAutoCount.textContent = String(automatic.length);
   const checked = new Set<string>();
   const sync = () => {
     ui.deleteSelected.disabled = checked.size === 0;
@@ -1836,6 +1896,11 @@ function renderSavedList() {
       });
       const meta = el('span', 'pick-meta', `${articleMeta(record)} ・ 要約 ${dateFormat.format(new Date(record.summarizedAt))}`);
       if (edits.has(record.id)) meta.append(el('span', 'badge-inline', '手直し済み（反映待ち）'));
+      if (record.generator) {
+        const badge = el('span', 'badge-inline', record.updatedAt ? '自動・手直し済み' : '自動');
+        badge.title = `AI（${record.generator}）が自動で作った要約`;
+        meta.append(badge);
+      }
       const recordWarnings = warnings.get(record.id) ?? [];
       if (recordWarnings.length > 0) meta.append(el('span', 'badge-inline warn', '要確認'));
       label.append(box, el('span', 'pick-title', record.title), meta, el('span', 'pick-summary', record.summary));
@@ -1861,7 +1926,17 @@ function renderSavedList() {
   );
   if (list.length === 0) {
     ui.savedList.append(
-      el('li', 'pick-meta', all.length === 0 ? '保存済みの要約はまだありません。' : ui.savedWarnOnly.checked && flagged.length === 0 ? '要確認の要約はありません。' : '条件に合う要約はありません。'),
+      el(
+        'li',
+        'pick-meta',
+        all.length === 0
+          ? '保存済みの要約はまだありません。'
+          : ui.savedWarnOnly.checked && flagged.length === 0
+            ? '要確認の要約はありません。'
+            : ui.savedAutoOnly.checked && automatic.length === 0
+              ? 'AI が自動で作り、まだ手直ししていない要約はありません。'
+              : '条件に合う要約はありません。',
+      ),
     );
   }
   sync();
@@ -2155,6 +2230,7 @@ async function main() {
   ui.includeSummarized.addEventListener('change', refresh);
   ui.savedFilter.addEventListener('input', renderSavedList);
   ui.savedWarnOnly.addEventListener('change', renderSavedList);
+  ui.savedAutoOnly.addEventListener('change', renderSavedList);
   ui.category.addEventListener('change', refresh);
   ui.sort.addEventListener('change', refresh);
   $('reselect').addEventListener('click', refresh);
@@ -2203,6 +2279,7 @@ async function main() {
   if (!textKey) {
     setStatus($('auto-text-status'), '本文の自動取得を使うには、いったんログアウトしてログインし直してください（本文を読むための鍵を作ります）。');
   }
+  renderAutoSummary();
   renderSavedList();
   renderSaveArea();
   setupBlocklist();
