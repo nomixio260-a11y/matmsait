@@ -221,11 +221,20 @@ function noteTopics() {
     .slice(0, NOTE_TOPICS);
 }
 
-/** 自動投稿の記録（data/social.json。新しい順に30件） */
+/** 自動投稿の記録（data/social.json。新しい順に30件。話題・要約の投稿には、何を投稿したかが分かるように題名を付ける） */
 function socialLog() {
   try {
     const state = JSON.parse(readData('data/social.json') ?? '{"posted":[]}') as SocialState;
-    return (Array.isArray(state.posted) ? state.posted : []).slice(-30).reverse();
+    // 話題の ID は、その話題の最初の記事の ID
+    const titles = new Map<string, string>([...getAllItems(), ...getAllSummaries()].map((item) => [item.id, item.title]));
+    return (Array.isArray(state.posted) ? state.posted : [])
+      .slice(-30)
+      .reverse()
+      .map((entry) => {
+        const [kind, id = ''] = entry.key.split(':');
+        const title = ['summary', 'rising', 'hot'].includes(kind) ? titles.get(id) : undefined;
+        return title ? { ...entry, title } : entry;
+      });
   } catch {
     return [];
   }

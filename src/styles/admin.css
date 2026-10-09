@@ -465,7 +465,7 @@
   color: var(--muted);
 }
 
-/* ----- SNS の投稿の下書き（概要） ----- */
+/* ----- SNS の投稿の下書き（SNS 投稿のページ） ----- */
 .draft-list {
   list-style: none;
   margin: 12px 0 0;
@@ -502,4 +502,155 @@
 }
 .draft-link:hover {
   border-color: var(--accent);
+}
+
+/* ----- 長い説明を畳む「使い方」（必要なときだけ開く） ----- */
+.help {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+.help > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 700;
+  list-style: none;
+}
+.help > summary::-webkit-details-marker {
+  display: none;
+}
+.help > summary::before {
+  content: '?';
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+.help[open] {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.help p,
+.help ul,
+.help ol {
+  margin: 8px 0 0;
+  line-height: 1.75;
+}
+.help ul,
+.help ol {
+  padding-left: 1.3em;
+}
+
+/* ----- 畳める欄の見出し・注意のバッジ ----- */
+.card > summary .summary-title {
+  flex: 1;
+}
+.badge.warn {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+/* ----- スマホでは、やることの文とリンクを縦に並べる（文が細い列に押し込まれないように） ----- */
+@media (max-width: 640px) {
+  .todo-list li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .todo-list .todo-text {
+    min-width: 0;
+  }
+  .card > h2,
+  .card > summary,
+  .card > .card-head,
+  .card-body {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* ----- ページの中のタブ（AI要約・記事。src/scripts/admin-tabs.ts） ----- */
+.admin .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.admin .tabs button[role='tab'] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: -1px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.admin .tabs button[role='tab']:hover:not(:disabled) {
+  color: var(--accent);
+}
+.admin .tabs button[role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+.admin .tabs button[role='tab']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.admin .tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.admin .tab-panel[hidden] {
+  display: none;
+}
+.admin .lead {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+/* スマホ: タブが2段になるので、下線ではなく丸いボタンの形にする（選んでいるものを塗る） */
+@media (max-width: 640px) {
+  .admin .tabs {
+    gap: 6px;
+    border-bottom: 0;
+  }
+  .admin .tabs button[role='tab'] {
+    margin-bottom: 0;
+    padding: 6px 11px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 0.82rem;
+  }
+  .admin .tabs button[role='tab'][aria-selected='true'] {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-weight: 700;
+  }
+  .admin .tabs button[role='tab']:focus-visible {
+    outline-offset: 2px;
+  }
+}
+
+/* 絞り込みのチェックを横に並べる */
+.admin .filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
 }

@@ -11,11 +11,19 @@ import { href } from '../../lib/items.ts';
   <div class="admin" data-admin data-base={href('')} hidden>
     <div class="intro">
       <h1>AI要約・記事</h1>
-      <p>
-        要約のない記事を選んでAI用のプロンプトを作り、AIの回答（JSON）を貼り付けて保存すると、サイトの各記事に要約が載ります。
-      </p>
       <p class="data-info" id="data-info" aria-live="polite">記事データを読み込んでいます…</p>
     </div>
+
+    <div class="tabs" role="tablist" aria-label="AI要約・記事の作業" data-tabs>
+      <button type="button" role="tab" id="tab-make" data-tab="make" aria-controls="panel-make">要約を作る</button>
+      <button type="button" role="tab" id="tab-auto" data-tab="auto" aria-controls="panel-auto">自動要約 <span class="badge" id="auto-badge">-</span></button>
+      <button type="button" role="tab" id="tab-saved" data-tab="saved" aria-controls="panel-saved">保存済み <span class="badge" id="saved-count">0件</span></button>
+      <button type="button" role="tab" id="tab-hide" data-tab="hide" aria-controls="panel-hide">記事の非表示 <span class="badge" id="hidden-count">0件</span></button>
+      <button type="button" role="tab" id="tab-sources" data-tab="sources" aria-controls="panel-sources">収集元 <span class="badge" id="sources-badge">-</span></button>
+    </div>
+
+    <div class="tab-panel" role="tabpanel" id="panel-make" data-panel="make" aria-labelledby="tab-make">
+    <p class="lead">要約のない記事を選んでプロンプトを作り、チャット AI の回答を貼り付けて保存すると、サイトの記事に要約が載ります（1 → 4 の順に進めます）。</p>
 
     <section class="card">
       <h2><span class="step">1</span>要約する記事を選ぶ</h2>
@@ -63,16 +71,18 @@ import { href } from '../../lib/items.ts';
         <span class="summary-title">AI が開けない記事（本文を貼り付けて要約）</span><span class="badge" id="paste-count">0件</span>
       </summary>
       <div class="card-body">
-        <p class="hint">
-          サイトのボット対策などで AI が記事を開けず「unavailable」になった記事は、ここに集まります。自分のブラウザで記事を開いて本文をコピーし、ここに貼り付けると、いちばん下に<b>本文入りのプロンプト</b>ができます。それをコピー（またはファイルで保存）して AI に渡すと、AI は URL を開かずに本文から要約の JSON を書きます。回答は手順3で確認・保存します。同じ話題を別のサイトも報じていれば、そちらの記事に切り替えることもできます。
-        </p>
-        <p class="hint">
-          貼り付けた本文はこのタブの中でプロンプトを作るのに使うだけで、サイトや GitHub には保存・公開しません（タブを閉じると消えます）。本文は1記事{ARTICLE_TEXT_MAX.toLocaleString()}字までを使います。
-        </p>
+        <p class="hint">AI が開けなかった記事は、本文を貼り付けると、本文入りのプロンプトで要約を頼めます（いちばん下にプロンプトができます）。</p>
+        <details class="help">
+          <summary>使い方</summary>
+          <ul>
+            <li>サイトのボット対策などで AI が記事を開けず「unavailable」になった記事が、ここに集まります。</li>
+            <li>自分のブラウザで記事を開いて本文をコピーし、ここに貼り付けると、いちばん下に<b>本文入りのプロンプト</b>ができます。それをコピー（またはファイルで保存）して AI に渡すと、AI は URL を開かずに本文から要約の JSON を書きます。回答は手順3で確認・保存します。</li>
+            <li>同じ話題を別のサイトも報じていれば、そちらの記事に切り替えることもできます。</li>
+            <li>貼り付けた本文はこのタブの中でプロンプトを作るのに使うだけで、サイトや GitHub には保存・公開しません（タブを閉じると消えます）。本文は1記事{ARTICLE_TEXT_MAX.toLocaleString()}字までを使います。</li>
+            <li><b>本文の自動取得:</b> 自動収集（約1時間ごと・依頼した直後にも実行）が本文を取りに行き、取得できた本文がここに入ります（数分かかります）。robots.txt で断っているサイト、AI での利用を断っているサイト（robots.txt・noai）、アクセスを拒否したサイトからは取得しません。取得した本文は、管理画面にログインした人だけが読めるよう暗号化して保存し、公開しません。</li>
+          </ul>
+        </details>
         <div class="auto-text">
-          <p class="hint">
-            <b>本文の自動取得:</b> AI が開けなかった記事は、自動収集（約1時間ごと・依頼した直後にも実行）が本文を取りに行き、取得できた本文がここに入ります（数分かかります）。取得はブラウザと同じ通信で行い（ボットの名前は名乗りません）、robots.txt で断っているサイト、AI での利用を断っているサイト（robots.txt・noai）、アクセスを拒否したサイトからは取得しません。その場合は本文を貼り付けてください。取得した本文は、管理画面にログインした人だけが読めるよう暗号化して保存し、公開しません。
-          </p>
           <div class="actions">
             <button type="button" id="request-texts" class="small">一覧の記事の本文を自動で取得する</button>
             <span class="note" id="auto-text-status" aria-live="polite"></span>
@@ -163,9 +173,15 @@ import { href } from '../../lib/items.ts';
           <span class="note" id="prompt-info"></span>
         </div>
         <div class="status" id="prompt-status" aria-live="polite"></div>
-        <p class="hint">
-          プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けてください。チャット AI に貼り付けられる長さには上限があるので、上限を超えるプロンプトは何回かに分けます（1回ずつコピーして渡し、回答をそれぞれ確認・保存します）。貼り付けられないときは「ファイルで保存」して AI にファイルとして添付できます。「AI の回答のしかた」を「JSON ファイル」にすると、AI に {ANSWER_FILE_NAME} を作ってもらい、ダウンロードしたファイルを手順3で読み込めます（ファイルを作れる AI で使えます。作れない AI はコードブロックで答えます）。AI は <code>```json</code> のコードブロック1つで回答するよう指示してあるので、そのブロックをコピーして手順3に貼り付けます。一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、要約待ちに残って「AI が開けない記事」に移ります（次からは自動で選ばれません）。
-        </p>
+        <details class="help">
+          <summary>プロンプトの渡し方</summary>
+          <ul>
+            <li>プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けます。AI は <code>```json</code> のコードブロック1つで答えるので、そのブロックをコピーして手順3に貼り付けます。</li>
+            <li>貼り付けられる長さには上限があるので、上限を超えるプロンプトは何回かに分けます（1回ずつ渡して、回答をそれぞれ確認・保存します）。貼り付けられないときは「ファイルで保存」して、AI にファイルとして添付できます。</li>
+            <li>「AI の回答のしかた」を「JSON ファイル」にすると、AI に {ANSWER_FILE_NAME} を作ってもらい、手順3で読み込めます（ファイルを作れる AI で使えます）。</li>
+            <li>一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、「AI が開けない記事」に移ります。</li>
+          </ul>
+        </details>
       </div>
     </section>
 
@@ -184,9 +200,7 @@ import { href } from '../../lib/items.ts';
           <input type="file" id="response-file" accept=".json,.txt,.md,application/json,text/plain" multiple hidden />
           <button type="button" id="clear-response" class="ghost">クリア</button>
         </div>
-        <p class="note">
-          AI が作った JSON ファイル（{ANSWER_FILE_NAME}）や、回答を保存したファイル・「保存用JSON」も読み込めます（複数のファイルを一度に選べます。この欄にドラッグしても読み込めます）。
-        </p>
+        <p class="note">AI が作った JSON ファイル（{ANSWER_FILE_NAME}）・回答を保存したファイル・「保存用JSON」も読み込めます（この欄へのドラッグでも可）。</p>
         <p class="status" id="response-file-status" aria-live="polite"></p>
         <div id="check-result" aria-live="polite"></div>
       </div>
@@ -204,61 +218,60 @@ import { href } from '../../lib/items.ts';
       </div>
     </section>
 
-    <details class="card" id="auto-card">
-      <summary><span class="summary-title">AI の自動要約</span><span class="badge" id="auto-badge">-</span></summary>
-      <div class="card-body">
-        <p class="hint">
-          毎時の更新のたびに、要約のない記事（多くの媒体が報じたトピックの記事を優先）を、Cloudflare Workers AI の無料枠（1日1万ニューロン）の中で AI（既定は Qwen3.8 27B を考える量 xhigh で）が記事の本文をもとに自動で要約し、保存します。考える量が多いほど要約はよくなりますが、使う量が増えるので1日の件数は少なくなります（xhigh で1日3件前後。使う量は1日の時間で均します）。本文を取得できない記事（robots.txt や AI での利用を断っているサイトなど）は要約しません。要約の決まりに合わない回答（推測・宣伝の言葉・中身のない定型文・見出しと関係のない内容など）は1回だけ直させ、それでも直らなければ保存しません。自動で作った要約は、下の「保存済みの要約」に「自動」と表示されるので、記事と見比べて必要なら編集・作り直し・削除をしてください（編集すると、サイトの「自動で作成」の表示が消えます）。止めるときは GitHub の変数 <code>AUTO_SUMMARY_PER_RUN</code> を <code>0</code> に、考える量は <code>AUTO_SUMMARY_REASONING</code>（off・low・medium・xhigh）、モデルは <code>AUTO_SUMMARY_MODEL</code> で変えられます（README の「AI の自動要約」）。
-        </p>
-        <ul class="auto-status" id="auto-status"></ul>
-      </div>
-    </details>
+    </div>
 
-    <details class="card">
-      <summary><span class="summary-title">保存済みの要約</span><span class="badge" id="saved-count">0件</span></summary>
+    <div class="tab-panel" role="tabpanel" id="panel-auto" data-panel="auto" data-aliases="auto-card" aria-labelledby="tab-auto" hidden>
+    <section class="card" id="auto-card">
+      <div class="card-head"><h2>AI の自動要約</h2></div>
       <div class="card-body">
-        <p class="hint">
-          「編集」で要約・要点を直接直せます。内容に問題がある要約は、選んで削除できます（削除した記事は要約待ちに戻ります）。AI で作り直したいときは、手順1の「要約済みの記事も選べるようにする」を使ってください。「要確認」は、要約の決まり（見出しの言い換え・宣伝の言葉・中身のない定型文・推測・あいまいな日付・文体・長すぎる文など）に合っていない可能性がある点を機械的に見つけたものです。記事と見比べて、必要なら編集か作り直しをしてください。
-        </p>
+        <ul class="auto-status" id="auto-status"></ul>
+        <details class="help">
+          <summary>自動要約のしくみ</summary>
+          <p>
+          毎時の更新のたびに、要約のない記事（多くの媒体が報じたトピックの記事を優先）を、Cloudflare Workers AI の無料枠（1日1万ニューロン）の中で AI（既定は Qwen3.8 27B を考える量 xhigh で）が記事の本文をもとに自動で要約し、保存します。考える量が多いほど要約はよくなりますが、使う量が増えるので1日の件数は少なくなります（xhigh で1日3件前後。使う量は1日の時間で均します）。本文を取得できない記事（robots.txt や AI での利用を断っているサイトなど）は要約しません。要約の決まりに合わない回答（推測・宣伝の言葉・中身のない定型文・見出しと関係のない内容など）は1回だけ直させ、それでも直らなければ保存しません。自動で作った要約は、下の「保存済みの要約」に「自動」と表示されるので、記事と見比べて必要なら編集・作り直し・削除をしてください（編集すると、サイトの「自動で作成」の表示が消えます）。止めるときは GitHub の変数 <code>AUTO_SUMMARY_PER_RUN</code> を <code>0</code> に、考える量は <code>AUTO_SUMMARY_REASONING</code>（off・low・medium・xhigh）、モデルは <code>AUTO_SUMMARY_MODEL</code> で変えられます（README の「AI の自動要約」）。</p>
+        </details>
+      </div>
+    </section>
+    </div>
+
+    <div class="tab-panel" role="tabpanel" id="panel-saved" data-panel="saved" data-aliases="saved-card" aria-labelledby="tab-saved" hidden>
+    <section class="card" id="saved-card">
+      <div class="card-head"><h2>保存済みの要約</h2></div>
+      <div class="card-body">
+        <p class="hint">「編集」で直接直せます。問題のある要約は選んで削除できます（削除した記事は要約待ちに戻ります）。</p>
+        <details class="help">
+          <summary>使い方</summary>
+          <ul>
+            <li>AI で作り直したいときは、「要約を作る」の手順1の「要約済みの記事も選べるようにする」を使います。</li>
+            <li>「要確認」は、要約の決まり（見出しの言い換え・宣伝の言葉・中身のない定型文・推測・あいまいな日付・文体・長すぎる文など）に合っていない可能性がある点を機械的に見つけたものです。記事と見比べて、必要なら編集か作り直しをします。</li>
+            <li>「自動」は AI が自動で作った要約です。編集すると、サイトの「自動で作成」の表示が消えます。</li>
+          </ul>
+        </details>
         <input id="saved-filter" class="filter" type="search" placeholder="タイトル・要約で絞り込み" aria-label="保存済みの要約を絞り込む" />
-        <label class="check">
-          <input id="saved-warn-only" type="checkbox" />
-          要確認の要約だけ表示（<span id="saved-warn-count">0</span>件）
-        </label>
-        <label class="check">
-          <input id="saved-auto-only" type="checkbox" />
-          AI が自動で作り、まだ手直ししていない要約だけ表示（<span id="saved-auto-count">0</span>件）
-        </label>
+        <div class="filter-row">
+          <label class="check">
+            <input id="saved-warn-only" type="checkbox" />
+            <span>要確認だけ表示（<span id="saved-warn-count">0</span>件）</span>
+          </label>
+          <label class="check">
+            <input id="saved-auto-only" type="checkbox" />
+            <span>AI が自動で作り、まだ手直ししていないものだけ表示（<span id="saved-auto-count">0</span>件）</span>
+          </label>
+        </div>
         <ul class="pick-list" id="saved-list"></ul>
         <div class="actions">
           <button type="button" id="delete-selected" class="danger" disabled>選んだ要約を削除</button>
         </div>
         <p class="status" id="delete-status" aria-live="polite"></p>
       </div>
-    </details>
+    </section>
+    </div>
 
-    <details class="card" id="sources-card">
-      <summary>
-        <span class="summary-title">収集元の状況</span><span class="badge" id="sources-badge">-</span>
-      </summary>
+    <div class="tab-panel" role="tabpanel" id="panel-hide" data-panel="hide" data-aliases="blocklist-card" aria-labelledby="tab-hide" hidden>
+    <section class="card" id="blocklist-card">
+      <div class="card-head"><h2>記事の非表示（NGワード・サイト）</h2></div>
       <div class="card-body">
-        <p class="hint">
-          収集のたびに記録している取得の状態と、直近に集めた記事の数・いちばん新しい記事の日時です。取得の失敗が3回以上続いている収集元や、新しい記事が3日以上ない収集元は、フィードの URL が変わったか配信が止まっている可能性があります（<code>sources.yaml</code>で修正・削除できます）。
-        </p>
-        <div class="table-wrap">
-          <table class="result-table" id="sources-table"></table>
-        </div>
-      </div>
-    </details>
-
-    <details class="card" id="blocklist-card">
-      <summary>
-        <span class="summary-title">記事の非表示（NGワード・サイト）</span><span class="badge" id="hidden-count">0件</span>
-      </summary>
-      <div class="card-body">
-        <p class="hint">
-          広告の規約に触れそうな記事（成人向け・暴力的な内容など）や、載せたくない記事をサイトから外します。収集は続けるので、条件を消せば元に戻ります。
-        </p>
+        <p class="hint">広告の規約に触れそうな記事や、載せたくない記事をサイトから外します。収集は続けるので、条件を消せば元に戻ります。</p>
         <div class="block-fields">
           <label class="field">
             <span>NGワード（1行に1つ。見出しに含む記事を非表示）</span>
@@ -280,7 +293,25 @@ import { href } from '../../lib/items.ts';
         </div>
         <p class="status" id="unhide-status" aria-live="polite"></p>
       </div>
-    </details>
+    </section>
+    </div>
+
+    <div class="tab-panel" role="tabpanel" id="panel-sources" data-panel="sources" data-aliases="sources-card" aria-labelledby="tab-sources" hidden>
+    <section class="card" id="sources-card">
+      <div class="card-head"><h2>収集元の状況</h2></div>
+      <div class="card-body">
+        <p class="hint">取得の失敗が3回以上続いている収集元や、新しい記事が3日以上ない収集元は、フィードの URL が変わったか配信が止まっている可能性があります（<code>sources.yaml</code> で修正・削除できます）。</p>
+        <label class="check sources-toggle">
+          <input id="sources-all" type="checkbox" />
+          <span>正常な収集元も表示（<span id="sources-ok-count">0</span>件）</span>
+        </label>
+        <p class="status ok" id="sources-empty" hidden>確認が必要な収集元はありません。</p>
+        <div class="table-wrap">
+          <table class="result-table" id="sources-table"></table>
+        </div>
+      </div>
+    </section>
+    </div>
   </div>
 </AdminLayout>
 
@@ -755,12 +786,59 @@ import { href } from '../../lib/items.ts';
   .table-wrap {
     overflow-x: auto;
   }
-  :global(#sources-table td.num) {
+  :global(#sources-table td.num),
+  :global(#sources-table th.num) {
     text-align: right;
     white-space: nowrap;
   }
+  .sources-toggle {
+    margin: 10px 0 4px;
+  }
   :global(#sources-table a) {
     color: var(--text);
+  }
+  :global(#sources-table tr[hidden]) {
+    display: none;
+  }
+  /* スマホ: 表の列が細くなりすぎるので、収集元ごとに縦に並べる（記事数と最新の記事は見出しを付けて1行に） */
+  @media (max-width: 640px) {
+    :global(#sources-table),
+    :global(#sources-table tr),
+    :global(#sources-table td) {
+      display: block;
+    }
+    :global(#sources-table tr.head) {
+      display: none;
+    }
+    :global(#sources-table tr) {
+      padding: 10px 2px;
+      border-top: 1px solid var(--border);
+    }
+    :global(#sources-table tr.head + tr) {
+      border-top: 0;
+    }
+    :global(#sources-table td) {
+      padding: 1px 0;
+      border: 0;
+      text-align: left;
+      white-space: normal;
+    }
+    :global(#sources-table td a) {
+      font-weight: 700;
+    }
+    :global(#sources-table td.num) {
+      display: inline;
+      text-align: left;
+      white-space: normal;
+    }
+    :global(#sources-table td[data-label]::before) {
+      content: attr(data-label) '：';
+      color: var(--muted);
+      font-weight: 400;
+    }
+    :global(#sources-table td.num + td.num[data-label]::before) {
+      content: '　' attr(data-label) '：';
+    }
   }
   .block-fields {
     display: grid;
@@ -830,25 +908,6 @@ import { href } from '../../lib/items.ts';
   }
   :global(.run-state.active) {
     color: var(--accent);
-  }
-  details.help > summary {
-    cursor: pointer;
-    font-weight: 700;
-  }
-  .help {
-    margin-top: 14px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background: var(--surface-2);
-    font-size: 0.8rem;
-    color: var(--text-2);
-  }
-  .help p {
-    margin: 4px 0;
-  }
-  .help ol {
-    margin: 4px 0;
-    padding-left: 1.4em;
   }
   .help a {
     color: var(--accent);

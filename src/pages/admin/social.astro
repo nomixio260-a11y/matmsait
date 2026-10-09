@@ -1,0 +1,142 @@
+---
+import { SOCIAL_LIMITS } from '../../../scripts/lib/social.ts';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { href } from '../../lib/items.ts';
+---
+
+<AdminLayout title="SNS 投稿" current="social">
+  <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
+  <!-- ログインを確かめるまでは表示しない（admin-social.ts が表示する） -->
+  <div class="admin" data-admin data-base={href('')} hidden>
+    <div class="intro">
+      <h1>SNS 投稿（Bluesky）</h1>
+      <p>30分ごとに1件ずつ自動で投稿しています。すぐに投稿したいときは「今すぐ投稿」を押してください。</p>
+      <p class="note" id="data-info" aria-live="polite">読み込んでいます…</p>
+      <details class="help">
+        <summary>自動投稿のしくみ</summary>
+        <ul>
+          <li>毎時の更新のあとと、その30分後に、Bluesky（@topiatsume.bsky.social）へ1件ずつ投稿します。</li>
+          <li>朝は今日の注目ニュース、昼は AI ニュース、夜は今日のまとめ、日曜は今週のランキング。そのほかの時間は急上昇・いま話題・10秒でわかるニュースです。</li>
+          <li>深夜0〜{SOCIAL_LIMITS.quietUntilHour}時は投稿せず、前の投稿から{SOCIAL_LIMITS.minGapMinutes}分以上あけ、24時間に{SOCIAL_LIMITS.maxPerDay}件までにしています。同じ話題は二度投稿しません。</li>
+          <li>GitHub の Secrets に <code>BLUESKY_APP_PASSWORD</code>（Bluesky のアプリパスワード）が登録されていると動きます（別のアカウントで投稿するときは <code>BLUESKY_IDENTIFIER</code> も登録）。</li>
+        </ul>
+      </details>
+    </div>
+
+    <section class="card" aria-labelledby="post-now-title">
+      <div class="card-head">
+        <h2 id="post-now-title">今すぐ投稿</h2>
+        <a href="https://bsky.app/profile/topiatsume.bsky.social" target="_blank" rel="noopener">アカウントを開く →</a>
+      </div>
+      <div class="card-body">
+        <div class="actions">
+          <button type="button" id="post-now" class="primary">今すぐ Bluesky に投稿</button>
+        </div>
+        <p class="hint">最新の記事を取り込んでサイトを更新してから、いちばん新しい話題を投稿します（2〜3分）。深夜でも投稿しますが、同じ話題は二度投稿しません。</p>
+        <p class="status" id="post-now-status" aria-live="polite"></p>
+        <ul class="post-now-links" id="post-now-links" hidden></ul>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="log-title">
+      <div class="card-head">
+        <h2 id="log-title">最近の投稿</h2>
+        <span class="badge" id="log-count"></span>
+      </div>
+      <div class="card-body">
+        <ul class="post-log" id="social-log">
+          <li class="pick-meta">読み込んでいます…</li>
+        </ul>
+        <div class="actions">
+          <button type="button" id="log-more" hidden>もっと見る</button>
+        </div>
+      </div>
+    </section>
+
+    <details class="card" id="drafts-card">
+      <summary><span class="summary-title">次に投稿されうる内容（下書き）</span><span class="badge" id="drafts-count">-</span></summary>
+      <div class="card-body">
+        <p class="hint">自動投稿とは別に、手で投稿したいときに使えます。「Bluesky で投稿」を押すと、文章の入った投稿の画面が開きます。</p>
+        <ul class="draft-list" id="social-drafts">
+          <li class="pick-meta">読み込んでいます…</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</AdminLayout>
+
+<script>
+  import '../../scripts/admin-social.ts';
+</script>
+
+<style>
+  .post-now-links {
+    margin: 8px 0 0;
+    padding-left: 1.2em;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+  }
+  .post-log {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  /* スマホ: 種類と時刻 → 見出し → Bluesky へのリンク の縦並び。PC: 1行に横並び */
+  :global(.post-row) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 12px;
+    padding: 10px 2px;
+    border-top: 1px solid var(--border);
+  }
+  :global(.post-row:first-child) {
+    border-top: 0;
+  }
+  :global(.post-head) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    grid-column: 1 / -1;
+  }
+  :global(.post-head .badge),
+  :global(.post-time) {
+    white-space: nowrap;
+  }
+  :global(.post-time) {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.post-title) {
+    min-width: 0;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.5;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  :global(.post-title:hover) {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  :global(.post-links) {
+    display: flex;
+    gap: 10px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+  :global(.post-links a) {
+    color: var(--accent);
+  }
+  @media (min-width: 720px) {
+    :global(.post-row) {
+      grid-template-columns: 240px minmax(0, 1fr) auto;
+    }
+    :global(.post-head) {
+      grid-column: auto;
+    }
+  }
+</style>

@@ -7,23 +7,49 @@ import { analyticsUrlOverride } from '../config/services.ts';
 import { analyticsEndpoint, analyticsOrigin } from '../lib/analytics-config.ts';
 import { href } from '../lib/items.ts';
 
+type PageKey = 'overview' | 'summaries' | 'topics' | 'social' | 'content' | 'notify' | 'analytics';
+
 interface Props {
   title: string;
   /** ログイン中の表示（ログイン名・ログアウト）を出すか */
   showUser?: boolean;
-  /** 管理画面のページの切り替えで強調するもの */
-  current?: 'overview' | 'summaries' | 'topics' | 'content' | 'notify' | 'analytics';
+  /** 管理画面のメニューで強調するページ（ログインページなどでは出さない） */
+  current?: PageKey;
 }
 const { title, showUser = true, current } = Astro.props;
-/** 管理画面のページ */
-const pages = [
-  { key: 'overview', name: '概要', path: '/admin/' },
-  { key: 'summaries', name: 'AI要約・記事', path: '/admin/summaries/' },
-  { key: 'topics', name: 'トピック整理', path: '/admin/topics/' },
-  { key: 'content', name: 'ピックアップ・お知らせ', path: '/admin/content/' },
-  { key: 'notify', name: '通知', path: '/admin/notify/' },
-  { key: 'analytics', name: 'アクセス解析', path: '/admin/analytics/' },
+
+interface MenuItem {
+  /** 強調するページ（ページの中のタブへのリンクは、そのページのタブの切り替えで強調する） */
+  key?: PageKey;
+  name: string;
+  path: string;
+  icon: string;
+}
+
+/** 管理画面のメニュー（PC は左に並べ、スマホは「メニュー」ボタンで開く） */
+const groups: { name: string; items: MenuItem[] }[] = [
+  {
+    name: '毎日の作業',
+    items: [
+      { key: 'overview', name: 'ホーム', path: '/admin/', icon: 'home' },
+      { key: 'summaries', name: 'AI要約・記事', path: '/admin/summaries/', icon: 'ai' },
+      { key: 'topics', name: 'トピック整理', path: '/admin/topics/', icon: 'topics' },
+      { key: 'social', name: 'SNS 投稿', path: '/admin/social/', icon: 'send' },
+      { key: 'content', name: 'ピックアップ・お知らせ', path: '/admin/content/', icon: 'star' },
+    ],
+  },
+  {
+    name: 'サイトの管理',
+    items: [
+      { name: '記事の非表示', path: '/admin/summaries/#hide', icon: 'hide' },
+      { name: '収集元の状況', path: '/admin/summaries/#sources', icon: 'feed' },
+      { key: 'notify', name: '通知', path: '/admin/notify/', icon: 'bell' },
+      { key: 'analytics', name: 'アクセス解析', path: '/admin/analytics/', icon: 'chart' },
+    ],
+  },
 ];
+const currentName = groups.flatMap((group) => group.items).find((item) => item.key === current)?.name ?? '';
+
 // アクセス解析の接続先（サイトと同じドメインの /api なら CSP の 'self' に含まれる。ほかのオリジンなら通信先に加える）
 const analytics = analyticsEndpoint(analyticsUrlOverride);
 const analyticsConnect = analyticsOrigin(analytics);
@@ -59,13 +85,69 @@ const csp = [
     <link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
   </head>
   <body data-base={href('')} data-analytics={analytics || undefined}>
-    <header class="admin-bar">
-      <div class="container admin-bar-inner">
+    <!-- 管理画面のメニューの線のアイコン（色は文字の色を引き継ぐ） -->
+    <svg class="admin-icons" width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="a-home" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"></path><path d="M5.5 10v10h13V10"></path><path d="M10 20v-5h4v5"></path></symbol>
+        <symbol id="a-ai" viewBox="0 0 24 24"><path d="M11 3.5 12.9 8l4.6 1.9-4.6 1.9L11 16.4l-1.9-4.6L4.5 9.9 9.1 8z"></path><path d="m18.5 14.5.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"></path></symbol>
+        <symbol id="a-topics" viewBox="0 0 24 24"><rect x="3.5" y="4" width="7" height="16" rx="1.5"></rect><rect x="13.5" y="4" width="7" height="16" rx="1.5"></rect><path d="M6 8h2M16 8h2M6 12h2M16 12h2"></path></symbol>
+        <symbol id="a-send" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5"></path><path d="M21 3 14.5 21l-4-7.5L3 9.5z"></path></symbol>
+        <symbol id="a-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"></path></symbol>
+        <symbol id="a-hide" viewBox="0 0 24 24"><path d="M3 12s3.5-6.5 9-6.5 9 6.5 9 6.5-3.5 6.5-9 6.5S3 12 3 12z"></path><circle cx="12" cy="12" r="2.5"></circle><path d="M4 20 20 4"></path></symbol>
+        <symbol id="a-feed" viewBox="0 0 24 24"><path d="M5 5a14 14 0 0 1 14 14"></path><path d="M5 11a8 8 0 0 1 8 8"></path><circle cx="6" cy="18" r="1.5"></circle></symbol>
+        <symbol id="a-bell" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6.5 2.5 8.5 2.5 8.5h-17S6 15.5 6 9z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></symbol>
+        <symbol id="a-chart" viewBox="0 0 24 24"><path d="M3.5 20.5h17"></path><path d="M6.5 17V11"></path><path d="M11.5 17V6"></path><path d="M16.5 17v-8"></path></symbol>
+        <symbol id="a-menu" viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h16"></path></symbol>
+      </defs>
+    </svg>
+    <header class:list={['admin-bar', { 'with-menu': current }]}>
+      <div class="admin-bar-inner">
         <a class="admin-brand" href={href('/')}>{site.name}</a>
         <span class="admin-label">管理画面</span>
         {
+          current && (
+            <details class="admin-menu">
+              <summary>
+                <svg class="admin-icon" width="18" height="18" aria-hidden="true">
+                  <use href="#a-menu" />
+                </svg>
+                <span class="admin-menu-current">{currentName}</span>
+              </summary>
+              <nav class="admin-menu-panel" aria-label="管理画面のメニュー">
+                {groups.map((group) => (
+                  <div class="admin-nav-group">
+                    <p class="admin-nav-title">{group.name}</p>
+                    {group.items.map((item) => (
+                      <a href={href(item.path)} data-nav-hash={item.key ? undefined : item.path.split('#')[1]} aria-current={item.key && item.key === current ? 'page' : undefined}>
+                        <svg class="admin-icon" width="18" height="18" aria-hidden="true">
+                          <use href={`#a-${item.icon}`} />
+                        </svg>
+                        {item.name}
+                      </a>
+                    ))}
+                  </div>
+                ))}
+                {/* スマホでは上のバーが狭いので、ログイン中の表示とログアウトはメニューの中に置く */}
+                <div class="admin-menu-foot">
+                  {
+                    showUser && (
+                      <span class="admin-user" data-admin-user hidden>
+                        <span class="admin-login" data-admin-login />
+                        <button type="button" class="admin-logout" data-logout>
+                          ログアウト
+                        </button>
+                      </span>
+                    )
+                  }
+                  <a class="admin-menu-back" href={href('/')}>サイトを見る →</a>
+                </div>
+              </nav>
+            </details>
+          )
+        }
+        {
           showUser && (
-            <span class="admin-user" data-admin-user hidden>
+            <span class="admin-user admin-bar-user" data-admin-user hidden>
               <span class="admin-login" data-admin-login />
               <button type="button" class="admin-logout" data-logout>
                 ログアウト
@@ -75,26 +157,53 @@ const csp = [
         }
         <a class="admin-back" href={href('/')}>サイト<span class="wide">を見る</span> →</a>
       </div>
+    </header>
+    <div class:list={['admin-shell', { 'with-side': current }]}>
       {
         current && (
-          <nav class="container admin-nav" aria-label="管理画面のページ">
-            {pages.map((page) => (
-              <a href={href(page.path)} aria-current={current === page.key ? 'page' : undefined}>
-                {page.name}
-              </a>
+          <nav class="admin-side" aria-label="管理画面のメニュー">
+            {groups.map((group) => (
+              <div class="admin-nav-group">
+                <p class="admin-nav-title">{group.name}</p>
+                {group.items.map((item) => (
+                  <a href={href(item.path)} data-nav-hash={item.key ? undefined : item.path.split('#')[1]} aria-current={item.key && item.key === current ? 'page' : undefined}>
+                    <svg class="admin-icon" width="18" height="18" aria-hidden="true">
+                      <use href={`#a-${item.icon}`} />
+                    </svg>
+                    {item.name}
+                  </a>
+                ))}
+              </div>
             ))}
           </nav>
         )
       }
-    </header>
-    <main class="container admin-main">
-      <slot />
-    </main>
+      <main class="admin-main">
+        <slot />
+      </main>
+    </div>
   </body>
 </html>
 
 <style>
+  .admin-icons {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+  .admin-icon {
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
   .admin-bar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
@@ -102,7 +211,10 @@ const csp = [
     display: flex;
     align-items: center;
     gap: 10px;
+    max-width: 1240px;
     height: 52px;
+    margin: 0 auto;
+    padding: 0 16px;
   }
   .admin-brand {
     font-weight: 800;
@@ -169,36 +281,157 @@ const csp = [
   .admin-user:not([hidden]) + .admin-back {
     margin-left: 4px;
   }
+  .admin-menu-foot {
+    display: none;
+  }
+
+  /* メニュー（PC は左に、スマホはボタンで開く） */
+  .admin-nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .admin-nav-group + .admin-nav-group {
+    margin-top: 14px;
+  }
+  .admin-nav-title {
+    margin: 0 0 4px;
+    padding: 0 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .admin-nav-group a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--text-2);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .admin-nav-group a:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  .admin-nav-group a[aria-current] {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-weight: 800;
+  }
+  .admin-shell {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+  .admin-side {
+    display: none;
+  }
+  .admin-main {
+    min-width: 0;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding-top: 20px;
+    padding-bottom: 64px;
+  }
+  .admin-menu {
+    position: relative;
+  }
+  .admin-menu > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 46vw;
+    padding: 5px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+  }
+  .admin-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+  .admin-menu-current {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .admin-menu-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 40;
+    width: min(280px, calc(100vw - 32px));
+    padding: 12px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+  }
   @media (max-width: 480px) {
-    .admin-login,
+    .admin-label,
+    .admin-bar-user .admin-login,
     .admin-back .wide {
       display: none;
     }
   }
-  .admin-nav {
-    display: flex;
-    gap: 4px;
-    overflow-x: auto;
+  /* スマホ: 上のバーはサイト名・メニュー・サイトへのリンクだけにして、ログアウトはメニューの中へ */
+  @media (max-width: 600px) {
+    .with-menu .admin-bar-user {
+      display: none;
+    }
+    .with-menu .admin-back,
+    .with-menu .admin-bar-user:not([hidden]) + .admin-back {
+      margin-left: auto;
+    }
+    .admin-menu-foot {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+      margin-top: 14px;
+      padding: 12px 10px 2px;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+    .admin-menu-foot .admin-user {
+      margin-left: 0;
+    }
+    .admin-menu-back {
+      color: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
   }
-  .admin-nav a {
-    padding: 8px 14px;
-    border-bottom: 3px solid transparent;
-    color: var(--text-2);
-    font-size: 0.875rem;
-    font-weight: 700;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .admin-nav a:hover {
-    color: var(--accent);
-  }
-  .admin-nav a[aria-current='page'] {
-    border-bottom-color: var(--accent);
-    color: var(--accent);
-  }
-  .admin-main {
-    max-width: 1000px;
-    padding-top: 20px;
-    padding-bottom: 64px;
+  @media (min-width: 960px) {
+    .admin-menu {
+      display: none;
+    }
+    .admin-shell.with-side {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      gap: 28px;
+    }
+    .admin-side {
+      display: block;
+      position: sticky;
+      top: 52px;
+      align-self: start;
+      max-height: calc(100vh - 52px);
+      overflow-y: auto;
+      padding: 20px 0 24px;
+    }
+    .with-side .admin-main {
+      margin: 0;
+    }
   }
 </style>

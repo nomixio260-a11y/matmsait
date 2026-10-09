@@ -14,10 +14,12 @@ const names = JSON.stringify({
   <div class="admin" data-admin data-base={href('')} data-names={names} hidden>
     <div class="intro">
       <h1>通知</h1>
-      <p>
-        読者は「フォロー中」のページで通知をオンにすると、フォローしたジャンル・掲載元・キーワードの新着（毎時のサイトの更新のあと）、いま話題のニュース、運営からのお知らせを受け取れます。
-      </p>
+      <p>通知をオンにした読者の数と送った記録を確かめ、運営からのお知らせを送れます。</p>
       <p class="note" id="data-info" aria-live="polite">読み込んでいます…</p>
+      <details class="help">
+        <summary>通知のしくみ</summary>
+        <p>読者は「フォロー中」のページで通知をオンにすると、フォローしたジャンル・掲載元・キーワードの新着（毎時のサイトの更新のあと）、いま話題のニュース、運営からのお知らせを受け取れます。</p>
+      </details>
     </div>
 
     <section class="card" id="setup-card" hidden>

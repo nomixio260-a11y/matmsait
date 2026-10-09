@@ -56,6 +56,7 @@ import {
 } from '../lib/article-texts.ts';
 import { decryptText, type TextKeyPair } from '../lib/text-crypto.ts';
 import { requireSession, watchSession } from './admin-common.ts';
+import { setupTabs } from './admin-tabs.ts';
 
 interface AdminArticle extends Item {
   site: string;
@@ -1980,10 +1981,14 @@ function renderSources() {
   badge.textContent = troubled.length > 0 ? `${troubled.length}件 要確認` : `${sources.length}件 正常`;
   badge.className = `badge${troubled.length > 0 ? '' : ' ok'}`;
   if (troubled.length > 0) badge.style.color = 'var(--hot)';
-  const head = el('tr');
-  head.append(el('th', '', '収集元'), el('th', '', '状態'), el('th', '', '記事数'), el('th', '', '最新の記事'));
+  const head = el('tr', 'head');
+  head.append(el('th', '', '収集元'), el('th', '', '状態'), el('th', 'num', '記事数'), el('th', 'num', '最新の記事'));
+  // 確認が必要な収集元だけを先に見せ、正常なものは「正常な収集元も表示」で出す（表が長くなりすぎないように）
+  const showAll = $<HTMLInputElement>('sources-all');
+  const okRows: HTMLTableRowElement[] = [];
   const rows = sources.map((source) => {
     const row = el('tr');
+    if (!trouble(source)) okRows.push(row);
     const name = el('td');
     const link = el('a', '', source.name);
     link.href = source.siteUrl;
@@ -2006,10 +2011,23 @@ function renderSources() {
       `num${age >= SOURCE_STALE_DAYS ? ' result-state error' : ''}`,
       source.latest ? `${dateFormat.format(new Date(source.latest))}${age >= SOURCE_STALE_DAYS ? `（${age}日前）` : ''}` : 'なし',
     );
-    row.append(name, state, el('td', 'num', `${source.count}件`), latest);
+    const count = el('td', 'num', `${source.count}件`);
+    count.dataset.label = '記事数';
+    latest.dataset.label = '最新の記事';
+    row.append(name, state, count, latest);
     return row;
   });
   $('sources-table').replaceChildren(head, ...rows);
+  $('sources-ok-count').textContent = String(okRows.length);
+  const apply = () => {
+    for (const row of okRows) row.hidden = !showAll.checked;
+    // 表に出す行がないときは、見出しだけの表を出さずに「ありません」と書く
+    const empty = troubled.length === 0 && !showAll.checked;
+    $('sources-empty').hidden = !empty;
+    head.hidden = empty;
+  };
+  showAll.onchange = apply;
+  apply();
 }
 
 // ===== 記事の非表示（data/blocklist.json） =====
@@ -2285,17 +2303,8 @@ async function main() {
   renderSaveArea();
   setupBlocklist();
   renderSources();
-  // 「概要」などからのリンク（#sources-card・#blocklist-card）で開いたときは、その欄を開いて見せる
-  openLinkedCard();
-  window.addEventListener('hashchange', openLinkedCard);
-}
-
-/** ページ内のリンク（#sources-card など）の欄が閉じていれば開いて、そこまで動かす */
-function openLinkedCard() {
-  if (!/^#[a-z-]+$/.test(location.hash)) return;
-  const target = document.querySelector(location.hash);
-  if (target instanceof HTMLDetailsElement) target.open = true;
-  target?.scrollIntoView();
+  // 「要約を作る・自動要約・保存済み・記事の非表示・収集元」のタブ（ホームやメニューからのリンク #sources などで、そのタブを開く）
+  setupTabs();
 }
 
 void main();

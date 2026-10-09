@@ -1,21 +1,22 @@
 ---
-import { SOCIAL_LIMITS } from '../../../scripts/lib/social.ts';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { href } from '../../lib/items.ts';
 ---
 
-<AdminLayout title="概要" current="overview">
+<AdminLayout title="ホーム" current="overview">
   <noscript><p class="status error">管理画面を使うには JavaScript を有効にしてください。</p></noscript>
   <!-- ログインを確かめるまでは表示しない（admin-dashboard.ts が表示する） -->
   <div class="admin" data-admin data-base={href('')} hidden>
     <div class="intro">
-      <h1>概要</h1>
-      <p>サイトの状態・きょうの数字・やることをまとめて確認できます。</p>
+      <h1>ホーム</h1>
       <p class="note" id="data-info" aria-live="polite">読み込んでいます…</p>
     </div>
 
     <section class="card" aria-labelledby="todo-title">
-      <div class="card-head"><h2 id="todo-title">やること・お知らせ</h2></div>
+      <div class="card-head">
+        <h2 id="todo-title">対応が必要なこと</h2>
+        <span class="badge" id="todo-count">-</span>
+      </div>
       <div class="card-body">
         <ul class="todo-list" id="todo-list">
           <li class="info"><span class="todo-text">確認しています…</span></li>
@@ -34,73 +35,55 @@ import { href } from '../../lib/items.ts';
       </div>
     </section>
 
-    <section class="card" aria-labelledby="update-title" id="update">
-      <div class="card-head"><h2 id="update-title">サイトの更新</h2></div>
-      <div class="card-body">
-        <div class="connection-row">
+    <div class="home-grid">
+      <section class="card" aria-labelledby="update-title" id="update">
+        <div class="card-head">
+          <h2 id="update-title">サイトの更新</h2>
           <span class="badge ok" id="token-badge">ログイン中</span>
-          <span class="connection-text">保存先 <code id="repo-name">-</code></span>
-          <button type="button" id="test-token" class="ghost small">接続を確認</button>
         </div>
-        <p class="status" id="token-status" aria-live="polite"></p>
-        <p class="note">
-          記事の収集とサイトの更新は「自動更新タイマー」が約1時間ごとに行います。すぐに最新の記事を集めて更新したいときは「今すぐ更新」を押してください（GitHub
-          Actions で動くので費用はかかりません）。
-        </p>
-        <p class="timer-status" id="timer-status" aria-live="polite"></p>
-        <div class="actions">
-          <button type="button" id="run-update" class="primary">今すぐ更新</button>
-        </div>
-        <p class="status" id="run-status" aria-live="polite"></p>
-        <div class="runs-head">
-          <h3>最近の実行</h3>
-          <button type="button" id="refresh-runs" class="ghost small">状況を更新</button>
-        </div>
-        <ul class="run-list" id="run-list">
-          <li class="pick-meta">読み込んでいます…</li>
-        </ul>
-      </div>
-    </section>
-
-    <section class="card" aria-labelledby="shortcut-title">
-      <div class="card-head"><h2 id="shortcut-title">よく使う操作</h2></div>
-      <div class="card-body">
-        <ul class="shortcuts">
-          <li><a href={href('/admin/summaries/')}><b>AI要約を作る</b><span>要約する記事を選んでプロンプトを作る</span></a></li>
-          <li><a href={href('/admin/content/#picks')}><b>ピックアップを選ぶ</b><span>トップページで編集部のおすすめを紹介する</span></a></li>
-          <li><a href={href('/admin/content/#notice')}><b>お知らせを出す</b><span>サイトの上部に短いお知らせを出す</span></a></li>
-          <li><a href={href('/admin/notify/')}><b>通知を送る</b><span>通知を受け取っている読者にお知らせする</span></a></li>
-          <li><a href={href('/admin/summaries/#blocklist-card')}><b>記事を非表示にする</b><span>NGワード・サイト・個別の記事</span></a></li>
-          <li><a href={href('/admin/summaries/#sources-card')}><b>収集元の状況</b><span>取得できていない収集元を確かめる</span></a></li>
-        </ul>
-      </div>
-    </section>
-
-    <section class="card" aria-labelledby="social-title" id="social">
-      <div class="card-head">
-        <h2 id="social-title">SNS（Bluesky）の自動投稿</h2>
-        <a href="https://bsky.app/profile/topiatsume.bsky.social" target="_blank" rel="noopener">アカウント →</a>
-      </div>
-      <div class="card-body">
-        <p class="note">
-          30分ごと（毎時の更新のあとと、その30分後）に、Bluesky（@topiatsume.bsky.social）へ1件ずつ自動で投稿します（朝の今日の注目ニュース・昼の AI ニュース・夜の今日のまとめ・日曜の今週のランキングと、急上昇・いま話題・10秒でわかるニュース。深夜0〜{SOCIAL_LIMITS.quietUntilHour}時は投稿しない・前の投稿から{SOCIAL_LIMITS.minGapMinutes}分以上あける・24時間に{SOCIAL_LIMITS.maxPerDay}件まで）。GitHub の Secrets に <code>BLUESKY_APP_PASSWORD</code>（Bluesky のアプリパスワード）が登録されていると動きます（別のアカウントで投稿するときは <code>BLUESKY_IDENTIFIER</code> も登録）。
-        </p>
-        <div class="post-now">
+        <div class="card-body">
+          <p class="timer-status" id="timer-status" aria-live="polite"></p>
           <div class="actions">
-            <button type="button" id="post-now" class="primary">今すぐ Bluesky に投稿</button>
+            <button type="button" id="run-update" class="primary">今すぐ更新</button>
+            <button type="button" id="test-token" class="ghost small">接続を確認</button>
           </div>
-          <p class="hint">
-            最新の記事を取り込んでサイトを更新してから、いちばん新しい話題（急上昇 → いま話題 → 10秒でわかるニュースの順。なければ「いま話題のニュース」のまとめ）を投稿します。2〜3分ほどかかります。深夜や前の投稿の直後でも投稿しますが、同じ話題は二度投稿しません。
-          </p>
-          <p class="status" id="post-now-status" aria-live="polite"></p>
-          <ul class="post-now-links" id="post-now-links" hidden></ul>
+          <p class="status" id="token-status" aria-live="polite"></p>
+          <p class="status" id="run-status" aria-live="polite"></p>
+          <details class="runs">
+            <summary>最近の実行</summary>
+            <div class="runs-head">
+              <span class="pick-meta">保存先 <code id="repo-name">-</code></span>
+              <button type="button" id="refresh-runs" class="ghost small">状況を更新</button>
+            </div>
+            <ul class="run-list" id="run-list">
+              <li class="pick-meta">読み込んでいます…</li>
+            </ul>
+          </details>
+          <details class="help">
+            <summary>更新のしくみ</summary>
+            <p>記事の収集とサイトの更新は「自動更新タイマー」が約1時間ごとに行います。すぐに最新の記事を集めて更新したいときは「今すぐ更新」を押してください（GitHub Actions で動くので費用はかかりません）。</p>
+          </details>
         </div>
-        <h3 class="sub-title">最近の投稿</h3>
-        <ul class="draft-list" id="social-log">
-          <li class="pick-meta">読み込んでいます…</li>
-        </ul>
-        <h3 class="sub-title">次に投稿されうる内容（手で追加の投稿をするときの下書き）</h3>
-        <ul class="draft-list" id="social-drafts">
+      </section>
+
+      <section class="card" aria-labelledby="social-title">
+        <div class="card-head">
+          <h2 id="social-title">SNS（Bluesky）</h2>
+          <a href={href('/admin/social/')}>SNS 投稿 →</a>
+        </div>
+        <div class="card-body">
+          <p class="pick-meta">最近の投稿（30分ごとに自動で投稿）</p>
+          <ul class="mini-list" id="social-mini">
+            <li class="pick-meta">読み込んでいます…</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="info-title">
+      <div class="card-head"><h2 id="info-title">お知らせ・提案</h2></div>
+      <div class="card-body">
+        <ul class="todo-list" id="info-list">
           <li class="pick-meta">読み込んでいます…</li>
         </ul>
       </div>
@@ -113,61 +96,50 @@ import { href } from '../../lib/items.ts';
 </script>
 
 <style>
-  .shortcuts {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+  .home-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-    gap: 8px;
+    gap: 16px;
   }
-  .shortcuts a {
-    display: block;
-    height: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+  @media (min-width: 900px) {
+    .home-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+  .runs {
+    margin-top: 12px;
+  }
+  .runs > summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .runs .runs-head {
+    margin-top: 8px;
+  }
+  .mini-list {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+  }
+  .mini-list :global(li) {
+    display: grid;
+    gap: 2px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+  }
+  .mini-list :global(li:first-child) {
+    border-top: 0;
+  }
+  .mini-list :global(.mini-title) {
     color: var(--text);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.5;
     text-decoration: none;
   }
-  .shortcuts a:hover {
-    border-color: var(--accent);
-    background: var(--surface-2);
-  }
-  .shortcuts b {
-    display: block;
+  .mini-list :global(.mini-title:hover) {
     color: var(--accent);
-    font-size: 0.9rem;
-  }
-  .sub-title {
-    margin: 16px 0 0;
-    font-size: 0.85rem;
-  }
-  .post-now {
-    margin-top: 12px;
-    padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--surface-2);
-  }
-  .post-now .actions {
-    margin-top: 0;
-  }
-  .post-now .hint {
-    margin: 8px 0 0;
-    line-height: 1.6;
-  }
-  .post-now-links {
-    margin: 8px 0 0;
-    padding-left: 1.2em;
-    font-size: 0.85rem;
-    line-height: 1.8;
-    overflow-wrap: anywhere;
-  }
-  .shortcuts span {
-    display: block;
-    margin-top: 2px;
-    color: var(--muted);
-    font-size: 0.75rem;
+    text-decoration: underline;
   }
 </style>

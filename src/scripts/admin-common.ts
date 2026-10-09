@@ -18,6 +18,20 @@ try {
   // 保存できない環境ではシステムの設定のまま
 }
 
+// スマホの「メニュー」: 項目を押したとき・メニューの外を押したとき・Esc で閉じる（同じページの中へのリンクでは移動しないため）
+for (const menu of document.querySelectorAll<HTMLDetailsElement>('.admin-menu')) {
+  for (const link of menu.querySelectorAll('a')) link.addEventListener('click', () => (menu.open = false));
+  document.addEventListener('click', (event) => {
+    if (menu.open && !menu.contains(event.target as Node)) menu.open = false;
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && menu.open) {
+      menu.open = false;
+      menu.querySelector('summary')?.focus();
+    }
+  });
+}
+
 /** サイトのベースパス（/matmsait など）。各ページの <body data-base> に入れている */
 export const base = document.body.dataset.base ?? '';
 

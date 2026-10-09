@@ -19,10 +19,11 @@ const names = {
   <div class="analytics" data-analytics-root data-endpoint={endpoint} data-names={JSON.stringify(names)} hidden>
     <div class="intro">
       <h1>アクセス解析</h1>
-      <p>
-        サイトに来た人の数、よく読まれている記事、どこから来たかなどです。Cookie は使わず、IP
-        アドレスも保存しません（訪問者は日ごとに変わる匿名の番号で数えます）。検索エンジンなどのボット、「追跡しないで」の設定のブラウザ、管理画面にログインしたブラウザは数えません。
-      </p>
+      <p>サイトに来た人の数、よく読まれている記事、どこから来たかなどです。</p>
+      <details class="help">
+        <summary>数え方</summary>
+        <p>Cookie は使わず、IP アドレスも保存しません（訪問者は日ごとに変わる匿名の番号で数えます）。検索エンジンなどのボット、「追跡しないで」の設定のブラウザ、管理画面にログインしたブラウザは数えません。</p>
+      </details>
     </div>
 
     {

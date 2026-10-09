@@ -238,3 +238,74 @@ export function setupConnectionCheck(options: { button: HTMLButtonElement; statu
     }
   });
 }
+
+// ===== SNS の投稿（ホームと「SNS 投稿」のページで共通） =====
+
+/** 投稿の種類の名前（投稿の記録の key の前半） */
+export const POST_KINDS: Record<string, string> = {
+  digest: '今日のまとめ',
+  morning: '今日の注目ニュース',
+  ai: 'AIニュース',
+  weekly: '今週のランキング',
+  rising: '急上昇',
+  hot: 'いま話題',
+  summary: '10秒でわかるニュース',
+  now: 'いま話題のまとめ',
+};
+
+/** 投稿のリンク先（サイトのページ） */
+export function postPath(key: string): string {
+  const [kind, id] = key.split(':');
+  switch (kind) {
+    case 'rising':
+    case 'hot':
+      return `/topic/${id}/`;
+    case 'digest':
+      return `/daily/${id}/`;
+    case 'ai':
+      return '/tag/ai/';
+    case 'weekly':
+      return '/weekly/';
+    case 'summary':
+      return `/summary/${id}/`;
+    case 'now':
+      return '/';
+    default:
+      return '/ranking/';
+  }
+}
+
+/**
+ * 投稿の題名（何を投稿したか）。話題・要約の投稿は記録に付けた題名を使い、まとめの投稿は日付から作る。
+ * 分からなければ undefined（サイトのページの URL を出す）
+ */
+export function postTitle(key: string, title?: string): string | undefined {
+  if (title) return title;
+  const [kind, id = ''] = key.split(':');
+  const date = id.match(/^\d{4}-(\d{2})-(\d{2})(?:T(\d{2}))?/);
+  if (!date) return undefined;
+  const day = `${Number(date[1])}/${Number(date[2])}`;
+  switch (kind) {
+    case 'digest':
+      return `${day}の話題ニュース`;
+    case 'morning':
+      return `${day} 今日の注目ニュース`;
+    case 'ai':
+      return `${day} AIニュース`;
+    case 'weekly':
+      return `今週の話題ニュース TOP5（${day}）`;
+    case 'now':
+      return `いま話題のニュース ${day}${date[3] ? ` ${Number(date[3])}時` : ''}`;
+    default:
+      return undefined;
+  }
+}
+
+/** 新しいタブで開くリンク */
+export function externalLink(text: string, href: string, className = ''): HTMLAnchorElement {
+  const link = el('a', className, text);
+  link.href = href;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  return link;
+}
