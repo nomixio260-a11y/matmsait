@@ -63,6 +63,13 @@ describe('要約の品質の確認', () => {
     expect(kinds('新製品を発表した。また、価格は800円。発売は11月。')).not.toContain('conjunction');
   });
 
+  it('要点が前の文に頼る書き出し（「同社は」「これにより」など）なら注意を出す', () => {
+    const kindsOf = (points: string[]) => summaryWarnings({ summary: GOOD, points }, {}).map((warning) => `${warning.field}:${warning.kind}`);
+    expect(kindsOf(['同社は価格を据え置いた'])).toEqual(['points:standalone']);
+    expect(kindsOf(['これにより電池の持ちが2割向上'])).toEqual(['points:standalone']);
+    expect(kindsOf(['Appleは価格を据え置いた', '予約は10月10日から'])).toEqual([]);
+  });
+
   it('要点と背景も確かめ、欄ごとに同じ種類の注意は1つにまとめる', () => {
     const warnings = summaryWarnings(
       { summary: GOOD, points: ['革新的な発見', '圧倒的な性能'], background: '業界に大きな影響を与えるだろう。' },

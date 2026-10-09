@@ -26,6 +26,8 @@
     "astro": "^7.3.5",
     "node-html-parser": "^9.0.4",
     "rss-parser": "^3.13.0",
+    "satori": "^0.44.0",
+    "sharp": "^0.35.5",
     "yaml": "^2.9.1"
   },
   "devDependencies": {

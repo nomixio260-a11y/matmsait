@@ -16,7 +16,8 @@ export type QualityKind =
   | 'unit'
   | 'quote'
   | 'sns'
-  | 'conjunction';
+  | 'conjunction'
+  | 'standalone';
 
 export interface QualityWarning {
   kind: QualityKind;
@@ -78,6 +79,9 @@ const POLITE_ENDING = /(?:です|ます|ました|ません|でした|でしょ�
 
 /** 文の始めの接続詞 */
 const CONJUNCTION_START = /^(?:また|さらに|一方で|一方|なお|そして|これにより|このため|加えて)[、,]?/;
+
+/** 前の文に頼る書き出し（要点は SNS の投稿などで単独で表示されることがある） */
+const DEPENDENT_START = /^(?:同社|同氏|同省|同庁|同店|同作|同製品|同サービス|同チーム|これ|それ|また|さらに|なお|一方|そして)/;
 
 /** 1文の長さの上限（字）。指示書の目安は40〜80字で、これを超える文は分けてもらう */
 export const MAX_SENTENCE_LENGTH = 100;
@@ -213,7 +217,16 @@ export function summaryWarnings(input: QualityInput, { title }: { title?: string
       });
     }
   }
-  for (const point of input.points ?? []) warnings.push(...textWarnings(point, 'points'));
+  for (const point of input.points ?? []) {
+    warnings.push(...textWarnings(point, 'points'));
+    if (DEPENDENT_START.test(point.trim())) {
+      warnings.push({
+        kind: 'standalone',
+        field: 'points',
+        message: `要点: 「${Array.from(point.trim()).slice(0, 12).join('')}…」は前の文に頼る書き出しです。要点だけが表示されても分かるよう、主語を書いてください`,
+      });
+    }
+  }
   if (input.background?.trim()) warnings.push(...textWarnings(input.background, 'background'));
   const seen = new Set<string>();
   return warnings.filter((warning) => {

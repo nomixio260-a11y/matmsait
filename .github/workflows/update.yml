@@ -149,6 +149,15 @@ jobs:
           echo 'データのコミットに失敗しました' >&2
           exit 1
 
+      # 共有画像（話題・要約・日別まとめの見出しのカード。src/lib/og-image.ts）は、内容が変わらなければ前のビルドで作ったものを使い回す
+      # （新しく作るのは1枚0.2秒ほどかかるため。使われなくなった画像は3日で消える）
+      - name: 共有画像の前回の分を取り込む
+        uses: actions/cache@v6
+        with:
+          path: .cache/og
+          key: og-images-${{ github.run_id }}
+          restore-keys: og-images-
+
       - name: サイトをビルド
         run: npm run build
         env:

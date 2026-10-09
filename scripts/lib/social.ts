@@ -17,6 +17,8 @@
  * リンクはこのサイトのページにし、どの投稿から来たかがアクセス解析で分かるよう utm_source などを付ける
  */
 import { jstDateKey } from '../../src/lib/dates.ts';
+import type { CardSpec, ListCard } from '../../src/lib/og-image.ts';
+import { titleNovelty } from '../../src/lib/summary-quality.ts';
 import type { DailySnapshot } from '../../src/lib/types.ts';
 
 /** 投稿の上限と時間帯（日本時間） */
@@ -50,6 +52,12 @@ export const SOCIAL_LIMITS = {
   manualMaxPerDay: 50,
   /** 「今すぐ投稿」の依頼がこれより古ければ投稿しない（分。更新の失敗などで処理が遅れたときに、思わぬ時間に投稿しないように） */
   requestExpiresMinutes: 30,
+  /**
+   * 10秒でわかるニュースで少し優先するジャンル（Bluesky で反応がよかったもの。2026-10-09 時点で「いいね」の大半がテクノロジー）。
+   * 報じたメディアの数に preferredBonus を足して並べる
+   */
+  preferredCategories: ['tech', 'game', 'science'] as readonly string[],
+  preferredBonus: 1,
 } as const;
 
 export const DIGEST_HOUR = SOCIAL_LIMITS.digestHour;
@@ -75,10 +83,31 @@ function truncate(text: string, max: number): string {
   return chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : text;
 }
 
-/** ハッシュタグの文字列（記号や空白は除く） */
-function hashtagLine(tags: readonly string[]): string {
-  const clean = [...new Set(tags.map((tag) => tag.normalize('NFKC').replace(/[\s#・.,、。!?！？()（）「」/]/g, '')).filter(Boolean))];
-  return clean.map((tag) => `#${tag}`).join(' ');
+/** ハッシュタグの文字列（記号や空白は除く。大文字・小文字の違いだけのものは1つに。max 個まで） */
+function hashtagLine(tags: readonly string[], max = Infinity): string {
+  const seen = new Set<string>();
+  const clean = tags
+    .map((tag) => tag.normalize('NFKC').replace(/[\s#・.,、。!?！？()（）「」/]/g, ''))
+    .filter((tag) => {
+      const key = tag.toLowerCase();
+      if (!tag || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  return clean
+    .slice(0, max)
+    .map((tag) => `#${tag}`)
+    .join(' ');
+}
+
+/**
+ * AI 要約のキーワードのうち、ハッシュタグにできるもの（空白・記号を含まない2〜15字の固有名詞。例: ChatGPT・大谷翔平）。
+ * 人が検索したりフォローしたりするハッシュタグに載せて、見つけてもらいやすくする
+ */
+export function keywordHashtags(keywords: readonly string[] = []): string[] {
+  return keywords
+    .map((keyword) => keyword.normalize('NFKC').trim())
+    .filter((keyword) => /^[\p{L}\p{N}ー]{2,15}$/u.test(keyword) && !/^\p{N}+$/u.test(keyword));
 }
 
 // ===== 投稿内容 =====
@@ -93,6 +122,8 @@ export interface SocialPost {
   compose: (fits: (text: string) => boolean) => string;
   /** リンクカード用 */
   link: { url: string; title: string; description: string };
+  /** リンクカードの画像にする見出しのカード（src/lib/og-image.ts で PNG にする。なければサイトの共通の画像） */
+  card?: CardSpec;
 }
 
 /** 投稿の記録 */
@@ -154,6 +185,14 @@ export interface SocialTopic {
   latestAt: string;
   /** ハッシュタグ（# なし。話題のタグから） */
   hashtags?: string[];
+  /** ジャンルの名前（例: テクノロジー） */
+  genre?: string;
+  /** 話題の AI 要約の1文目（あれば） */
+  lead?: string;
+  /** 報じたメディアの名前（報じた順） */
+  media?: string[];
+  /** 話題の AI 要約のキーワード（ハッシュタグにできるものを使う） */
+  keywords?: string[];
 }
 
 /** 10秒でわかるニュース（AI 要約）に使う要約 */
@@ -168,6 +207,16 @@ export interface SocialSummary {
   /** 2社以上が報じた話題の ID（同じ話題を急上昇などで投稿していたら投稿しない） */
   topicId?: string;
   hashtags?: string[];
+  /** 要約の要点（あれば。投稿に箇条書きで入れる） */
+  points?: string[];
+  /** 要約のキーワード（ハッシュタグにできるものを使う） */
+  keywords?: string[];
+  /** ジャンルの名前 */
+  genre?: string;
+  /** 記事の掲載元の名前 */
+  source?: string;
+  /** 報じたメディアの数（話題でなければ 1） */
+  coverage?: number;
 }
 
 export interface PlanContext {
@@ -211,10 +260,12 @@ function listPost(
   url: string,
   hashtags: string,
   link: SocialPost['link'],
+  card: Omit<ListCard, 'kind' | 'items'>,
 ): SocialPost {
   return {
     key,
     kind,
+    card: { kind: 'list', ...card, items: titles.slice(0, 5) },
     compose: (fits) => {
       for (let count = Math.min(5, titles.length); count >= Math.min(3, titles.length); count--) {
         for (const max of [44, 36, 30, 24, 18, 14]) {
@@ -246,6 +297,7 @@ export function digestPost(snapshot: DailySnapshot, { pageUrl, siteName }: PlanC
       title: `${month}月${day}日の話題のニュースまとめ｜${siteName}`,
       description: `「${truncate(top[0].title, 60)}」ほか、その日に多くのメディアが報じた話題の記事を紹介します。`,
     },
+    { label: { text: `${month}/${day}`, tone: 'accent' }, heading: `${month}月${day}日の話題ニュース TOP5` },
   );
 }
 
@@ -265,6 +317,7 @@ export function morningPost(topics: SocialTopic[], date: string, { pageUrl, site
       title: `今日の注目ニュース｜${siteName}`,
       description: `「${truncate(topics[0].title, 60)}」ほか、多くのメディアが報じたニュースをジャンルごとに紹介します。`,
     },
+    { label: { text: `${month}/${day}`, tone: 'accent' }, heading: '今日の注目ニュース' },
   );
 }
 
@@ -284,6 +337,7 @@ export function aiPost(topics: SocialTopic[], date: string, { pageUrl, siteName 
       title: `AIニュースランキング｜${siteName}`,
       description: `「${truncate(topics[0].title, 60)}」ほか、多くのメディアが報じたAIのニュースを紹介します。`,
     },
+    { label: { text: `${month}/${day}`, tone: 'accent' }, heading: '今日のAIニュース' },
   );
 }
 
@@ -302,21 +356,53 @@ export function weeklyPost(topics: SocialTopic[], date: string, { pageUrl, siteN
       title: `今週のトピあつめ｜${siteName}`,
       description: `「${truncate(topics[0].title, 60)}」ほか、この1週間に多くのメディアが報じたトピックと、よく出てきた言葉・ジャンルの変化をまとめています。`,
     },
+    { label: { text: '今週', tone: 'accent' }, heading: '今週の話題ニュース TOP5' },
   );
 }
 
-/** 1つの話題の投稿（急上昇・いま話題）。リンクは話題のページ（各メディアの報道の比較） */
+/** 報じたメディアの名前の行（「報じたメディア: A・B・C ほか2媒体」） */
+export function mediaLine(media: readonly string[], count: number, coverage = media.length): string {
+  if (media.length === 0 || count <= 0) return '';
+  const shown = media.slice(0, count);
+  const rest = Math.max(coverage, media.length) - shown.length;
+  return `報じたメディア: ${shown.join('・')}${rest > 0 ? ` ほか${rest}媒体` : ''}`;
+}
+
+/**
+ * 1つの話題の投稿（急上昇・いま話題）。リンクは話題のページ（各メディアの報道の比較）。
+ * 見出しのあとに、AI 要約の1文目（あれば）と報じたメディアの名前を入れて、何が起きて誰が報じているかを投稿だけで分かるようにする
+ */
 function topicPost(kind: 'rising' | 'hot', topic: SocialTopic, { pageUrl, siteName }: PlanContext): SocialPost {
   const url = pageUrl(`/topic/${topic.id}/`);
   const header =
-    kind === 'rising' ? `🚀 急上昇（3時間で+${topic.gained}媒体・計${topic.coverage}媒体が報道）` : `🔥 いま話題（${topic.coverage}媒体が報道・話題度${topic.score}）`;
-  const tags = hashtagLine(['ニュース', ...(topic.hashtags ?? []).slice(0, 2)]);
+    kind === 'rising'
+      ? `🚀 急上昇: 3時間で+${topic.gained}媒体（計${topic.coverage}媒体が報道）`
+      : `🔥 いま話題: ${topic.coverage}媒体が報道（話題度${topic.score}）`;
+  const tags = hashtagLine(['ニュース', ...(topic.hashtags ?? []).slice(0, 2), ...keywordHashtags(topic.keywords)], 3);
+  const media = topic.media ?? [];
+  // 見出しの長さ・AI 要約の長さ・メディア名の数を、文字数に収まるまで減らす
+  const shapes: [number, number, number][] = [
+    [100, 100, 3],
+    [80, 80, 3],
+    [70, 60, 2],
+    [70, 0, 3],
+    [60, 0, 2],
+    [50, 0, 0],
+    [40, 0, 0],
+    [30, 0, 0],
+    [20, 0, 0],
+  ];
   return {
     key: `${kind}:${topic.id}`,
     kind,
     compose: (fits) => {
-      for (const max of [100, 70, 50, 40, 30, 20]) {
-        const text = [header, truncate(topic.title, max), `各メディアの報道を比べる ▶ ${url}`, tags].join('\n');
+      for (const [titleMax, leadMax, mediaCount] of shapes) {
+        const lines = [header, truncate(topic.title, titleMax)];
+        const lead = leadMax > 0 && topic.lead ? truncate(topic.lead, leadMax) : '';
+        const reporters = mediaLine(media, mediaCount, topic.coverage);
+        if (lead || reporters) lines.push('', ...(lead ? [lead] : []), ...(reporters ? [reporters] : []));
+        lines.push(`各メディアの報道を比べる ▶ ${url}`, tags);
+        const text = lines.join('\n');
         if (fits(text)) return text;
       }
       return `${header}\n▶ ${url}`;
@@ -324,7 +410,18 @@ function topicPost(kind: 'rising' | 'hot', topic: SocialTopic, { pageUrl, siteNa
     link: {
       url,
       title: truncate(`${topic.title}｜${topic.coverage}媒体の報道を比較`, 100),
-      description: `${topic.coverage}のメディアが報じたニュースを、報じた順に比べられます（${siteName}）。`,
+      description: topic.lead
+        ? truncate(`${topic.lead}（${topic.coverage}媒体の報道を報じた順に比べられます）`, 150)
+        : media.length > 0
+          ? `${media.slice(0, 3).join('・')}${topic.coverage > 3 ? ` など${topic.coverage}媒体` : `の${topic.coverage}媒体`}が報じたニュースを、報じた順に比べられます（${siteName}）。`
+          : `${topic.coverage}のメディアが報じたニュースを、報じた順に比べられます（${siteName}）。`,
+    },
+    card: {
+      kind: 'headline',
+      label: kind === 'rising' ? { text: '↑ 急上昇', tone: 'rise' } : { text: '● いま話題', tone: 'heat' },
+      title: topic.title,
+      ...(topic.lead ? { sub: topic.lead } : {}),
+      chips: [`${topic.coverage}媒体が報道`, ...(kind === 'rising' ? [`3時間で+${topic.gained}媒体`] : []), ...(topic.genre ? [topic.genre] : [])],
     },
   };
 }
@@ -348,6 +445,7 @@ export function nowPost(topics: SocialTopic[], now: Date, { pageUrl, siteName }:
       title: `いま話題のニュース｜${siteName}`,
       description: `「${truncate(topics[0].title, 60)}」ほか、いま多くのメディアが報じているニュースを話題度の順に紹介します。`,
     },
+    { label: { text: `${month}/${day} ${hour}時`, tone: 'heat' }, heading: 'いま話題のニュース' },
   );
 }
 
@@ -359,22 +457,53 @@ export function risingPost(topic: SocialTopic, context: PlanContext): SocialPost
   return topicPost('rising', topic, context);
 }
 
-/** 10秒でわかるニュース（AI 要約の1文目） */
+/** 要点が見出し・1文目とほとんど同じ文字の並びのときの境目（見出しなどにない文字の組の割合） */
+const POINT_NOVELTY = 0.45;
+
+/** 投稿に入れる要点（見出し・1文目の繰り返しになっているものは省く） */
+export function distinctPoints(points: readonly string[], shown: string): string[] {
+  return points.map((point) => point.trim()).filter((point) => point && titleNovelty(point, shown).ratio >= POINT_NOVELTY);
+}
+
+/**
+ * 10秒でわかるニュース（AI 要約の1文目と要点の箇条書き）。Bluesky では、本文だけで内容が分かる投稿のほうが反応がよい
+ * （2026-10-09 時点で「いいね」の多くが10秒でわかるニュース）ので、要点も入れる
+ */
 export function summaryPost(summary: SocialSummary, { pageUrl, siteName }: PlanContext): SocialPost {
   const url = pageUrl(summary.path);
-  const tags = hashtagLine(['ニュース', ...(summary.hashtags ?? []).slice(0, 2)]);
+  const tags = hashtagLine(['ニュース', ...(summary.hashtags ?? []).slice(0, 1), ...keywordHashtags(summary.keywords)], 3);
+  const points = distinctPoints(summary.points ?? [], `${summary.title}${summary.lead}`);
+  // 見出しの長さ・1文目の長さ・要点の数を、文字数に収まるまで減らす
+  const shapes: [number, number, number][] =
+    points.length > 0
+      ? [
+          [80, 100, 2],
+          [70, 80, 2],
+          [60, 60, 2],
+          [60, 0, 2],
+          [60, 70, 1],
+          [50, 0, 1],
+          [44, 60, 0],
+          [30, 50, 0],
+          [24, 40, 0],
+        ]
+      : [
+          [80, 160, 0],
+          [60, 120, 0],
+          [44, 90, 0],
+          [30, 70, 0],
+          [24, 50, 0],
+        ];
   return {
     key: `summary:${summary.id}`,
     kind: 'summary',
     compose: (fits) => {
-      for (const [titleMax, leadMax] of [
-        [80, 160],
-        [60, 120],
-        [44, 90],
-        [30, 70],
-        [24, 50],
-      ]) {
-        const text = ['⏱ 10秒でわかるニュース', truncate(summary.title, titleMax), '', truncate(summary.lead, leadMax), `▶ ${url}`, tags].join('\n');
+      for (const [titleMax, leadMax, pointCount] of shapes) {
+        const body = [
+          ...(leadMax > 0 ? [truncate(summary.lead, leadMax)] : []),
+          ...points.slice(0, pointCount).map((point) => `・${truncate(point, 44)}`),
+        ];
+        const text = ['⏱ 10秒でわかるニュース', truncate(summary.title, titleMax), '', ...body, `▶ ${url}`, tags].join('\n');
         if (fits(text)) return text;
       }
       return `⏱ 10秒でわかるニュース\n${truncate(summary.title, 20)}\n▶ ${url}`;
@@ -383,6 +512,16 @@ export function summaryPost(summary: SocialSummary, { pageUrl, siteName }: PlanC
       url,
       title: truncate(`${summary.title}【AI要約】`, 100),
       description: truncate(`${summary.lead}（${siteName}）`, 150),
+    },
+    card: {
+      kind: 'headline',
+      label: { text: 'AI要約', tone: 'accent' },
+      title: summary.title,
+      sub: summary.lead,
+      chips: [
+        ...(summary.genre ? [summary.genre] : []),
+        ...((summary.coverage ?? 1) >= 2 ? [`${summary.coverage}媒体が報道`] : summary.source ? [summary.source] : []),
+      ],
     },
   };
 }
@@ -462,9 +601,17 @@ export function planPosts(state: SocialState, context: PlanContext, { manual = f
       !seenTopic(topic.id),
   );
   const summary = context.summaries.find((entry) => !posted.has(`summary:${entry.id}`) && !seenTopic(entry.topicId));
-  if (rising && allows('rising', SOCIAL_LIMITS.maxRisingPerDay)) posts.push(risingPost(rising, context));
-  else if (hot && allows('hot', SOCIAL_LIMITS.maxHotPerDay)) posts.push(hotPost(hot, context));
-  else if (summary && allows('summary', SOCIAL_LIMITS.maxSummaryPerDay)) posts.push(summaryPost(summary, context));
+  const candidates = [
+    rising && allows('rising', SOCIAL_LIMITS.maxRisingPerDay) ? risingPost(rising, context) : undefined,
+    hot && allows('hot', SOCIAL_LIMITS.maxHotPerDay) ? hotPost(hot, context) : undefined,
+    summary && allows('summary', SOCIAL_LIMITS.maxSummaryPerDay) ? summaryPost(summary, context) : undefined,
+  ].filter((post): post is SocialPost => post !== undefined);
+  // ふだんは急上昇 → いま話題 → 10秒でわかるニュースの順。ただし、前の投稿が話題の投稿（急上昇・いま話題）なら、
+  // 10秒でわかるニュースを先にする（反応のよい要約の投稿と話題の投稿が交互になるように。「今すぐ投稿」は急上昇から）
+  const lastEventKind = eventPosts.length > 0 ? eventPosts.reduce((a, b) => (Date.parse(a.at) >= Date.parse(b.at) ? a : b)).key.split(':')[0] : undefined;
+  const preferSummary = !manual && (lastEventKind === 'rising' || lastEventKind === 'hot');
+  const event = preferSummary ? (candidates.find((post) => post.kind === 'summary') ?? candidates[0]) : candidates[0];
+  if (event) posts.push(event);
   else if (manual) {
     // 新しい話題がなければ、いま話題のニュースのまとめ（同じ時間帯に投稿済みなら何もしない）
     const post = nowPost(context.hot.slice(0, 5), now, context);
@@ -626,11 +773,20 @@ interface BlueskySession {
   handle?: string;
 }
 
+/** 投稿のカードを PNG にする関数（scripts/notify.ts が src/lib/og-image.ts で作って渡す） */
+export type CardImage = (card: CardSpec) => Promise<Uint8Array<ArrayBuffer>>;
+
 /**
  * Bluesky（AT Protocol）。ログインは1回の実行で1回だけ（ログインには回数の制限があるため）。
- * リンクカードの画像（サイトの OGP 画像）も1回だけアップロードして使い回す
+ * リンクカードの画像は、投稿ごとの見出しのカード（cardImage）。作れなければサイトの共通の画像（thumb。1回だけアップロードして使い回す）
  */
-function blueskyPlatform(identifier: string, password: string, service: string, thumb?: Uint8Array<ArrayBuffer>): Platform {
+function blueskyPlatform(
+  identifier: string,
+  password: string,
+  service: string,
+  thumb?: Uint8Array<ArrayBuffer>,
+  cardImage?: CardImage,
+): Platform {
   const base = service.replace(/\/+$/, '');
   let session: Promise<BlueskySession> | undefined;
   let thumbBlob: Promise<unknown> | undefined;
@@ -640,26 +796,38 @@ function blueskyPlatform(identifier: string, password: string, service: string, 
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier, password }) },
       'Bluesky',
     ) as Promise<BlueskySession>);
+  const uploadImage = (token: string, image: Uint8Array<ArrayBuffer>) =>
+    (
+      request(
+        `${base}/xrpc/com.atproto.repo.uploadBlob`,
+        { method: 'POST', headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${token}` }, body: image },
+        'Bluesky',
+      ) as Promise<{ blob?: unknown }>
+    ).then((result) => result.blob);
   const uploadThumb = (token: string) =>
     (thumbBlob ??= thumb
-      ? (
-          request(
-            `${base}/xrpc/com.atproto.repo.uploadBlob`,
-            { method: 'POST', headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${token}` }, body: thumb },
-            'Bluesky',
-          ) as Promise<{ blob?: unknown }>
-        )
-          .then((result) => result.blob)
+      ? uploadImage(token, thumb)
           // 画像を送れなくても、画像なしのリンクカードで投稿する
           .catch(() => undefined)
       : Promise.resolve(undefined));
+  /** 投稿の見出しのカードの画像（作れない・送れないときは共通の画像） */
+  const uploadCard = async (token: string, post: SocialPost): Promise<unknown> => {
+    if (post.card && cardImage) {
+      try {
+        return await uploadImage(token, await cardImage(post.card));
+      } catch (error) {
+        console.log(`見出しのカードの画像を使えなかったため、共通の画像にします（${post.key}）: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    return uploadThumb(token);
+  };
   return {
     name: 'Bluesky',
     fits: fitsBluesky,
     send: async (text, post) => {
       const { accessJwt, did, handle } = await login();
       const rich = blueskyRichText(text, post.kind);
-      const blob = await uploadThumb(accessJwt);
+      const blob = await uploadCard(accessJwt, post);
       const record = {
         $type: 'app.bsky.feed.post',
         text: rich.text,
@@ -743,12 +911,21 @@ function misskeyPlatform(instance: string, token: string): Platform {
   };
 }
 
-/** 認証情報がそろっているサービスだけを返す（thumb は Bluesky のリンクカードの画像） */
-export function configuredPlatforms(env: Record<string, string | undefined>, { thumb }: { thumb?: Uint8Array<ArrayBuffer> } = {}): Platform[] {
+/** 認証情報がそろっているサービスだけを返す（thumb は Bluesky のリンクカードの共通の画像、cardImage は投稿ごとの見出しのカードの画像） */
+export function configuredPlatforms(
+  env: Record<string, string | undefined>,
+  { thumb, cardImage }: { thumb?: Uint8Array<ArrayBuffer>; cardImage?: CardImage } = {},
+): Platform[] {
   const platforms: Platform[] = [];
   if (env.BLUESKY_IDENTIFIER && env.BLUESKY_APP_PASSWORD) {
     platforms.push(
-      blueskyPlatform(env.BLUESKY_IDENTIFIER.replace(/^@/, ''), env.BLUESKY_APP_PASSWORD, env.BLUESKY_SERVICE || 'https://bsky.social', thumb),
+      blueskyPlatform(
+        env.BLUESKY_IDENTIFIER.replace(/^@/, ''),
+        env.BLUESKY_APP_PASSWORD,
+        env.BLUESKY_SERVICE || 'https://bsky.social',
+        thumb,
+        cardImage,
+      ),
     );
   }
   if (env.MASTODON_URL && env.MASTODON_TOKEN) platforms.push(mastodonPlatform(env.MASTODON_URL, env.MASTODON_TOKEN));

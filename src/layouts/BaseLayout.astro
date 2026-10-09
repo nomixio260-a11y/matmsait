@@ -37,6 +37,8 @@ interface Props {
   /** ページの内容の公開日時・最終更新日時（ISO 8601。og:type が article のとき） */
   published?: string;
   modified?: string;
+  /** ページの共有画像（話題・要約・日別まとめの見出しのカード。src/lib/og-cards.ts）。なければサイトの共通の画像 */
+  image?: { path: string; alt: string };
 }
 
 const {
@@ -51,10 +53,12 @@ const {
   ogType = 'website',
   published,
   modified,
+  image,
 } = Astro.props;
 const pageTitle = title ? `${title}｜${site.name}` : `${site.name}｜${site.seoTitle}`;
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
-const ogImage = new URL(href('/og.png'), Astro.site).toString();
+const ogImage = new URL(href(image?.path ?? '/og.png'), Astro.site).toString();
+const ogImageAlt = image?.alt ?? `${site.name}｜${site.seoTitle}`;
 const sidebarProps = typeof sidebar === 'object' ? sidebar : {};
 const toJson = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
 // アクセス解析のサーバー（設定されていなければ計測しない）
@@ -86,10 +90,11 @@ const noticeLink = notice?.url ? (notice.url.startsWith('/') ? href(notice.url) 
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content={`${site.name}｜${site.seoTitle}`} />
+    <meta property="og:image:alt" content={ogImageAlt} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={pageTitle} />
     <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
     <link rel="apple-touch-icon" href={href('/apple-touch-icon.png')} />
     <link rel="manifest" href={href('/manifest.webmanifest')} />

@@ -3,11 +3,15 @@ import {
   SOCIAL_LIMITS,
   blueskyPostUrl,
   blueskyRichText,
+  digestPost,
   displayUrl,
+  distinctPoints,
   fitsBluesky,
   graphemeLength,
   hotPost,
+  keywordHashtags,
   mastodonLength,
+  mediaLine,
   nowPost,
   pendingRequest,
   planPosts,
@@ -108,6 +112,93 @@ describe('リンク（流入元つき）と Bluesky の本文', () => {
     expect(fitsBluesky(ten)).toBe(true);
     expect(ten).toContain('⏱ 10秒でわかるニュース');
     expect(ten).toContain('#ニュース #MLB');
+  });
+});
+
+describe('投稿の中身（AI 要約の1文目・要点・報じたメディア・ハッシュタグ・カード画像）', () => {
+  it('話題の投稿に、AI 要約の1文目と報じたメディアの名前を入れる', () => {
+    const view = topic('m', {
+      gained: 3,
+      coverage: 5,
+      title: 'A社、新型スマホ「X1」を発表',
+      lead: 'A社は10月9日、新型スマートフォン「X1」を11月14日に発売すると発表した。',
+      media: ['A新聞', 'Bニュース', 'Cウェブ', 'D通信', 'E速報'],
+      genre: 'テクノロジー',
+      hashtags: ['Apple'],
+      keywords: ['X1', 'GPT-6 Luna'],
+    });
+    const post = risingPost(view, context(at('10:00')));
+    const text = post.compose(fitsBluesky);
+    expect(text).toContain('🚀 急上昇: 3時間で+3媒体（計5媒体が報道）');
+    expect(text).toContain('A社は10月9日、新型スマートフォン「X1」を11月14日に発売すると発表した。');
+    expect(text).toContain('報じたメディア: A新聞・Bニュース・Cウェブ ほか2媒体');
+    // ハッシュタグは話題のタグ、つぎに空白・記号のないキーワード（3つまで）
+    expect(text).toContain('#ニュース #Apple #X1');
+    expect(post.link.description).toMatch(/^A社は10月9日、.*（5媒体の報道を報じた順に比べられます）$/);
+    expect(post.card).toEqual({
+      kind: 'headline',
+      label: { text: '↑ 急上昇', tone: 'rise' },
+      title: 'A社、新型スマホ「X1」を発表',
+      sub: 'A社は10月9日、新型スマートフォン「X1」を11月14日に発売すると発表した。',
+      chips: ['5媒体が報道', '3時間で+3媒体', 'テクノロジー'],
+    });
+    // 長くても文字数に収める（AI 要約やメディアの名前から削る）
+    const long = topic('long', { ...view, id: 'long', title: 'あ'.repeat(200), lead: 'い'.repeat(200) });
+    expect(fitsBluesky(hotPost(long, context(at('10:00'))).compose(fitsBluesky))).toBe(true);
+    // AI 要約がなければ、報じたメディアの名前で説明する
+    expect(hotPost(topic('n', { coverage: 3, media: ['A新聞', 'Bニュース', 'Cウェブ'] }), context(at('10:00'))).link.description).toBe(
+      'A新聞・Bニュース・Cウェブの3媒体が報じたニュースを、報じた順に比べられます（テスト）。',
+    );
+  });
+
+  it('10秒でわかるニュースに要点を箇条書きで入れる（見出し・1文目の繰り返しの要点は省く）', () => {
+    const post = summaryPost(
+      summary('s', {
+        title: 'A社、新型スマホ「X1」を発表',
+        lead: 'A社は10月9日、新型スマートフォン「X1」を11月14日に発売すると発表した。',
+        points: ['A社が新型スマホ「X1」を発表', '価格は9万8000円から', '電池の持ちが前モデルより2割向上'],
+        keywords: ['A社', 'X1', 'スマートフォン 新型'],
+        hashtags: ['AI'],
+        genre: 'テクノロジー',
+        coverage: 3,
+      }),
+      context(at('10:00')),
+    );
+    const text = post.compose(fitsBluesky);
+    expect(text).toContain('・価格は9万8000円から\n・電池の持ちが前モデルより2割向上');
+    expect(text).not.toContain('・A社が新型スマホ');
+    expect(text).toContain('#ニュース #AI #A社');
+    expect(post.card).toMatchObject({ kind: 'headline', label: { text: 'AI要約' }, chips: ['テクノロジー', '3媒体が報道'] });
+    // 1つの話題でなければ、掲載元の名前を出す
+    expect(summaryPost(summary('t', { source: 'Cウェブ' }), context(at('10:00'))).card).toMatchObject({ chips: ['Cウェブ'] });
+  });
+
+  it('ハッシュタグ・メディアの名前・要点の選び方', () => {
+    expect(keywordHashtags(['ChatGPT', 'GPT-6 Luna', '大谷翔平', '2026', 'A', 'ドジャース'])).toEqual(['ChatGPT', '大谷翔平', 'ドジャース']);
+    expect(mediaLine(['A', 'B'], 3)).toBe('報じたメディア: A・B');
+    expect(mediaLine(['A', 'B', 'C', 'D'], 2, 6)).toBe('報じたメディア: A・B ほか4媒体');
+    expect(mediaLine([], 3)).toBe('');
+    expect(distinctPoints(['新型スマホ「X1」を発表', '価格は9万8000円'], 'A社、新型スマホ「X1」を発表')).toEqual(['価格は9万8000円']);
+    // 大文字・小文字の違いだけのハッシュタグは1つに
+    const text = summaryPost(summary('u', { hashtags: ['AI'], keywords: ['ai', 'OpenAI'] }), context(at('10:00'))).compose(() => true);
+    expect(text).toContain('#ニュース #AI #OpenAI');
+  });
+
+  it('まとめの投稿は、見出しを並べたカードを画像にする', () => {
+    const snapshot: DailySnapshot = {
+      date: '2026-10-06',
+      updatedAt: '2026-10-06T12:00:00.000Z',
+      total: 10,
+      counts: { news: 10 },
+      items: ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => item(id)),
+    };
+    const post = digestPost(snapshot, context(at('21:10')));
+    expect(post?.card).toEqual({
+      kind: 'list',
+      label: { text: '10/6', tone: 'accent' },
+      heading: '10月6日の話題ニュース TOP5',
+      items: ['記事aのタイトル', '記事bのタイトル', '記事cのタイトル', '記事dのタイトル', '記事eのタイトル'],
+    });
   });
 });
 
@@ -222,6 +313,22 @@ describe('planPosts', () => {
       }
     }
     expect(keys).toEqual(['10:02 summary:s1', '10:31 summary:s2', '11:08 summary:s3', '11:31 summary:s4', '12:03 summary:s5']);
+  });
+
+  it('話題の投稿（急上昇・いま話題）のあとは、10秒でわかるニュースを先にする（交互になるように）', () => {
+    const rising = [topic('r1', { gained: 3, coverage: 4 }), topic('r2', { gained: 2, coverage: 3 })];
+    const summaries = [summary('s1'), summary('s2')];
+    const first = planPosts(empty, context(at('10:00'), { rising, summaries }));
+    expect(first.map((post) => post.key)).toEqual(['rising:r1']);
+    const afterTopic = recordPost(empty, first[0], at('10:00'));
+    const second = planPosts(afterTopic, context(at('10:30'), { rising, summaries }));
+    expect(second.map((post) => post.key)).toEqual(['summary:s1']);
+    const afterSummary = recordPost(afterTopic, second[0], at('10:30'));
+    expect(planPosts(afterSummary, context(at('11:00'), { rising, summaries })).map((post) => post.key)).toEqual(['rising:r2']);
+    // 要約の候補がなければ、続けて話題を投稿する
+    expect(planPosts(afterTopic, context(at('10:30'), { rising })).map((post) => post.key)).toEqual(['rising:r2']);
+    // 「今すぐ投稿」は急上昇から
+    expect(planPosts(afterTopic, context(at('10:05'), { rising, summaries }), { manual: true }).map((post) => post.key)).toEqual(['rising:r2']);
   });
 
   it('自動の投稿は1回1件。まとめの投稿が先で、話題は次の機会に投稿する', () => {

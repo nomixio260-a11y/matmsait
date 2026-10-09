@@ -6,6 +6,7 @@ import ShareButtons from '../../components/ShareButtons.astro';
 import SummaryLevels from '../../components/SummaryLevels.astro';
 import { site } from '../../config/site.ts';
 import { faviconUrl, formatDateTime, getCategory, getItemsByCategory, href, siteOf } from '../../lib/items.ts';
+import { summaryImagePath } from '../../lib/og-cards.ts';
 import { getRelatedIndex, topicOf, topicPath, topicViewOf } from '../../lib/topics.ts';
 import { clampDescription } from '../../lib/seo.ts';
 import { getSummaries, summaryPath } from '../../lib/summaries.ts';
@@ -83,6 +84,7 @@ const shortTitle = Array.from(record.title).length > 30 ? `${Array.from(record.t
   ogType="article"
   published={record.summarizedAt}
   modified={record.updatedAt ?? record.summarizedAt}
+  image={{ path: summaryImagePath(record.id), alt: `${record.title}（AI要約）` }}
   breadcrumbs={[
     ...(category ? [{ name: category.name, path: `/category/${category.slug}/` }] : []),
     { name: shortTitle },

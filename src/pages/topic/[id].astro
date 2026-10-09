@@ -20,6 +20,7 @@ import TopicList from '../../components/TopicList.astro';
 import TopicNotes from '../../components/TopicNotes.astro';
 import { site } from '../../config/site.ts';
 import { builtAt, faviconUrl, formatDateTime, getCategory, getItemsByCategory, href, siteOf } from '../../lib/items.ts';
+import { topicImagePath } from '../../lib/og-cards.ts';
 import { mainTitle } from '../../lib/related.ts';
 import { clampDescription } from '../../lib/seo.ts';
 import { firstSentence } from '../../lib/summary-view.ts';
@@ -124,6 +125,7 @@ const jsonLd = [
   ogType="article"
   published={view.firstAt}
   modified={view.latestAt}
+  image={{ path: topicImagePath(view.id), alt: `${headline}（${view.coverage}媒体が報道）` }}
   breadcrumbs={[{ name: '話題のトピック', path: '/ranking/' }, { name: breadcrumb }]}
   sidebar={{ rankingWideOnly: true }}
 >

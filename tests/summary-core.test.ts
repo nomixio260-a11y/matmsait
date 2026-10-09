@@ -87,6 +87,9 @@ describe('buildSummaryPrompt', () => {
     expect(prompt).toContain('- スポーツ: 誰が・何をしたか');
     // 出力前の確認
     expect(prompt).toContain('1文目で核心が分かるか。見出しの言い換えだけになっていないか');
+    // 要点は単独で読めるように（SNS の投稿や共有のカードに使う）・キーワードの1つ目は主役
+    expect(prompt).toContain('それぞれ単独で読んで意味が通る文にする');
+    expect(prompt).toContain('1つ目には記事の主役');
   });
 
   it('記事の公開日時（日本時間）を記事一覧に入れる', () => {

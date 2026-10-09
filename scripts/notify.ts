@@ -8,12 +8,15 @@
 //   DATA_CHANGED    "false" なら記事が増えていないので、新しい要約ページだけを IndexNow に送る
 //   NOTIFY_DRY_RUN  "1" なら送信せずに内容だけ表示する
 //   NOTIFY_SKIP_PING "1" なら検索エンジン・フィードへの通知をせず、SNS の投稿だけ行う（手で投稿を確かめるとき）
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+//   NOTIFY_PREVIEW_DIR NOTIFY_DRY_RUN のとき、リンクカードの画像（見出しのカード）をこのフォルダーに書き出す
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { categories, site } from '../src/config/site.ts';
 import { tags } from '../src/config/tags.ts';
 import { dailyPath, getDailySnapshots } from '../src/lib/daily.ts';
 import { jstDateKey } from '../src/lib/dates.ts';
+import { cardOptions } from '../src/lib/og-cards.ts';
+import { renderCardPng } from '../src/lib/og-image.ts';
 import { getSummaries, summaryPath } from '../src/lib/summaries.ts';
 import { socialSources } from '../src/lib/social-source.ts';
 import { getTopicViews, tagPath, topicPath } from '../src/lib/topics.ts';
@@ -123,9 +126,11 @@ async function notifySearchEngines(baseUrl: string, now: Date, dataChanged: bool
 }
 
 async function postToSocial(baseUrl: string, now: Date) {
-  // リンクカードの画像（サイトの OGP 画像）
+  // リンクカードの画像: 投稿ごとの見出しのカード（作れなければサイトの共通の OGP 画像）
   const ogPath = resolve(process.cwd(), 'public/og.png');
-  const platforms = configuredPlatforms(process.env, { thumb: existsSync(ogPath) ? new Uint8Array(readFileSync(ogPath)) : undefined });
+  const options = cardOptions(baseUrl);
+  const cardImage = async (card: Parameters<typeof renderCardPng>[0]) => new Uint8Array(await renderCardPng(card, options));
+  const platforms = configuredPlatforms(process.env, { thumb: existsSync(ogPath) ? new Uint8Array(readFileSync(ogPath)) : undefined, cardImage });
   let state = readState();
   const save = () => {
     if (!dryRun) writeFileSync(SOCIAL_STATE_PATH, `${JSON.stringify(state, null, 1)}\n`);
@@ -171,6 +176,13 @@ async function postToSocial(baseUrl: string, now: Date) {
     if (dryRun) {
       for (const platform of platforms.length > 0 ? platforms : previewPlatforms) {
         console.log(`--- ${platform.name} に投稿する内容（${post.key}）---\n${post.compose(platform.fits)}\n`);
+      }
+      const previewDir = process.env.NOTIFY_PREVIEW_DIR;
+      if (previewDir && post.card) {
+        mkdirSync(previewDir, { recursive: true });
+        const file = join(previewDir, `${post.key.replace(/[^\w-]+/g, '_')}.png`);
+        writeFileSync(file, await cardImage(post.card));
+        console.log(`リンクカードの画像: ${file}`);
       }
       continue;
     }

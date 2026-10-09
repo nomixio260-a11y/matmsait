@@ -8,6 +8,7 @@ import { categories, site } from '../../config/site.ts';
 import { dailyPath, formatDay, getDailySnapshots } from '../../lib/daily.ts';
 import { jstDateKey } from '../../lib/dates.ts';
 import { builtAt, formatTime, href } from '../../lib/items.ts';
+import { dailyImagePath } from '../../lib/og-cards.ts';
 import { clampDescription, collectionJsonLd, headlineTeaser } from '../../lib/seo.ts';
 import type { DailySnapshot } from '../../lib/types.ts';
 
@@ -62,6 +63,7 @@ const jsonLd = [collectionJsonLd({ name: title, description, url, items: ranked.
   description={description}
   breadcrumbs={[{ name: '日別アーカイブ', path: '/daily/' }, { name: label }]}
   jsonLd={jsonLd}
+  image={snapshot.items.length > 0 ? { path: dailyImagePath(snapshot.date), alt: `${label}の話題ニュース TOP5` } : undefined}
 >
   <div class="page-head">
     <h1>{label}の話題のニュース</h1>
