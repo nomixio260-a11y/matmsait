@@ -23,12 +23,18 @@ import { href } from '../../lib/items.ts';
     </div>
 
     <div class="tab-panel" role="tabpanel" id="panel-make" data-panel="make" aria-labelledby="tab-make">
-    <p class="lead">要約のない記事を選んでプロンプトを作り、チャット AI の回答を貼り付けて保存すると、サイトの記事に要約が載ります（1 → 4 の順に進めます）。</p>
+    <!-- 手順の進み具合（いまの手順を強調。押すとその手順へ移る） -->
+    <ol class="stepper" id="stepper" aria-label="要約を作る手順">
+      <li><button type="button" data-step="1"><span class="step">1</span>選ぶ</button></li>
+      <li><button type="button" data-step="2"><span class="step">2</span>コピー</button></li>
+      <li><button type="button" data-step="3"><span class="step">3</span>貼り付け</button></li>
+      <li><button type="button" data-step="4"><span class="step">4</span>保存</button></li>
+    </ol>
 
-    <section class="card">
+    <section class="card" id="step-1">
       <h2><span class="step">1</span>要約する記事を選ぶ</h2>
       <div class="card-body">
-        <div class="controls">
+        <div class="controls pick-controls">
           <label class="field inline">
             <span>件数</span>
             <select id="count">
@@ -42,7 +48,7 @@ import { href } from '../../lib/items.ts';
             <span>カテゴリ</span>
             <select id="category"><option value="">すべて</option></select>
           </label>
-          <label class="field inline">
+          <label class="field inline sort-field">
             <span>並び順</span>
             <select id="sort">
               <option value="popular">話題の順（報じたサイトが多い順）</option>
@@ -50,19 +56,127 @@ import { href } from '../../lib/items.ts';
               <option value="latest">新しい順</option>
             </select>
           </label>
-          <button type="button" id="reselect" class="ghost">上から選び直す</button>
         </div>
-        <label class="check">
-          <input id="include-summarized" type="checkbox" />
-          要約済みの記事も選べるようにする（AI で要約を作り直す）
-        </label>
-        <p class="counter" id="pick-counter"></p>
-        <ul class="pick-list" id="pick-list"></ul>
+        <div class="pick-head">
+          <p class="counter" id="pick-counter"></p>
+          <button type="button" id="reselect" class="ghost small">上から選び直す</button>
+        </div>
+        <!-- 選んだ記事の一覧（スマホでは畳んでおき、見たいときだけ開く） -->
+        <details class="pick-details" id="pick-details" open>
+          <summary id="pick-details-label">選んだ記事を見る・変える</summary>
+          <label class="check">
+            <input id="include-summarized" type="checkbox" />
+            <span>要約済みの記事も選べるようにする（AI で要約を作り直す）</span>
+          </label>
+          <ul class="pick-list" id="pick-list"></ul>
+          <div class="actions">
+            <button type="button" id="hide-selected" class="danger small">選んだ記事をサイトから非表示</button>
+            <span class="note">広告の規約に触れそうな記事など、載せたくない記事を外せます（あとで戻せます）</span>
+          </div>
+          <p class="status" id="hide-status" aria-live="polite"></p>
+        </details>
+      </div>
+    </section>
+
+    <section class="card" id="step-2">
+      <h2><span class="step">2</span>プロンプトをコピーしてAIに渡す</h2>
+      <div class="card-body">
+        <div class="prompt-parts" id="prompt-parts" hidden></div>
+        <div class="actions copy-actions">
+          <button type="button" id="copy-prompt" class="primary">プロンプトをコピー</button>
+          <button type="button" id="download-prompt">ファイルで保存</button>
+          <button type="button" id="download-prompt-all" hidden>全部を1つのファイルで保存</button>
+        </div>
+        <p class="note" id="prompt-info"></p>
+        <div class="status" id="prompt-status" aria-live="polite"></div>
+        <details class="sub-details" id="prompt-settings">
+          <summary>設定: <span id="prompt-settings-text"></span></summary>
+          <div class="controls">
+            <label class="field inline">
+              <span>要約の長さ</span>
+              <select id="length">
+                {
+                  Object.entries(SUMMARY_LENGTHS).map(([key, value]) => (
+                    <option value={key} selected={key === 'normal'}>
+                      {value.label}（{value.min}〜{value.max}字）
+                    </option>
+                  ))
+                }
+              </select>
+            </label>
+            <label class="field inline">
+              <span>1回に貼り付ける長さの上限</span>
+              <select id="max-chars">
+                <option value="0">上限なし</option>
+                <option value="8000">8,000字</option>
+                <option value="15000" selected>15,000字</option>
+                <option value="30000">30,000字</option>
+                <option value="60000">60,000字</option>
+              </select>
+            </label>
+            <label class="field inline">
+              <span>AI の回答のしかた</span>
+              <select id="answer-mode">
+                <option value="codeblock" selected>コードブロック（コピー）</option>
+                <option value="file">JSON ファイル（ダウンロード）</option>
+              </select>
+            </label>
+            <label class="check">
+              <input id="points" type="checkbox" checked />
+              <span>要点（箇条書き）も作る</span>
+            </label>
+          </div>
+        </details>
+        <details class="sub-details" id="prompt-view">
+          <summary>プロンプトの中身を見る</summary>
+          <textarea id="prompt" rows="12" readonly aria-label="AIに渡すプロンプト"></textarea>
+        </details>
+        <details class="help">
+          <summary>プロンプトの渡し方</summary>
+          <ul>
+            <li>プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けます。AI は <code>```json</code> のコードブロック1つで答えるので、そのブロックをコピーして手順3に貼り付けます。</li>
+            <li>貼り付けられる長さには上限があるので、上限を超えるプロンプトは何回かに分けます（1回ずつ渡して、回答をそれぞれ確認・保存します）。貼り付けられないときは「ファイルで保存」して、AI にファイルとして添付できます。</li>
+            <li>「AI の回答のしかた」を「JSON ファイル」にすると、AI に {ANSWER_FILE_NAME} を作ってもらい、手順3で読み込めます（ファイルを作れる AI で使えます）。</li>
+            <li>一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、「AI が開けない記事」に移ります。</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section class="card" id="step-3">
+      <h2><span class="step">3</span>AIの回答（JSON）を貼り付けて確認する</h2>
+      <div class="card-body">
         <div class="actions">
-          <button type="button" id="hide-selected" class="danger small">選んだ記事をサイトから非表示</button>
-          <span class="note">広告の規約に触れそうな記事など、載せたくない記事を外せます（あとで戻せます）</span>
+          <button type="button" id="paste-check" class="primary">回答を貼り付けて確認</button>
         </div>
-        <p class="status" id="hide-status" aria-live="polite"></p>
+        <p class="note">AI の回答（<code>```json</code> から <code>```</code> まで）をコピーしてから押すと、貼り付けて確認まで行います。下の欄に貼り付けても、すぐに確認します。</p>
+        <textarea
+          id="response"
+          rows="6"
+          spellcheck="false"
+          aria-label="AIの回答"
+          placeholder='[{"id": "...", "status": "ok", "summary": "...", "points": ["..."]}]'></textarea>
+        <div class="actions">
+          <button type="button" id="check">内容を確認する</button>
+          <button type="button" id="response-file-button">ファイルから読み込む</button>
+          <input type="file" id="response-file" accept=".json,.txt,.md,application/json,text/plain" multiple hidden />
+          <button type="button" id="clear-response" class="ghost">クリア</button>
+        </div>
+        <p class="note">AI が作った JSON ファイル（{ANSWER_FILE_NAME}）・回答を保存したファイル・「保存用JSON」も読み込めます（この欄へのドラッグでも可）。</p>
+        <p class="status" id="response-file-status" aria-live="polite"></p>
+        <div id="check-result" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card" id="step-4">
+      <h2><span class="step">4</span>保存して公開する</h2>
+      <div class="card-body">
+        <p class="note" id="save-info">確認できた要約はまだありません。</p>
+        <div class="actions">
+          <button type="button" id="save" class="primary" disabled>保存して公開</button>
+          <button type="button" id="download-json" disabled>保存用JSONをダウンロード</button>
+        </div>
+        <p class="status" id="save-status" aria-live="polite"></p>
       </div>
     </section>
 
@@ -126,98 +240,11 @@ import { href } from '../../lib/items.ts';
       </div>
     </details>
 
-    <section class="card">
-      <h2><span class="step">2</span>プロンプトをコピーしてAIに渡す</h2>
-      <div class="card-body">
-        <div class="controls">
-          <label class="field inline">
-            <span>要約の長さ</span>
-            <select id="length">
-              {
-                Object.entries(SUMMARY_LENGTHS).map(([key, value]) => (
-                  <option value={key} selected={key === 'normal'}>
-                    {value.label}（{value.min}〜{value.max}字）
-                  </option>
-                ))
-              }
-            </select>
-          </label>
-          <label class="field inline">
-            <span>1回に貼り付ける長さの上限</span>
-            <select id="max-chars">
-              <option value="0">上限なし</option>
-              <option value="8000">8,000字</option>
-              <option value="15000" selected>15,000字</option>
-              <option value="30000">30,000字</option>
-              <option value="60000">60,000字</option>
-            </select>
-          </label>
-          <label class="field inline">
-            <span>AI の回答のしかた</span>
-            <select id="answer-mode">
-              <option value="codeblock" selected>コードブロック（コピー）</option>
-              <option value="file">JSON ファイル（ダウンロード）</option>
-            </select>
-          </label>
-          <label class="check">
-            <input id="points" type="checkbox" checked />
-            要点（箇条書き）も作る
-          </label>
-        </div>
-        <div class="prompt-parts" id="prompt-parts" hidden></div>
-        <textarea id="prompt" rows="12" readonly aria-label="AIに渡すプロンプト"></textarea>
-        <div class="actions">
-          <button type="button" id="copy-prompt" class="primary">プロンプトをコピー</button>
-          <button type="button" id="download-prompt">ファイルで保存</button>
-          <button type="button" id="download-prompt-all" hidden>全部を1つのファイルで保存</button>
-          <span class="note" id="prompt-info"></span>
-        </div>
-        <div class="status" id="prompt-status" aria-live="polite"></div>
-        <details class="help">
-          <summary>プロンプトの渡し方</summary>
-          <ul>
-            <li>プロンプトを丸ごとコピーして、ChatGPT や Gemini など Web ページを読めるチャット AI に貼り付けます。AI は <code>```json</code> のコードブロック1つで答えるので、そのブロックをコピーして手順3に貼り付けます。</li>
-            <li>貼り付けられる長さには上限があるので、上限を超えるプロンプトは何回かに分けます（1回ずつ渡して、回答をそれぞれ確認・保存します）。貼り付けられないときは「ファイルで保存」して、AI にファイルとして添付できます。</li>
-            <li>「AI の回答のしかた」を「JSON ファイル」にすると、AI に {ANSWER_FILE_NAME} を作ってもらい、手順3で読み込めます（ファイルを作れる AI で使えます）。</li>
-            <li>一度に多いと AI の回答が途中で切れることがあるため、10〜20件ずつがおすすめです。AI が開けなかった記事は「unavailable」として返り、「AI が開けない記事」に移ります。</li>
-          </ul>
-        </details>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2><span class="step">3</span>AIの回答（JSON）を貼り付けて確認する</h2>
-      <div class="card-body">
-        <textarea
-          id="response"
-          rows="10"
-          spellcheck="false"
-          aria-label="AIの回答"
-          placeholder='[{"id": "...", "status": "ok", "summary": "...", "points": ["..."]}]'></textarea>
-        <div class="actions">
-          <button type="button" id="check" class="primary">内容を確認する</button>
-          <button type="button" id="response-file-button">ファイルから読み込む</button>
-          <input type="file" id="response-file" accept=".json,.txt,.md,application/json,text/plain" multiple hidden />
-          <button type="button" id="clear-response" class="ghost">クリア</button>
-        </div>
-        <p class="note">AI が作った JSON ファイル（{ANSWER_FILE_NAME}）・回答を保存したファイル・「保存用JSON」も読み込めます（この欄へのドラッグでも可）。</p>
-        <p class="status" id="response-file-status" aria-live="polite"></p>
-        <div id="check-result" aria-live="polite"></div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2><span class="step">4</span>保存して公開する</h2>
-      <div class="card-body">
-        <p class="note" id="save-info">確認できた要約はまだありません。</p>
-        <div class="actions">
-          <button type="button" id="save" class="primary" disabled>保存して公開</button>
-          <button type="button" id="download-json" disabled>保存用JSONをダウンロード</button>
-        </div>
-        <p class="status" id="save-status" aria-live="polite"></p>
-      </div>
-    </section>
-
+    <!-- 次にやること（画面の下に固定。スマホでも、スクロールせずに親指で押せるように） -->
+    <div class="flow-bar" id="flow-bar" hidden>
+      <p class="flow-text" id="flow-text" aria-live="polite"></p>
+      <button type="button" class="primary" id="flow-action"></button>
+    </div>
     </div>
 
     <div class="tab-panel" role="tabpanel" id="panel-auto" data-panel="auto" data-aliases="auto-card" aria-labelledby="tab-auto" hidden>
@@ -743,7 +770,8 @@ import { href } from '../../lib/items.ts';
     top: 8px;
     right: 10px;
   }
-  :global(.saved-row label) {
+  /* 右上の「編集」と重ならないように（編集欄の中の入力欄には付けない） */
+  :global(.saved-row > label) {
     padding-right: 64px !important;
   }
   :global(.auto-status) {
@@ -1066,5 +1094,347 @@ import { href } from '../../lib/items.ts';
   :global(:root[data-theme='dark'] .badge-inline.ok) {
     color: #7ee2a1;
     border-color: #1f5a35;
+  }
+
+  /* ===== 要約を作る: スマホでも迷わず進めるように（手順の進み具合・下に固定の「次にやること」・畳める一覧・カードの確認結果） ===== */
+  .stepper {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .stepper button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 4px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .stepper .step {
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+  .stepper button.done {
+    color: var(--text-2);
+  }
+  /* 終わった手順は番号の代わりに ✓ */
+  .stepper button.done .step {
+    border-color: var(--accent);
+    color: transparent;
+    position: relative;
+  }
+  .stepper button.done .step::after {
+    content: '✓';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--accent-strong);
+    font-size: 0.75rem;
+  }
+  .stepper button[aria-current='step'] {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+  .stepper button[aria-current='step'] .step {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  :global(.admin .pick-head) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 10px;
+  }
+  :global(.admin .pick-head .counter) {
+    margin: 0;
+    color: var(--text-2);
+  }
+  :global(.admin .counter-note) {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+  }
+  :global(.admin .pick-details) {
+    margin-top: 10px;
+  }
+  :global(.admin .pick-details > summary) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+  }
+  :global(.admin .pick-details > summary::-webkit-details-marker) {
+    display: none;
+  }
+  :global(.admin .pick-details > summary::after) {
+    content: '開く ▾';
+    flex-shrink: 0;
+    color: var(--accent-strong);
+    font-size: 0.75rem;
+  }
+  :global(.admin .pick-details[open] > summary::after) {
+    content: '閉じる ▴';
+  }
+  :global(.admin .pick-details > .check) {
+    margin: 10px 0 8px;
+  }
+  :global(.admin .pick-list .pick-more) {
+    padding: 8px 12px;
+    text-align: center;
+  }
+  :global(.admin .sub-details) {
+    margin-top: 12px;
+  }
+  :global(.admin .sub-details > summary) {
+    cursor: pointer;
+    color: var(--text-2);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+  :global(.admin .sub-details > summary span) {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  :global(.admin .sub-details[open] > summary) {
+    margin-bottom: 8px;
+  }
+  :global(.admin .sub-details .controls) {
+    margin-bottom: 0;
+  }
+  :global(.admin .link-button) {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-strong);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+  /* 確認の結果（記事ごとのカード） */
+  :global(.admin .result-summary) {
+    align-items: center;
+  }
+  :global(.admin .result-list) {
+    display: grid;
+    gap: 8px;
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  :global(.admin .result-card) {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  :global(.admin .result-card.warn) {
+    border-left: 3px solid var(--warn);
+  }
+  :global(.admin .result-card.error) {
+    border-left: 3px solid var(--hot);
+  }
+  :global(.admin .result-card.skip) {
+    background: var(--surface-2);
+  }
+  :global(.admin .result-card.excluded) {
+    opacity: 0.55;
+  }
+  :global(.admin .result-head) {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  :global(.admin .result-check) {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+    cursor: pointer;
+  }
+  :global(.admin .result-check input) {
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+  :global(.admin .result-head .result-state) {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+  }
+  :global(.admin .result-text) {
+    margin: 6px 0 0;
+    font-size: 0.85rem;
+    line-height: 1.75;
+  }
+  :global(.admin .result-card .points) {
+    margin: 6px 0 0;
+    padding-left: 1.2em;
+    color: var(--text-2);
+    font-size: 0.8rem;
+  }
+  :global(.admin .result-detail .pick-meta) {
+    margin-top: 4px;
+  }
+  :global(.admin .result-card.collapsed .result-text) {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+  }
+  :global(.admin .result-card.collapsed .result-detail) {
+    display: none;
+  }
+  :global(.admin .result-more) {
+    margin-top: 6px;
+  }
+  :global(.admin details.fix-box) {
+    display: block;
+  }
+  :global(.admin .fix-box > summary) {
+    cursor: pointer;
+    color: var(--warn);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  :global(.admin .fix-box > * + *) {
+    margin-top: 8px;
+  }
+  /* 次にやること（画面の下に固定） */
+  :global(.admin .flow-bar) {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: 0 -6px 18px rgb(0 0 0 / 0.1);
+  }
+  :global(.admin .flow-bar[hidden]) {
+    display: none;
+  }
+  :global(.admin .flow-text) {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    color: var(--text-2);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+  :global(.admin .flow-bar button) {
+    flex-shrink: 0;
+    padding: 10px 18px;
+  }
+  /* スマホ: 指で押しやすく、縦に短く */
+  @media (max-width: 640px) {
+    .stepper button {
+      flex-direction: column;
+      gap: 2px;
+      padding: 6px 2px;
+      font-size: 0.72rem;
+    }
+    :global(.admin .pick-controls) {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 8px 10px;
+    }
+    :global(.admin .pick-controls .sort-field) {
+      grid-column: 1 / -1;
+    }
+    :global(.admin .pick-controls select) {
+      width: 100%;
+    }
+    /* 選ぶ記事の一覧は枠の中でスクロールさせない（指で動かしにくいので、ページごとスクロールする。「もっと見る」で少しずつ出す） */
+    :global(.admin #pick-list) {
+      max-height: none;
+      overflow: visible;
+    }
+    :global(.admin .pick-row) {
+      flex-wrap: wrap;
+    }
+    :global(.admin .pick-row > label) {
+      flex-basis: 100%;
+    }
+    :global(.admin .pick-row > button) {
+      margin: -4px 0 8px 35px;
+      padding: 3px 10px;
+      font-size: 0.75rem;
+    }
+    :global(.admin .copy-actions #copy-prompt),
+    :global(.admin #paste-check) {
+      flex: 1 1 100%;
+      padding: 12px;
+      font-size: 0.95rem;
+    }
+    :global(.admin .flow-bar) {
+      flex-direction: column;
+      align-items: stretch;
+      margin: 0 -16px;
+      padding: 8px 16px 10px;
+      border-width: 1px 0 0;
+      border-radius: 0;
+    }
+    :global(.admin .flow-text) {
+      font-size: 0.75rem;
+      text-align: center;
+    }
+    :global(.admin .flow-bar button) {
+      width: 100%;
+      padding: 12px;
+      font-size: 0.95rem;
+    }
+    :global(.admin .editor) {
+      padding: 4px 10px 12px;
+    }
+    /* 保存済みの要約: 要約は3行まで、要点・背景・キーワードは編集を開いたときに */
+    :global(.admin #saved-list) {
+      max-height: none;
+      overflow: visible;
+    }
+    :global(.admin .saved-row .saved-text) {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      overflow: hidden;
+    }
+    :global(.admin .saved-row .saved-extra) {
+      display: none;
+    }
+  }
+  /* 指で操作する端末では、ブックマークバーに登録するボタンの案内は出さない（スマホでは使えないため） */
+  @media (hover: none) and (pointer: coarse) {
+    .bookmarklet-row {
+      display: none;
+    }
   }
 </style>

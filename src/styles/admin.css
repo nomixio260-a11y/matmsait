@@ -623,13 +623,22 @@
   color: var(--text-2);
   font-size: 0.875rem;
 }
-/* スマホ: タブが2段になるので、下線ではなく丸いボタンの形にする（選んでいるものを塗る） */
+/* スマホ: タブは丸いボタンの形にして1段に並べ、横にスクロールする（縦に場所を取らないように。選んでいるものを塗る） */
 @media (max-width: 640px) {
   .admin .tabs {
+    flex-wrap: nowrap;
     gap: 6px;
+    margin: 0 -16px;
+    padding: 2px 16px 4px;
+    overflow-x: auto;
     border-bottom: 0;
+    scrollbar-width: none;
+  }
+  .admin .tabs::-webkit-scrollbar {
+    display: none;
   }
   .admin .tabs button[role='tab'] {
+    flex-shrink: 0;
     margin-bottom: 0;
     padding: 6px 11px;
     border: 1px solid var(--border-strong);

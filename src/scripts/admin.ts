@@ -1,5 +1,5 @@
 // 管理画面の「AI要約・記事」（/admin/summaries/）: 要約待ちの記事を選んでプロンプトを作り、AI の回答を検証して GitHub に保存する。
-// 記事の非表示・収集元の状況もここで扱う（サイトの更新の実行は「概要」（/admin/、admin-dashboard.ts））
+// 記事の非表示・収集元の状況もここで扱う（サイトの更新の実行は「ホーム」（/admin/、admin-dashboard.ts））
 import {
   BLOCKLIST_PATH,
   emptyBlocklist,
@@ -185,6 +185,12 @@ const ui = {
   sort: $<HTMLSelectElement>('sort'),
   counter: $('pick-counter'),
   pickList: $<HTMLUListElement>('pick-list'),
+  pickDetails: $<HTMLDetailsElement>('pick-details'),
+  pickDetailsLabel: $('pick-details-label'),
+  promptSettingsText: $('prompt-settings-text'),
+  flowBar: $('flow-bar'),
+  flowText: $('flow-text'),
+  flowAction: $<HTMLButtonElement>('flow-action'),
   length: $<HTMLSelectElement>('length'),
   points: $<HTMLInputElement>('points'),
   prompt: $<HTMLTextAreaElement>('prompt'),
@@ -270,6 +276,21 @@ const selected = new Set<string>();
 let batch: AdminArticle[] = [];
 let validation: ValidationResult | undefined;
 const excluded = new Set<string>();
+/** コピー（またはファイルで保存）したプロンプト（中身の目印。プロンプトが変わればコピーし直す） */
+const copiedPrompts = new Set<string>();
+/** 保存中か・直前に保存した件数（画面の下の「次にやること」に出す） */
+let saving = false;
+let justSaved = 0;
+/** 最後に確認した回答（回答の欄を書き換えたら、確認し直すまで保存しない） */
+let checkedResponse = '';
+/** 一覧に出している記事の数（「もっと見る」で増やす） */
+const PICK_STEP = 30;
+let pickShown = PICK_STEP;
+/** 保存済みの要約を一度に出す数（「もっと見る」で増やす） */
+const SAVED_STEP = 20;
+let savedShown = SAVED_STEP;
+/** スマホの幅か（一覧を畳む・確認の結果を短く出す） */
+const narrow = () => window.matchMedia('(max-width: 640px)').matches;
 /** ログイン中に使う GitHub のトークン（ログインページで暗号化を解いたもの。このタブの中だけで使う） */
 let token = '';
 /** 運営者が貼り付けた記事の本文（記事ID → 本文）。プロンプトを作るのに使うだけで、サイトや GitHub には保存・公開しない */
@@ -359,8 +380,12 @@ function renderPickList() {
   const list = pendingArticles();
   const marks = readUnavailable();
   const flagged = flaggedSources(marks);
+  // 一覧は少しずつ出す（スマホで長くなりすぎないように）。選んでいる記事は必ず出す
+  const lastSelected = list.reduce((last, article, index) => (selected.has(article.id) ? index : last), -1);
+  const available = Math.min(list.length, LIST_LIMIT);
+  const shown = Math.min(available, Math.max(pickShown, lastSelected + 1));
   ui.pickList.replaceChildren(
-    ...list.slice(0, LIST_LIMIT).map((article) => {
+    ...list.slice(0, shown).map((article) => {
       const item = el('li');
       const label = el('label');
       const box = el('input');
@@ -388,6 +413,17 @@ function renderPickList() {
       return item;
     }),
   );
+  if (shown < available) {
+    const more = el('li', 'pick-more');
+    const button = el('button', 'ghost small', `もっと見る（あと${available - shown}件）`);
+    button.type = 'button';
+    button.addEventListener('click', () => {
+      pickShown = shown + PICK_STEP;
+      renderPickList();
+    });
+    more.append(button);
+    ui.pickList.append(more);
+  }
   if (list.length === 0) ui.pickList.append(el('li', 'pick-meta', '要約待ちの記事はありません。'));
   renderCounter(list.length);
 }
@@ -404,13 +440,12 @@ function renderCounter(total: number) {
   const shown = Math.min(total, LIST_LIMIT);
   const blocked = aiBlocked();
   const skipped = pendingArticles().filter(blocked).length;
-  ui.counter.textContent = [
-    `要約待ち ${total}件${total > shown ? `（上位${shown}件を表示）` : ''}`,
-    `選択中 ${selected.size}件`,
-    skipped > 0 ? `AI が開けない記事・本文を貼った記事 ${skipped}件は自動では選びません` : '',
-  ]
-    .filter(Boolean)
-    .join(' ・ ');
+  ui.counter.replaceChildren(
+    el('strong', '', `選択中 ${selected.size}件`),
+    ` ・ 要約待ち ${total}件${total > shown ? `（上位${shown}件から選べます）` : ''}`,
+    ...(skipped > 0 ? [el('span', 'counter-note', `AI が開けない記事・本文を貼った記事 ${skipped}件は自動では選びません`)] : []),
+  );
+  ui.pickDetailsLabel.textContent = `選んだ記事を見る・変える（${selected.size}件）`;
 }
 
 // ===== 2. プロンプト =====
@@ -568,6 +603,21 @@ function fileSavedMessage(panel: PromptPanel, filename: string) {
   panel.status.className = 'status';
 }
 
+/** プロンプトの中身の目印（コピーしたものと同じかを見分ける） */
+function promptMark(text: string): string {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+  return `${text.length}:${hash}`;
+}
+
+/** プロンプトをコピー（またはファイルで保存）したことを残す（画面の下の「次にやること」を手順3にする） */
+function markCopied(text: string) {
+  copiedPrompts.add(promptMark(text));
+  justSaved = 0;
+  saveDraft();
+  renderFlow();
+}
+
 function setupPanel(panel: PromptPanel, copyButton: HTMLButtonElement, downloadButton: HTMLButtonElement) {
   copyButton.addEventListener('click', async () => {
     const part = panel.list[panel.current];
@@ -577,8 +627,11 @@ function setupPanel(panel: PromptPanel, copyButton: HTMLButtonElement, downloadB
       await navigator.clipboard.writeText(part.text);
       copyButton.textContent = 'コピーしました';
     } catch {
+      // コピーできないブラウザでは、プロンプトを選んだ状態にする（畳んであれば開く）
+      const details = panel.textarea.closest('details');
+      if (details) details.open = true;
       panel.textarea.select();
-      copyButton.textContent = '選択しました（Ctrl+C でコピー）';
+      copyButton.textContent = '選択しました（コピーしてください）';
     }
     setTimeout(() => (copyButton.textContent = label), 2500);
     const total = panel.list.length;
@@ -586,8 +639,9 @@ function setupPanel(panel: PromptPanel, copyButton: HTMLButtonElement, downloadB
       panel.status,
       total > 1
         ? `${panel.current + 1}回目（全${total}回）をコピーしました。AI の回答を手順3で確認・保存したら、${panel.current + 1 < total ? `次の${panel.current + 2}回目に進んでください。` : 'すべての回が終わりです。'}`
-        : 'コピーしました。AI に貼り付けて、回答を手順3で確認・保存してください。',
+        : 'コピーしました。チャット AI に貼り付けて送り、返ってきた回答をコピーして手順3へ。',
     );
+    markCopied(part.text);
   });
   downloadButton.addEventListener('click', () => {
     const part = panel.list[panel.current];
@@ -596,6 +650,7 @@ function setupPanel(panel: PromptPanel, copyButton: HTMLButtonElement, downloadB
     const filename = `${panel.name}-${stamp()}${total > 1 ? `-${panel.current + 1}of${total}` : ''}.txt`;
     download(filename, part.text, 'text/plain');
     fileSavedMessage(panel, filename);
+    markCopied(part.text);
   });
   panel.downloadAll.addEventListener('click', () => {
     if (!panel.whole) return;
@@ -611,6 +666,10 @@ function renderPrompt() {
   saveDraft();
   fillPanel(promptPanel, batch);
   saveOptions();
+  // 畳んだ「設定」に、いまの設定を短く出す
+  const option = (select: HTMLSelectElement) => (select.selectedOptions[0]?.textContent ?? '').replace(/（.*$/, '').trim();
+  ui.promptSettingsText.textContent = [option(ui.length), option(ui.maxChars), option(ui.answerMode), ui.points.checked ? '要点あり' : '要点なし'].join('・');
+  renderFlow();
 }
 
 /** 本文を貼った記事の、本文入りのプロンプト */
@@ -1264,6 +1323,8 @@ interface Draft {
   /** 自動で取得した本文の記事・自動の本文を消した記事 */
   autoTexts?: string[];
   noAuto?: string[];
+  /** コピーしたプロンプトの目印 */
+  copied?: string[];
   savedAt: number;
 }
 const DRAFT_KEY = 'admin.draft';
@@ -1279,6 +1340,7 @@ function saveDraft() {
     pasteIds: [...pasteIds],
     autoTexts: [...autoTexts],
     noAuto: [...noAuto],
+    copied: [...copiedPrompts].slice(-20),
     savedAt: Date.now(),
   };
   try {
@@ -1316,6 +1378,8 @@ function restoreDraft(): boolean {
   noAuto.clear();
   for (const id of Array.isArray(draft.noAuto) ? draft.noAuto : []) if (exists(id)) noAuto.add(id);
   ui.response.value = typeof draft.response === 'string' ? draft.response : '';
+  copiedPrompts.clear();
+  for (const mark of Array.isArray(draft.copied) ? draft.copied : []) if (typeof mark === 'string') copiedPrompts.add(mark);
   return true;
 }
 
@@ -1374,15 +1438,20 @@ function acceptedToSave(): { accepted: AcceptedSummary; article: AdminArticle }[
     });
 }
 
+/** 回答の欄を、確認したあとに書き換えたか（確認し直すまで保存しない。保存するのは確認した内容のため） */
+const responseEdited = () => ui.response.value.trim() !== '' && ui.response.value !== checkedResponse;
+
 function renderSaveArea() {
   const count = acceptedToSave().length;
-  ui.save.disabled = count === 0;
+  ui.save.disabled = count === 0 || saving || responseEdited();
   ui.downloadJson.disabled = count === 0;
   ui.save.textContent = count > 0 ? `${count}件の要約を保存して公開` : '保存して公開';
-  ui.saveInfo.textContent =
-    count > 0
+  ui.saveInfo.textContent = responseEdited()
+    ? '回答の欄を書き換えました。「内容を確認する」を押して確認し直してから保存してください。'
+    : count > 0
       ? `確認できた要約 ${count}件 を GitHub に保存します。保存後、1〜3分ほどでサイトに反映されます。`
       : '確認できた要約はまだありません。';
+  renderFlow();
 }
 
 /** 品質の注意の一覧（要約の決まりに合っていない可能性がある点） */
@@ -1398,12 +1467,14 @@ function warningList(warnings: QualityWarning[]): HTMLElement {
  * （直った回答の要約で、今の回答の同じ id の要約を置き換えて、もう一度確認する）
  */
 function fixBox(flagged: AcceptedSummary[]): HTMLElement {
-  const box = el('div', 'fix-box');
+  // 畳んでおき、直してもらうときだけ開く（スマホで確認の結果が長くならないように）
+  const box = el('details', 'fix-box');
   box.append(
+    el('summary', '', `要確認 ${flagged.length}件を AI に直してもらう（任意）`),
     el(
       'p',
       'note',
-      `要確認 ${flagged.length}件: 要約の決まり（見出しの言い換え・宣伝の言葉・中身のない定型文・推測・あいまいな日付・文体・長すぎる文など）に合っていない可能性がある点を、機械的に見つけました。記事と見比べて直したほうがよければ、「直してもらうプロンプト」をコピーして最初と同じ AI のチャットに貼り付け、直った回答をこの下に貼って「取り込む」を押してください（その要約だけが置き換わります）。そのまま保存することもできます。`,
+      `要約の決まり（見出しの言い換え・宣伝の言葉・中身のない定型文・推測・あいまいな日付・文体・長すぎる文など）に合っていない可能性がある点を、機械的に見つけました。直すときは「直してもらうプロンプト」をコピーして最初と同じ AI のチャットに貼り付け、直った回答をこの下に貼って「取り込む」を押します（その要約だけが置き換わります）。そのまま保存することもできます。`,
     ),
   );
   const copy = el('button', 'small', '直してもらうプロンプトをコピー');
@@ -1462,6 +1533,7 @@ function fixBox(flagged: AcceptedSummary[]): HTMLElement {
 
 /** AI の回答を確認する。record が false なら（作業を戻したときなど）、AI が開けなかった記事の記録や自動取得の依頼はしない */
 function checkResponse({ record = true }: { record?: boolean } = {}) {
+  checkedResponse = ui.response.value;
   validation = undefined;
   excluded.clear();
   ui.checkResult.replaceChildren();
@@ -1502,15 +1574,16 @@ function checkResponse({ record = true }: { record?: boolean } = {}) {
     el('span', 'badge', `エラー ${validation.errors.length}件`),
   );
 
-  const table = el('table', 'result-table');
-  const head = el('tr');
-  head.append(el('th', '', '保存'), el('th', '', '記事と要約'), el('th', '', '状態'));
-  table.append(head);
-
+  // 記事ごとのカード（スマホでは要約を3行までにして短く出し、「全文を見る」で開く）
+  const collapse = narrow();
+  const list = el('ul', 'result-list');
+  const toggles: (() => void)[] = [];
   for (const entry of validation.accepted) {
     const found = findArticle(entry.id)!;
-    const row = el('tr');
-    const include = el('td');
+    const warned = (entry.warnings?.length ?? 0) > 0;
+    const card = el('li', `result-card${warned ? ' warn' : ''}${collapse ? ' collapsed' : ''}`);
+    const head = el('div', 'result-head');
+    const label = el('label', 'result-check');
     const box = el('input');
     box.type = 'checkbox';
     box.checked = true;
@@ -1518,22 +1591,36 @@ function checkResponse({ record = true }: { record?: boolean } = {}) {
     box.addEventListener('change', () => {
       if (box.checked) excluded.delete(entry.id);
       else excluded.add(entry.id);
+      card.classList.toggle('excluded', !box.checked);
       renderSaveArea();
     });
-    include.append(box);
-    const body = el('td');
-    body.append(el('div', 'pick-title', found.article.title), el('div', '', entry.summary));
+    label.append(box, el('span', 'pick-title', found.article.title));
+    const state = `${entry.replaces ? 'OK（上書き）' : 'OK'}${warned ? '・要確認' : ''}`;
+    head.append(label, el('span', `result-state ok${warned ? ' warn' : ''}`, state));
+    const detail = el('div', 'result-detail');
     if (entry.points.length > 0) {
       const points = el('ul', 'points');
       points.append(...entry.points.map((point) => el('li', '', point)));
-      body.append(points);
+      detail.append(points);
     }
-    if (entry.background) body.append(el('div', 'pick-meta', `背景: ${entry.background}`));
-    if (entry.keywords?.length) body.append(el('div', 'pick-meta', `キーワード: ${entry.keywords.join('、')}`));
-    if (entry.warnings?.length) body.append(warningList(entry.warnings));
-    const state = `${entry.replaces ? 'OK（上書き）' : 'OK'}${entry.warnings?.length ? '・要確認' : ''}`;
-    row.append(include, body, el('td', `result-state ok${entry.warnings?.length ? ' warn' : ''}`, state));
-    table.append(row);
+    if (entry.background) detail.append(el('div', 'pick-meta', `背景: ${entry.background}`));
+    if (entry.keywords?.length) detail.append(el('div', 'pick-meta', `キーワード: ${entry.keywords.join('、')}`));
+    card.append(head, el('p', 'result-text', entry.summary));
+    if (detail.childElementCount > 0) card.append(detail);
+    if (warned) card.append(warningList(entry.warnings!));
+    // スマホだけ、短く出して「全文を見る」で開く（PC でははじめから全部出す）
+    if (collapse) {
+      const more = el('button', 'link-button result-more', '全文を見る');
+      more.type = 'button';
+      const toggle = (open = card.classList.contains('collapsed')) => {
+        card.classList.toggle('collapsed', !open);
+        more.textContent = open ? '短く表示' : '全文を見る';
+      };
+      more.addEventListener('click', () => toggle());
+      toggles.push(() => toggle(true));
+      card.append(more);
+    }
+    list.append(card);
   }
   const issues = [
     ...validation.errors.map((issue) => ({ ...issue, kind: 'error' })),
@@ -1541,15 +1628,24 @@ function checkResponse({ record = true }: { record?: boolean } = {}) {
     ...missing.map((article) => ({ id: article.id, reason: '回答に含まれていません', kind: 'skip' })),
   ];
   for (const issue of issues) {
-    const row = el('tr');
+    const card = el('li', `result-card ${issue.kind}`);
+    const head = el('div', 'result-head');
     const title = findArticle(issue.id)?.article.title ?? `id: ${issue.id}`;
-    const body = el('td');
-    body.append(el('div', 'pick-title', title), el('div', 'pick-meta', issue.reason));
-    row.append(el('td'), body, el('td', `result-state ${issue.kind}`, issue.kind === 'error' ? 'エラー' : '見送り'));
-    table.append(row);
+    head.append(el('span', 'pick-title', title), el('span', `result-state ${issue.kind}`, issue.kind === 'error' ? 'エラー' : '見送り'));
+    card.append(head, el('p', 'pick-meta', issue.reason));
+    list.append(card);
+  }
+  if (collapse && toggles.length > 0) {
+    const all = el('button', 'link-button', 'すべて全文を見る');
+    all.type = 'button';
+    all.addEventListener('click', () => {
+      for (const open of toggles) open();
+      all.remove();
+    });
+    summary.append(all);
   }
   // 要確認があれば、件数のすぐ下に直してもらう手順を出す（一覧が長くても見つけやすいように）
-  ui.checkResult.append(summary, ...(flagged.length > 0 ? [fixBox(flagged)] : []), table);
+  ui.checkResult.append(summary, ...(flagged.length > 0 ? [fixBox(flagged)] : []), list);
 
   // AI が開けなかった記事を記録し、「AI が開けない記事」に移す（次からは自動で選ばない）
   const unavailable = validation.skipped.filter((issue) => issue.unavailable).map((issue) => issue.id);
@@ -1621,13 +1717,15 @@ function actionsLink(): HTMLAnchorElement {
 
 async function saveSummaries() {
   const toSave = acceptedToSave();
-  if (toSave.length === 0) return;
+  if (toSave.length === 0 || saving || responseEdited()) return;
   const now = new Date();
   const records = toSave.map(({ accepted, article }) => toSummaryRecord(article, accepted, now));
-  ui.save.disabled = true;
+  saving = true;
+  renderSaveArea();
   setStatus(ui.saveStatus, `${records.length}件を保存しています…`);
   try {
     const { changed } = await commitSummaries(records, [], `要約を追加（${records.length}件）`);
+    justSaved = records.length;
     addMarks(KEYS.saved, records.map((record) => record.id));
     clearPasted(records.map((record) => record.id));
     // 作り直した要約は、サイトに反映されるまで「保存済みの要約」に新しい内容を出す
@@ -1658,8 +1756,112 @@ async function saveSummaries() {
   } catch (error) {
     setStatus(ui.saveStatus, `保存できませんでした: ${errorText(error)}`, 'error');
   } finally {
+    saving = false;
     renderSaveArea();
   }
+}
+
+// ===== 次にやること（画面の下のバー）と、手順の進み具合 =====
+
+interface FlowState {
+  step: 1 | 2 | 3 | 4;
+  text: string;
+  action: string;
+  run: () => void;
+  disabled?: boolean;
+}
+
+/** いまの作業の状態から、次にやることを決める */
+function flowState(): FlowState {
+  const toSave = acceptedToSave();
+  if (saving) return { step: 4, text: 'GitHub に保存しています…', action: '保存しています…', run: () => {}, disabled: true };
+  if (responseEdited()) {
+    return { step: 3, text: '回答の欄を書き換えました。確認し直してから保存します', action: '内容を確認する', run: () => checkResponse() };
+  }
+  if (toSave.length > 0) {
+    const flagged = toSave.filter(({ accepted }) => accepted.warnings?.length).length;
+    return {
+      step: 4,
+      text: `確認できた ${toSave.length}件${flagged > 0 ? `（うち要確認 ${flagged}件）` : ''}を保存して、サイトに載せます`,
+      action: `${toSave.length}件を保存して公開`,
+      run: () => void saveSummaries(),
+    };
+  }
+  const parts = [...promptPanel.list, ...pastePanel.list];
+  const part = promptPanel.list[promptPanel.current];
+  if (!part && pastePanel.list.length === 0) {
+    return { step: 1, text: '要約する記事を選んでください', action: '記事を選ぶ', run: () => openStep(1, { expand: true }) };
+  }
+  const copied = parts.some((item) => copiedPrompts.has(promptMark(item.text)));
+  if (copied) {
+    const pasted = ui.response.value.trim() !== '';
+    return {
+      step: 3,
+      text: pasted
+        ? '保存できる要約がありません。回答を確かめて（手順3）、貼り直してください'
+        : 'AI の回答（```json〜```）をコピーしてから押してください',
+      action: pasted ? '回答を貼り直して確認' : '回答を貼り付けて確認',
+      run: () => void pasteAndCheck(),
+    };
+  }
+  if (!part) return { step: 1, text: '要約する記事を選んでください', action: '記事を選ぶ', run: () => openStep(1, { expand: true }) };
+  const total = promptPanel.list.length;
+  const which = total > 1 ? `${promptPanel.current + 1}回目（全${total}回）の` : '';
+  return {
+    step: 2,
+    text: `${justSaved > 0 ? `${justSaved}件を保存しました。続けて、` : ''}${which}プロンプト（${part.ids.length}件）をコピーして、チャット AI に貼り付けます`,
+    action: `${which}プロンプトをコピー`,
+    run: () => $<HTMLButtonElement>('copy-prompt').click(),
+  };
+}
+
+let flowRun: () => void = () => {};
+
+function renderFlow() {
+  if (!data) return;
+  const state = flowState();
+  ui.flowBar.hidden = false;
+  ui.flowText.textContent = state.text;
+  ui.flowAction.textContent = state.action;
+  ui.flowAction.disabled = state.disabled === true;
+  flowRun = state.run;
+  for (const button of document.querySelectorAll<HTMLButtonElement>('#stepper [data-step]')) {
+    const step = Number(button.dataset.step);
+    button.classList.toggle('done', step < state.step);
+    if (step === state.step) button.setAttribute('aria-current', 'step');
+    else button.removeAttribute('aria-current');
+  }
+}
+
+/** 手順のカードへ移る（expand: 手順1の記事の一覧を開く） */
+function openStep(step: number, { expand = false }: { expand?: boolean } = {}) {
+  if (step === 1 && expand) ui.pickDetails.open = true;
+  $(`step-${step}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** クリップボードの AI の回答を貼り付けて確認する（読めないときは欄に貼ってもらう） */
+async function pasteAndCheck() {
+  let text = '';
+  try {
+    text = await navigator.clipboard.readText();
+  } catch {
+    text = '';
+  }
+  if (!text.trim()) {
+    openStep(3);
+    ui.response.focus({ preventScroll: true });
+    setStatus(
+      ui.responseFileStatus,
+      'クリップボードから読み取れませんでした。AI の回答をコピーしてから、もう一度押すか、下の欄を長押しして「ペースト」で貼り付けてください（貼り付けるとすぐに確認します）。',
+      'error',
+    );
+    return;
+  }
+  ui.response.value = text;
+  saveDraft();
+  setStatus(ui.responseFileStatus, '');
+  checkResponse();
+  ui.checkResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function downloadRecords() {
@@ -1777,6 +1979,15 @@ function summaryEditor(record: AdminSummary, onSaved: () => void): HTMLElement {
   };
   summaryInput.addEventListener('input', updateCount);
   for (const input of [summaryInput, pointsInput, backgroundInput]) input.addEventListener('input', updateWarnings);
+  // 入力欄は中身に合わせて高くする（スマホで欄の中をスクロールしなくても全文が見えるように）
+  const grow = (area: HTMLTextAreaElement) => {
+    area.style.height = 'auto';
+    area.style.height = `${area.scrollHeight + 2}px`;
+  };
+  for (const area of [summaryInput, pointsInput, backgroundInput]) area.addEventListener('input', () => grow(area));
+  requestAnimationFrame(() => {
+    for (const area of [summaryInput, pointsInput, backgroundInput]) grow(area);
+  });
   updateCount();
   updateWarnings();
   cancel.addEventListener('click', () => editor.remove());
@@ -1884,8 +2095,10 @@ function renderSavedList() {
     ui.deleteSelected.textContent = checked.size > 0 ? `選んだ${checked.size}件の要約を削除` : '選んだ要約を削除';
   };
   const edits = readEdits();
+  // 少しずつ出す（スマホで長くなりすぎないように）
+  const shown = list.slice(0, savedShown);
   ui.savedList.replaceChildren(
-    ...list.map((record) => {
+    ...shown.map((record) => {
       const item = el('li', 'saved-row');
       const label = el('label');
       const box = el('input');
@@ -1905,10 +2118,11 @@ function renderSavedList() {
       }
       const recordWarnings = warnings.get(record.id) ?? [];
       if (recordWarnings.length > 0) meta.append(el('span', 'badge-inline warn', '要確認'));
-      label.append(box, el('span', 'pick-title', record.title), meta, el('span', 'pick-summary', record.summary));
-      if (record.points.length > 0) label.append(el('span', 'pick-summary', record.points.map((point) => `・${point}`).join(' ')));
-      if (record.background) label.append(el('span', 'pick-meta', `背景: ${record.background}`));
-      if (record.keywords?.length) label.append(el('span', 'pick-meta', `キーワード: ${record.keywords.join('、')}`));
+      label.append(box, el('span', 'pick-title', record.title), meta, el('span', 'pick-summary saved-text', record.summary));
+      // 要点・背景・キーワードは、スマホでは出さない（「編集」で開くと見られる）
+      if (record.points.length > 0) label.append(el('span', 'pick-summary saved-extra', record.points.map((point) => `・${point}`).join(' ')));
+      if (record.background) label.append(el('span', 'pick-meta saved-extra', `背景: ${record.background}`));
+      if (record.keywords?.length) label.append(el('span', 'pick-meta saved-extra', `キーワード: ${record.keywords.join('、')}`));
       if (recordWarnings.length > 0) label.append(warningList(recordWarnings));
       const editButton = el('button', 'ghost small edit-button', '編集');
       editButton.type = 'button';
@@ -1926,6 +2140,17 @@ function renderSavedList() {
       return item;
     }),
   );
+  if (shown.length < list.length) {
+    const more = el('li', 'pick-more');
+    const button = el('button', 'ghost small', `もっと見る（あと${list.length - shown.length}件）`);
+    button.type = 'button';
+    button.addEventListener('click', () => {
+      savedShown += SAVED_STEP;
+      renderSavedList();
+    });
+    more.append(button);
+    ui.savedList.append(more);
+  }
   if (list.length === 0) {
     ui.savedList.append(
       el(
@@ -2228,7 +2453,7 @@ async function main() {
       el(
         'p',
         'stale-warning',
-        `サイトが${hours}時間以上更新されていません。定期実行が止まっている可能性があります。「概要」のページの「今すぐ更新」で更新できます。`,
+        `サイトが${hours}時間以上更新されていません。定期実行が止まっている可能性があります。「ホーム」の「今すぐ更新」で更新できます。`,
       ),
     );
   }
@@ -2241,15 +2466,29 @@ async function main() {
   );
 
   const refresh = () => {
+    pickShown = PICK_STEP;
     autoSelect();
     renderPickList();
     renderPrompt();
   };
+  // スマホでは選んだ記事の一覧を畳んでおく（コピーのボタンまで遠くならないように）
+  if (narrow()) ui.pickDetails.open = false;
+  // 手順の進み具合を押すと、その手順へ移る
+  for (const button of document.querySelectorAll<HTMLButtonElement>('#stepper [data-step]')) {
+    button.addEventListener('click', () => openStep(Number(button.dataset.step), { expand: button.dataset.step === '1' }));
+  }
+  ui.flowAction.addEventListener('click', () => flowRun());
+  $('paste-check').addEventListener('click', () => void pasteAndCheck());
   ui.count.addEventListener('change', refresh);
   ui.includeSummarized.addEventListener('change', refresh);
-  ui.savedFilter.addEventListener('input', renderSavedList);
-  ui.savedWarnOnly.addEventListener('change', renderSavedList);
-  ui.savedAutoOnly.addEventListener('change', renderSavedList);
+  // 絞り込みを変えたら、はじめの数から出し直す
+  const refilterSaved = () => {
+    savedShown = SAVED_STEP;
+    renderSavedList();
+  };
+  ui.savedFilter.addEventListener('input', refilterSaved);
+  ui.savedWarnOnly.addEventListener('change', refilterSaved);
+  ui.savedAutoOnly.addEventListener('change', refilterSaved);
   ui.category.addEventListener('change', refresh);
   ui.sort.addEventListener('change', refresh);
   $('reselect').addEventListener('click', refresh);
@@ -2269,7 +2508,17 @@ async function main() {
     ui.responseFile.value = '';
   });
   acceptDroppedFiles(ui.response, loadResponseFiles);
-  ui.response.addEventListener('input', saveDraft);
+  ui.response.addEventListener('input', () => {
+    saveDraft();
+    renderSaveArea();
+  });
+  // 欄に貼り付けたら、すぐに確認する（スマホで「確認する」を探さなくてよいように）
+  ui.response.addEventListener('paste', () =>
+    setTimeout(() => {
+      saveDraft();
+      checkResponse();
+    }, 0),
+  );
   $('clear-response').addEventListener('click', () => {
     ui.response.value = '';
     validation = undefined;

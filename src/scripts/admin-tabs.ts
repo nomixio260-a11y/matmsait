@@ -25,7 +25,12 @@ export function setupTabs(onSelect?: (name: string) => void): void {
       const on = tab.dataset.tab === name;
       tab.setAttribute('aria-selected', String(on));
       tab.tabIndex = on ? 0 : -1;
-      if (on && focus) tab.focus();
+      if (on && focus) tab.focus({ preventScroll: true });
+      // スマホではタブが横にスクロールするので、選んだタブが見えるようにする（ページは縦に動かさない）
+      if (on && list.scrollWidth > list.clientWidth) {
+        const offset = tab.getBoundingClientRect().left - list.getBoundingClientRect().left;
+        list.scrollLeft += offset - (list.clientWidth - tab.offsetWidth) / 2;
+      }
     }
     for (const panel of panels) panel.hidden = panel.dataset.panel !== name;
     if (!keepHash) history.replaceState(history.state, '', name === first ? location.pathname + location.search : `#${name}`);
