@@ -215,7 +215,7 @@ AI 整理のプロンプトにも、要約と同じ基準（共通の事実の1�
 - モデルを変えるときは変数 `AUTO_SUMMARY_MODEL` に Workers AI のモデル名を入れます（料金表にないモデルは使う量を多めに見積もります）。Qwen3 以外にしたら、編集方針のページ（`src/pages/editorial.astro`）のモデル名も直してください。
 
 ```sh
-npm run auto-summary -- --dry-run                       # AI には頼まず、選ぶ記事を表示する
+npm run auto-summary -- --dry-run                       # AI には頼まず、選ぶ記事と本文が取れるかを表示する（記録は書かない）
 npm run auto-summary -- --out auto.json                 # 要約して auto.json に書く（CLOUDFLARE_ACCOUNT_ID と CLOUDFLARE_AI_TOKEN が必要）
 npm run summaries -- import auto.json --skip-existing   # 書いた要約を data/summaries/ に取り込む
 ```
