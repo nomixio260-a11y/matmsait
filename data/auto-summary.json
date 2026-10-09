@@ -4,7 +4,7 @@
  "saved": 0,
  "attempts": [],
  "lastRun": {
-  "at": "2026-10-09T20:33:40.737Z",
+  "at": "2026-10-09T21:33:13.355Z",
   "saved": 0,
   "tried": 1,
   "model": "@cf/qwen/qwen3.8-27b",
@@ -12,7 +12,7 @@
   "message": "Workers AI を使う権限がありません（HTTP 401: 10000 Authentication error）"
  },
  "problem": {
-  "at": "2026-10-09T20:33:42.406Z",
+  "at": "2026-10-09T21:33:15.563Z",
   "kind": "auth",
   "message": "Workers AI を使う権限がありません（HTTP 401: 10000 Authentication error）"
  }
