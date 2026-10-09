@@ -66,7 +66,7 @@
 | --- | --- |
 | GitHub Pages（Source: GitHub Actions） | 設定済み・公開中 |
 | AI 要約 | 運営者が管理画面で作成（有料の AI API は使わない）。AI が開けない記事は、運営者が本文を貼り付けて本文入りのプロンプトで依頼するか、同じ話題の別の記事に切り替える。長いプロンプトは分割・ファイルで渡せ、AI の回答はファイルでも読み込める。2026-10-08 にプロンプトを「AI 要約内容 改善指示書」の基準で書き直し、回答の確認・保存済みの要約に「要確認」（宣伝の言葉・定型文・推測・あいまいな日付・長すぎる文など）を出すようにした（保存は止めない） |
-| AI の自動要約（Workers AI） | 仕組みは公開済み（2026-10-09）。モデル・考える量は既定（Qwen3.8 27B・xhigh。変数 `AUTO_SUMMARY_MODEL`・`AUTO_SUMMARY_REASONING` は未設定）。Workers AI の権限のある API トークン（Secrets の `CLOUDFLARE_AI_TOKEN`）は**未登録**。登録していなければ公開用の `CLOUDFLARE_API_TOKEN` で試す（テンプレート「Edit Cloudflare Workers」で作ったトークンには Workers AI の権限がないことがある）。権限がなければ管理画面に「要対応」と出るので、README の「AI の自動要約」の手順でトークンを作って登録する |
+| AI の自動要約（Workers AI） | 仕組みは公開済み（2026-10-09）。モデル・考える量は既定（Qwen3.8 27B・xhigh。変数 `AUTO_SUMMARY_MODEL`・`AUTO_SUMMARY_REASONING` は未設定）。Workers AI の権限のある API トークン（Secrets の `CLOUDFLARE_AI_TOKEN`）は**未登録**。登録していなければ公開用の `CLOUDFLARE_API_TOKEN` で試すが、2026-10-09 の本番の最初の実行で、公開用のトークンには Workers AI の権限がない（HTTP 401）ことを確かめた。そのため自動要約は、運営者が `CLOUDFLARE_AI_TOKEN` を登録するまで止まっている。権限がなければ管理画面に「要対応」と出るので、README の「AI の自動要約」の手順でトークンを作って登録する |
 | 管理画面のログイン | 管理画面を開くとログインページに移る。トークンはパスワードで暗号化して運営者のブラウザにだけ保存（Contents と Actions の Read and write が必要）。2026-10-07 に運営者が設定し直した（パスワードを忘れたため） |
 | 本文の自動取得 | 公開済み。運営者の公開鍵は 2026-10-07 に登録済み（`data/text-keys.json`） |
 | Cloudflare（公開先・アクセス解析・通知） | 運営者がアカウントと API トークンを作成し、GitHub の Secrets（`CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`）を登録済み（2026-10-07。登録後の update.yml run #51 で pages.dev への公開と GitHub Pages の転送ページを確認）。Worker `topiatsume-analytics` と Pages のプロジェクト `topiatsume` を使う。ダッシュボードで作られた Worker `matmsait`（Hello World のひな形）は使っていない |
@@ -167,7 +167,7 @@ SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npx astro preview
 
 ## 未解決の課題・次にやること
 
-1. **公開後の確認: AI の自動要約が本番で動くか。** 公開後の最初の定期の更新（または「今すぐ更新」）の「AI で自動要約」のログと、管理画面の「AI要約・記事」の「AI の自動要約」で、Workers AI の権限・保存した件数・使った量の見積もりを確かめる。権限がない（HTTP 401・403。管理画面に「要対応」）なら、運営者が README の「AI の自動要約」の手順で Workers AI のトークンを作り、Secrets の `CLOUDFLARE_AI_TOKEN` に登録する。Workers AI の実際の返事の形（`choices[0].message.content`・`usage`）は本番で初めて確かめるので、「AI の回答の形が正しくない」が続くようなら `scripts/lib/auto-summary.ts` の `replyText` を直す。
+1. **運営者の作業: Workers AI のトークンを登録する（自動要約はこれで動き始める）。** 2026-10-09 の本番の最初の実行（16:23 JST）で、公開用のトークン（`CLOUDFLARE_API_TOKEN`）には Workers AI の権限がなく、HTTP 401（10000 Authentication error）で止まった（使った量は0。管理画面に「要対応」と出る）。README の「AI の自動要約」の手順で Workers AI のトークンを作り、Secrets の `CLOUDFLARE_AI_TOKEN` に登録すると、次の更新（または前回から50分たったあとの push）から動く。登録後は、管理画面の「AI の自動要約」とログで、保存した件数・使った量の見積もり（Qwen3.8 27B・xhigh で1件1,500〜3,000の見込み）を確かめる。Workers AI の実際の返事の形（`choices[0].message.content`・`usage`）は本番で初めて確かめるので、「AI の回答の形が正しくない」が続くようなら `scripts/lib/auto-summary.ts` の `replyText` を直す。
 2. **運営者の作業（ときどき）: 自動で作った要約を確かめる。** 機械的な確認だけで掲載するので、管理画面の「保存済みの要約」の「AI が自動で作り、まだ手直ししていない要約だけ表示」で記事と見比べ、誤りがあれば編集・削除する（自動で作った要約も Bluesky の「10秒でわかるニュース」に投稿されるので、早めに）。誤りが多ければ `BLOCKING_KINDS` を増やす・変数 `AUTO_SUMMARY_PER_RUN` を下げる・`0` で止める。Qwen3.8 27B・xhigh で1日に作れるのは3件前後の見込みなので、本番の使った量（管理画面の「AI の自動要約」・ログの「約Nニューロン」）を見て、少なすぎれば `AUTO_SUMMARY_REASONING` を `medium`・`low` にするか、件数を優先して Qwen3（`@cf/qwen/qwen3-30b-a3b-fp8`・`off`）に戻す。xhigh で考えすぎて書かせる上限（8,192トークン）で切れ、「AI の回答の形が正しくない」が続くときは、`outputLimit` を上げる（使う量の見積もりも増える）か考える量を下げる。AdSense の審査では独自の内容が重視され、検索エンジンは大量に自動で作ったページを低く評価することがあるので、1日の上限（60件）は上げすぎず、運営者の確認・ピックアップのひとこと・AI 整理を足していくのがよい。
 3. 自動要約の注意: 本文が取れない掲載元の記事は要約されない（2026-10-09 に掲載元ごとの最新の記事で確かめた結果、要約を載せられる58掲載元のうち51で取れた。ベースボールチャンネル・おたくま経済新聞は robots.txt で AI のクローラーを拒否、デジタル庁・政府広報オンライン・国立天文台・AUTOSPORT web はその記事の本文が短い（動画・告知）、VAGUE は複数ページに分かれた記事）。モデル（`@cf/qwen/qwen3-30b-a3b-fp8`）の提供が終わると管理画面に「AI への依頼が続けて失敗しました」と出るので、変数 `AUTO_SUMMARY_MODEL` で別のモデルにする（料金表 `NEURON_RATES` にないモデルは多めに見積もる。Qwen3 以外にしたら編集方針のモデル名も直す）。定期の更新と「今すぐ更新」が同時に動くと、記録（`data/auto-summary.json`）は後から終わった方で上書きされる（使った量の見積もりが1回分少なくなるだけで、要約は `--skip-existing` で重複しない）。自動更新タイマーは push のたびに60分を数え直すので、push（開発や管理画面の保存）が1時間より短い間隔で続くと定期の更新が来ない。そのため、push のときも前回の自動要約から50分以上たっていれば自動要約を動かす（その push の公開が、自動要約の分（考える量 xhigh で1〜3分ほど）だけ遅れることがある）。
 4. **運営者の作業: 通知を自分の端末で確かめる。** 公開後、サイトの「フォロー中」（ヘッダーのベル）で何かをフォローして通知をオンにし、「テストの通知を送る」で届くかを確かめる（iPhone・iPad は Safari の共有ボタンから「ホーム画面に追加」して、そのアイコンから開いたときだけ使える。iOS 16.4 以降）。新着の通知は毎時の公開のあとに送る（公開後の最初の確認はそれまでの記事を記録するだけで送らないので、届き始めるのはその次の更新から）。管理画面の「通知」で登録者数と送った記録を見られる。
@@ -216,8 +216,8 @@ SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npx astro preview
   - 自動更新タイマーは push のたびに60分を数え直すため、管理画面の保存が続くと定期の更新が来ず、自動要約が動かない（この日の本番でも、定期の更新の直前に運営者の push があった）。push のときも前回の自動要約から50分以上たっていれば動かす（`--min-interval`）。
   - ワークフローの「AI で自動要約」の制限時間を12分、build ジョブを25分にした。管理画面の「最後の実行」にモデルと考える量を出し、説明を書き直した。編集方針のモデル名を「Qwen シリーズ（現在は Qwen3.8）」にした。
 - 主な変更ファイル: `scripts/lib/auto-summary.ts`（モデルの表・考える量・見積もり・均し）、`scripts/auto-summary.ts`（`AUTO_SUMMARY_REASONING`・`--min-interval`）、`src/lib/auto-summary-state.ts`（最後の実行のモデル）、`src/scripts/admin.ts`・`src/pages/admin/summaries.astro`（管理画面）、`src/pages/editorial.astro`、`.github/workflows/update.yml`、`tests/auto-summary.test.ts`、`README.md`、`docs/DEVLOG.md`
-- 確認したこと: `npm test`（自動要約のテストを22件に。モデルごとの依頼の中身・多めの見積もり・時間での均し・直しの前の上限の確認・考える量の設定の読み取り）、`npm run check`、`npm run build`、actionlint。Workers AI への実際の依頼は、トークンがないため手元では行っていない。
-- 残った課題・注意点: 本番で、Workers AI の権限・実際の使う量と1日の件数・考えすぎて書かせる上限で切れないかを確かめる（「未解決の課題」1・2）。
+- 確認したこと: `npm test`（自動要約のテストを22件に。モデルごとの依頼の中身・多めの見積もり・時間での均し・直しの前の上限の確認・考える量の設定の読み取り）、`npm run check`、`npm run build`、actionlint。公開後の本番の実行（run #148、push のときの自動要約が動くことも確認）で、Qwen3.8 27B・xhigh への依頼が公開用のトークンでは HTTP 401（10000 Authentication error）になり、権限の問題として記録して止まること（使った量0・試した記事として数えない・管理画面に「要対応」・収集と公開は成功）を確かめた。
+- 残った課題・注意点: 運営者が Workers AI のトークン（`CLOUDFLARE_AI_TOKEN`）を登録したあと、実際の使う量と1日の件数・考えすぎて書かせる上限で切れないかを確かめる（「未解決の課題」1・2）。
 
 ### 2026-10-09 AI の自動要約（Cloudflare Workers AI の無料枠で Qwen3）と、本文の取り出しの改善
 
