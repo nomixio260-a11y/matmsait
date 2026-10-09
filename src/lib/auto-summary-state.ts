@@ -42,8 +42,8 @@ export interface AutoSummaryState {
   /** その日に保存した要約の数 */
   saved: number;
   attempts: Attempt[];
-  /** 最後の実行の結果（管理画面に出す） */
-  lastRun?: { at: string; saved: number; tried: number; message?: string };
+  /** 最後の実行の結果（管理画面に出す。model と reasoning は使ったモデルと考える量） */
+  lastRun?: { at: string; saved: number; tried: number; model?: string; reasoning?: string; message?: string };
   /** 続けて起きている問題（管理画面に出す。要約を保存できたら消える） */
   problem?: { at: string; kind?: ProblemKind; message: string };
 }

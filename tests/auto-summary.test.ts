@@ -4,7 +4,11 @@ import {
   DEFAULT_MODEL,
   estimateNeurons,
   focusOnTitle,
+  pacedBudget,
   parseAutoSummaryOptions,
+  parseReasoning,
+  requestBody,
+  reserveNeurons,
   parseAutoSummaryState,
   pickCandidates,
   replyText,
@@ -72,11 +76,14 @@ function fakeGet(pages: Record<string, { status?: number; html?: string }> = {})
 }
 
 const state = (extra: Partial<AutoSummaryState> = {}): AutoSummaryState => ({ day: '2026-10-09', neurons: 0, saved: 0, attempts: [], ...extra });
-const options = { perRun: 4, perDay: 60, model: DEFAULT_MODEL, neuronBudget: 8000 };
+/** 使う量の計算を簡単にするため、多くのテストは安い Qwen3（考えない）で行う */
+const QWEN3 = '@cf/qwen/qwen3-30b-a3b-fp8';
+const options = { perRun: 4, perDay: 60, model: QWEN3, reasoning: 'off' as const, neuronBudget: 8000 };
 
 describe('設定・使用量・記録', () => {
-  it('件数の設定（0 で止める）とモデル', () => {
-    expect(parseAutoSummaryOptions({})).toEqual({ perRun: 4, perDay: 60, model: '@cf/qwen/qwen3-30b-a3b-fp8', neuronBudget: 8000 });
+  it('件数の設定（0 で止める）・モデル・考える量', () => {
+    expect(parseAutoSummaryOptions({})).toEqual({ perRun: 4, perDay: 60, model: '@cf/qwen/qwen3.8-27b', reasoning: 'xhigh', neuronBudget: 8000 });
+    expect(['off', 'Medium', 'HIGH', 'すごく', undefined].map(parseReasoning)).toEqual(['off', 'medium', 'xhigh', 'xhigh', 'xhigh']);
     expect(parseAutoSummaryOptions({ AUTO_SUMMARY_PER_RUN: '0', AUTO_SUMMARY_PER_DAY: '500', AUTO_SUMMARY_MODEL: '@cf/openai/gpt-oss-20b' })).toMatchObject({
       perRun: 0,
       perDay: 120,
@@ -85,9 +92,22 @@ describe('設定・使用量・記録', () => {
   });
 
   it('使ったニューロンを料金表から見積もる（分からなければ文字数から多めに）', () => {
-    // Qwen3: 入力 4625・出力 30475（100万トークンあたり）
-    expect(estimateNeurons(DEFAULT_MODEL, { prompt_tokens: 10_000, completion_tokens: 500 }, { input: 0, output: 0 })).toBe(62);
+    // Qwen3: 入力 4625・出力 30475、Qwen3.8 27B: 入力 40909・出力 290909（100万トークンあたり）
+    expect(estimateNeurons(QWEN3, { prompt_tokens: 10_000, completion_tokens: 500 }, { input: 0, output: 0 })).toBe(62);
+    expect(estimateNeurons(DEFAULT_MODEL, { prompt_tokens: 10_000, completion_tokens: 500 }, { input: 0, output: 0 })).toBe(555);
     expect(estimateNeurons('@cf/unknown/model', undefined, { input: 10_000, output: 500 })).toBe(750);
+  });
+
+  it('依頼の前の多めの見積もりは、書かせる上限（考えるときは多め）から', () => {
+    expect(reserveNeurons(DEFAULT_MODEL, 'xhigh')).toBe(3038);
+    expect(reserveNeurons(QWEN3, 'off')).toBe(137);
+    expect(reserveNeurons(QWEN3, 'xhigh')).toBe(324);
+  });
+
+  it('1日の使う量を時間で均す（UTC の0時台は1/24、23時台で上限まで）', () => {
+    expect(pacedBudget(8000, new Date('2026-10-09T00:30:00.000Z'))).toBeCloseTo(333.3, 1);
+    expect(pacedBudget(8000, new Date('2026-10-09T11:59:00.000Z'))).toBe(4000);
+    expect(pacedBudget(8000, new Date('2026-10-09T23:10:00.000Z'))).toBe(8000);
   });
 
   it('記録は UTC の日付が変わると使用量・保存数を数え直し、14日より前の記録を捨てる', () => {
@@ -180,13 +200,12 @@ describe('本文と回答の扱い', () => {
 });
 
 describe('1件の要約', () => {
-  it('本文入りのプロンプトで頼み、決まりに合う回答を使う（考えるモードは止める）', async () => {
+  it('本文入りのプロンプトで頼み、決まりに合う回答を使う', async () => {
     const ai = fakeAi([answer('a')]);
     const outcome = await summarizeItem(item('a'), ARTICLE_TEXT, '例ニュース', ai, DEFAULT_MODEL, 'テスト');
-    expect(outcome).toMatchObject({ result: 'saved', entry: { id: 'a', summary: GOOD.summary } });
+    expect(outcome).toMatchObject({ result: 'saved', entry: { id: 'a', summary: GOOD.summary }, neurons: 555 });
     expect(ai.calls).toHaveLength(1);
     expect(ai.calls[0][1].content).toContain('記事の本文');
-    expect(ai.calls[0][1].content).toMatch(/\/no_think$/);
   });
 
   it('推測などの注意があれば1回だけ直してもらい、直らなければ保存しない', async () => {
@@ -198,6 +217,12 @@ describe('1件の要約', () => {
     expect(fixed.calls[1][3].content).toContain('推測の言い方');
     const stubborn = fakeAi([answer('a', guess), answer('a', guess)]);
     expect(await summarizeItem(item('a'), ARTICLE_TEXT, '例', stubborn, DEFAULT_MODEL, 'テスト')).toMatchObject({ result: 'quality' });
+    // 使う量の上限を超えそうなら、直しは頼まずに保存しない
+    const tight = fakeAi([answer('a', guess), answer('a')]);
+    const outcome = await summarizeItem(item('a'), ARTICLE_TEXT, '例', tight, DEFAULT_MODEL, 'テスト', () => false);
+    expect(outcome).toMatchObject({ result: 'quality' });
+    expect(outcome.result === 'quality' && outcome.detail).toContain('直しは頼まなかった');
+    expect(tight.calls).toHaveLength(1);
   });
 
   it('本文を要約できないという回答・見出しと関係のない要約・形の崩れた回答は保存しない', async () => {
@@ -232,7 +257,24 @@ describe('まとめて実行', () => {
     expect(next.saved).toBe(3);
     expect(next.neurons).toBe(62 * 3);
     expect(next.attempts.map((attempt) => attempt.result)).toEqual(['saved', 'saved', 'saved']);
-    expect(next.lastRun).toMatchObject({ saved: 3, tried: 3 });
+    expect(next.lastRun).toMatchObject({ saved: 3, tried: 3, model: QWEN3, reasoning: 'off' });
+  });
+
+  it('考える量の多いモデルは、使う量を1日の時間で均す（先に使いすぎていれば次の実行に回す）', async () => {
+    const heavy = { ...options, model: DEFAULT_MODEL, reasoning: 'xhigh' as const };
+    // UTC の3時台に使ってよいのは 8000×4/24 ≈ 1333 まで
+    const ahead = await run({ options: heavy, state: state({ neurons: 1500 }) });
+    expect(ahead.entries).toEqual([]);
+    expect(ahead.state.lastRun?.message).toContain('均す');
+    // 20時台なら 7000 まで使える。1件（555）で 2055 になっても、まだ均した量の中なので続ける
+    const later = await run({ options: heavy, state: state({ neurons: 1500 }), now: new Date('2026-10-09T20:00:00.000Z') });
+    expect(later.entries.length).toBeGreaterThan(0);
+    // 多めの見積もり（3038）を足すと 8000 を超えるなら、直しは頼まない
+    const guess = { ...GOOD, summary: `${GOOD.summary}市場を大きく変えるだろう。` };
+    const ai = fakeAi([answer('a', guess), answer('a')]);
+    const tight = await run({ options: heavy, state: state({ neurons: 4500 }), now: new Date('2026-10-09T20:00:00.000Z'), candidates: [item('a')], ai });
+    expect(tight.state.attempts.map((attempt) => attempt.result)).toEqual(['quality']);
+    expect(ai.calls).toHaveLength(1);
   });
 
   it('本文を取れない記事は AI に頼まずに記録し、次の記事に進む。AI に頼むのは1回の上限まで', async () => {
@@ -295,12 +337,33 @@ describe('Workers AI の API', () => {
     return { ai: workersAiClient({ accountId: 'acc', token: 'tok', model: DEFAULT_MODEL, fetchImpl }), requests };
   };
 
-  it('アカウントとモデルの URL にトークンで頼み、文章と使った量を返す', async () => {
+  it('アカウントとモデルの URL にトークンで頼み、文章と使った量を返す（既定は Qwen3.8 27B を考える量 xhigh で）', async () => {
     const { ai, requests } = client(200, { success: true, result: { choices: [{ message: { content: '答え' } }], usage: { prompt_tokens: 10, completion_tokens: 2 } } });
     expect(await ai([{ role: 'user', content: 'こんにちは' }])).toEqual({ text: '答え', usage: { prompt_tokens: 10, completion_tokens: 2 } });
-    expect(requests[0].url).toBe('https://api.cloudflare.com/client/v4/accounts/acc/ai/run/@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(requests[0].url).toBe('https://api.cloudflare.com/client/v4/accounts/acc/ai/run/@cf/qwen/qwen3.8-27b');
     expect((requests[0].init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
-    expect(JSON.parse(String(requests[0].init.body))).toMatchObject({ messages: [{ role: 'user', content: 'こんにちは' }], max_tokens: 2048 });
+    expect(JSON.parse(String(requests[0].init.body))).toEqual({
+      messages: [{ role: 'user', content: 'こんにちは' }],
+      max_completion_tokens: 8192,
+      temperature: 0.6,
+      reasoning_effort: 'xhigh',
+    });
+  });
+
+  it('モデルに合わせて考える量を指定する', () => {
+    const messages: ChatMessage[] = [
+      { role: 'system', content: 'S' },
+      { role: 'user', content: '依頼' },
+    ];
+    // Qwen3.8 は考えるのを止められないので、off は low
+    expect(requestBody(DEFAULT_MODEL, 'off', messages)).toMatchObject({ reasoning_effort: 'low', max_completion_tokens: 8192 });
+    expect(requestBody(DEFAULT_MODEL, 'medium', messages)).toMatchObject({ reasoning_effort: 'medium', messages });
+    // Qwen3 は考えないときだけ、最後の依頼の末尾に /no_think
+    const off = requestBody(QWEN3, 'off', messages);
+    expect(off).toEqual({ messages: [messages[0], { role: 'user', content: '依頼\n\n/no_think' }], max_tokens: 2048, temperature: 0.3 });
+    expect(requestBody(QWEN3, 'xhigh', messages)).toEqual({ messages, max_tokens: 8192, temperature: 0.6 });
+    // 考える量の指定のしかたが分からないモデルには指定しない
+    expect(requestBody('@cf/unknown/model', 'xhigh', messages)).toEqual({ messages, max_tokens: 2048, temperature: 0.3 });
   });
 
   it('権限がない・無料枠を使い切った・そのほかの失敗を見分ける', async () => {

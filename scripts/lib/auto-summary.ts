@@ -1,9 +1,11 @@
 /**
- * AI による自動要約（Cloudflare Workers AI の無料枠で、Qwen3 を使う）。
+ * AI による自動要約（Cloudflare Workers AI の無料枠で、Qwen を使う。既定は Qwen3.8 27B を考える量 xhigh で）。
  *
- * チャット AI の画面（chat.qwen.ai など）をプログラムで動かすことは、各サービスの利用規約で禁じられているので行わない。
+ * チャット AI の画面（chat.qwen.ai など）をプログラムで動かす（スクレイピングする）ことは、各サービスの利用規約で禁じられているので行わない
+ * （2026-10-09 に運営者から指示があったが、同じ理由で行わなかった。Qwen3.8-Max は有料の API だけで使える）。
  * 代わりに、公式に提供されている Cloudflare Workers AI の API を、無料枠（1日1万ニューロン）の中だけで使う。
- * 無料プランでは無料枠を超えた依頼は失敗するだけで料金はかからず、ここでも1回・1日の件数と使った量の見積もりに上限を設ける。
+ * 無料プランでは無料枠を超えた依頼は失敗するだけで料金はかからず、ここでも1回・1日の件数と使った量の見積もりに上限を設け、
+ * 使う量を1日の時間で均す（考える量の多いモデルは1日に数件になるので、朝にまとめて使い切らないように）。
  *
  * 1. 要約のない記事から選ぶ（多くの媒体が報じたトピックの記事を先に。要約を載せられる掲載元・非表示でない記事だけ）
  * 2. 記事の本文を取得する（本文の自動取得と同じ決まり: robots.txt・AI での利用の拒否・アクセスの拒否を守る。本文は保存しない）
@@ -34,8 +36,13 @@ export {
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** 既定のモデル（Qwen3 30B-A3B。日本語に強く、Workers AI のモデルの中でも安い） */
-export const DEFAULT_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
+/** 既定のモデル（Qwen3.8 27B。Workers AI にある Qwen 3.8 世代のモデルで、考える（推論の）量を選べる） */
+export const DEFAULT_MODEL = '@cf/qwen/qwen3.8-27b';
+
+/** 考える量: off = 考えない（考えるのを止められないモデルでは low）/ low・medium・xhigh = 推論の量（xhigh がいちばん多い） */
+export type Reasoning = 'off' | 'low' | 'medium' | 'xhigh';
+export const DEFAULT_REASONING: Reasoning = 'xhigh';
+const REASONINGS: readonly Reasoning[] = ['off', 'low', 'medium', 'xhigh'];
 
 export const AUTO_SUMMARY_DEFAULTS = {
   /** 1回の実行で要約する記事の数の上限（毎時の更新ごと） */
@@ -44,8 +51,6 @@ export const AUTO_SUMMARY_DEFAULTS = {
   perDay: 60,
   /** 1日に使ってよいニューロンの見積もり（無料枠 1万の手前で止める） */
   neuronBudget: 8000,
-  /** 1件にかかる見積もり（使った量が分からないとき・次の依頼の前の見積もり） */
-  neuronsPerSummary: 150,
   /** 失敗した記事を、もう一度試すまでの日数 */
   retryDays: 7,
   /** 話題のトピックとして選ぶ、最後の報道からの時間 */
@@ -54,15 +59,23 @@ export const AUTO_SUMMARY_DEFAULTS = {
   singleHours: 24,
 } as const;
 
-/** モデルごとの料金（ニューロン/トークン。Workers AI の料金表の 100万トークンあたりの値から） */
-const NEURON_RATES: Record<string, [input: number, output: number]> = {
-  '@cf/qwen/qwen3-30b-a3b-fp8': [4625, 30475],
-  '@cf/google/gemma-4-26b-a4b-it': [9091, 27273],
-  '@cf/openai/gpt-oss-20b': [18182, 27273],
-  '@cf/openai/gpt-oss-120b': [31818, 68182],
+interface ModelSpec {
+  /** 料金（ニューロン/100万トークン。Workers AI の料金表から） */
+  rates: [input: number, output: number];
+  /** 考える量の指定のしかた: effort = reasoning_effort（low・medium・xhigh）/ switch = 指示の末尾の /no_think で止める（Qwen3）/ none = 指定しない */
+  reasoning: 'effort' | 'switch' | 'none';
+}
+
+const MODELS: Record<string, ModelSpec> = {
+  '@cf/qwen/qwen3.8-27b': { rates: [40909, 290909], reasoning: 'effort' },
+  '@cf/qwen/qwen3-30b-a3b-fp8': { rates: [4625, 30475], reasoning: 'switch' },
+  '@cf/google/gemma-4-26b-a4b-it': { rates: [9091, 27273], reasoning: 'none' },
+  '@cf/openai/gpt-oss-20b': { rates: [18182, 27273], reasoning: 'none' },
+  '@cf/openai/gpt-oss-120b': { rates: [31818, 68182], reasoning: 'none' },
 };
-/** 料金の分からないモデルは高めに見積もる */
-const UNKNOWN_RATE: [number, number] = [60000, 300000];
+/** 料金表にないモデルは高めに見積もり、考える量は指定しない */
+const UNKNOWN_MODEL: ModelSpec = { rates: [60000, 300000], reasoning: 'none' };
+const specOf = (model: string) => MODELS[model] ?? UNKNOWN_MODEL;
 
 /** 直してもらってもこれらの注意が残る要約は保存しない（事実と違って読まれるおそれがあるもの・中身のないもの） */
 const BLOCKING_KINDS = new Set<QualityKind>(['guess', 'promo', 'cliche', 'title', 'opening', 'sns', 'date']);
@@ -71,7 +84,15 @@ export interface AutoSummaryOptions {
   perRun: number;
   perDay: number;
   model: string;
+  reasoning: Reasoning;
   neuronBudget: number;
+}
+
+/** 考える量の設定を読む（high は xhigh とみなす。分からない値は既定） */
+export function parseReasoning(value: string | undefined): Reasoning {
+  const text = value?.trim().toLowerCase();
+  if (text === 'high') return 'xhigh';
+  return REASONINGS.find((reasoning) => reasoning === text) ?? DEFAULT_REASONING;
 }
 
 /** 環境変数から設定を読む（AUTO_SUMMARY_PER_RUN=0 で止める） */
@@ -84,6 +105,7 @@ export function parseAutoSummaryOptions(env: Record<string, string | undefined>)
     perRun: number(env.AUTO_SUMMARY_PER_RUN, AUTO_SUMMARY_DEFAULTS.perRun, 10),
     perDay: number(env.AUTO_SUMMARY_PER_DAY, AUTO_SUMMARY_DEFAULTS.perDay, 120),
     model: env.AUTO_SUMMARY_MODEL?.trim() || DEFAULT_MODEL,
+    reasoning: parseReasoning(env.AUTO_SUMMARY_REASONING),
     neuronBudget: AUTO_SUMMARY_DEFAULTS.neuronBudget,
   };
 }
@@ -95,11 +117,33 @@ export interface TokenUsage {
 
 /** 使ったニューロンの見積もり */
 export function estimateNeurons(model: string, usage: TokenUsage | undefined, fallbackChars: { input: number; output: number }): number {
-  const [input, output] = NEURON_RATES[model] ?? UNKNOWN_RATE;
+  const [input, output] = specOf(model).rates;
   // 使った量が返ってこなければ文字数から多めに見積もる（日本語は1トークンあたり1字ほどとみなす）
   const promptTokens = usage?.prompt_tokens ?? fallbackChars.input;
   const completionTokens = usage?.completion_tokens ?? fallbackChars.output;
   return Math.ceil((promptTokens * input + completionTokens * output) / 1_000_000);
+}
+
+/** このモデルが考える（推論する）か */
+function thinks(model: string, reasoning: Reasoning): boolean {
+  const style = specOf(model).reasoning;
+  return style === 'effort' || (style === 'switch' && reasoning !== 'off');
+}
+
+/** 1回の依頼で書かせるトークンの上限（考える分も含む。考えるときは、考えている途中で切れないよう多めに） */
+export function outputLimit(model: string, reasoning: Reasoning): number {
+  return thinks(model, reasoning) ? 8192 : 2048;
+}
+
+/** 1回の依頼で使う量の多めの見積もり（依頼の前の上限の確認に使う。指示と本文は、直しの依頼でも 16,000 トークンに収まる） */
+export function reserveNeurons(model: string, reasoning: Reasoning): number {
+  return estimateNeurons(model, { prompt_tokens: 16_000, completion_tokens: outputLimit(model, reasoning) }, { input: 0, output: 0 });
+}
+
+/** その日（UTC）のうちに使ってよい量（1日の上限を時間で均す。0時台は1/24、23時台で上限まで） */
+export function pacedBudget(budget: number, now: Date): number {
+  const hours = (now.getTime() - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 3_600_000;
+  return budget * Math.min(1, (Math.floor(hours) + 1) / 24);
 }
 
 // ===== 本文が見出しの記事のものか =====
@@ -218,26 +262,53 @@ export function replyText(result: unknown): string {
   return raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^[\s\S]*<\/think>/, '').trim();
 }
 
+/** Qwen3 の「考える」モードを止める指示（Qwen3 は指示の末尾の /no_think で考えずに答える） */
+const NO_THINK = '\n\n/no_think';
+
+/**
+ * Workers AI に送る中身（モデルに合わせて、考える量と書かせるトークンの上限を指定する）。
+ * Qwen3.8 は reasoning_effort（low・medium・xhigh。考えるのを止められないので off は low）、Qwen3 は考えないときだけ /no_think
+ */
+export function requestBody(model: string, reasoning: Reasoning, messages: ChatMessage[]): Record<string, unknown> {
+  const style = specOf(model).reasoning;
+  const limit = outputLimit(model, reasoning);
+  // 考えるときは Qwen のおすすめの温度（0.6）、考えないときは低め（決まりどおりに書かせる）
+  const temperature = thinks(model, reasoning) ? 0.6 : 0.3;
+  if (style === 'effort') {
+    return { messages, max_completion_tokens: limit, temperature, reasoning_effort: reasoning === 'off' ? 'low' : reasoning };
+  }
+  if (style === 'switch' && reasoning === 'off') {
+    const last = messages.length - 1;
+    const withSwitch = messages.map((message, index) => (index === last && message.role === 'user' ? { ...message, content: `${message.content}${NO_THINK}` } : message));
+    return { messages: withSwitch, max_tokens: limit, temperature };
+  }
+  return { messages, max_tokens: limit, temperature };
+}
+
 /** Cloudflare Workers AI の REST API で依頼する（トークンには Workers AI の権限が要る） */
 export function workersAiClient({
   accountId,
   token,
   model,
+  reasoning = DEFAULT_REASONING,
   fetchImpl = fetch,
 }: {
   accountId: string;
   token: string;
   model: string;
+  reasoning?: Reasoning;
   fetchImpl?: typeof fetch;
 }): AiClient {
+  // 考えるときは時間がかかるので長めに待つ
+  const timeout = thinks(model, reasoning) ? 180_000 : 90_000;
   return async (messages) => {
     let res: Response;
     try {
       res = await fetchImpl(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, max_tokens: 2048, temperature: 0.3 }),
-        signal: AbortSignal.timeout(90_000),
+        body: JSON.stringify(requestBody(model, reasoning, messages)),
+        signal: AbortSignal.timeout(timeout),
       });
     } catch (error) {
       throw new AiError(`Workers AI に接続できませんでした: ${error instanceof Error ? error.message : error}`, 'other');
@@ -264,8 +335,6 @@ export function workersAiClient({
 // ===== 1件の要約 =====
 
 const SYSTEM_PROMPT = 'あなたはニュースの要約を作る編集者です。依頼の決まりに厳密に従い、指定された形の JSON だけを出力します。';
-/** Qwen3 の「考える」モードを止める（考えた文章も料金に数えられ、回答の形も崩れやすいため） */
-const NO_THINK = '\n\n/no_think';
 
 export type SummaryOutcome =
   | { result: 'saved'; entry: AcceptedSummary; neurons: number }
@@ -298,16 +367,25 @@ const blocking = (accepted: AcceptedSummary) => (accepted.warnings ?? []).filter
 
 /**
  * 1件を要約する（本文入りのプロンプト → 検証 → 品質の注意があれば1回だけ直してもらう）。
+ * canSpend は、この記事でここまで使った量を受け取り、もう1回頼んでも上限を超えないかを返す（超えるなら直しは頼まない）。
  * AI への依頼に失敗したときは AiError を投げる
  */
-export async function summarizeItem(item: Item, text: string, site: string, ai: AiClient, model: string, siteName: string): Promise<SummaryOutcome> {
+export async function summarizeItem(
+  item: Item,
+  text: string,
+  site: string,
+  ai: AiClient,
+  model: string,
+  siteName: string,
+  canSpend: (spent: number) => boolean = () => true,
+): Promise<SummaryOutcome> {
   const prompt = buildSummaryPrompt(
     [{ id: item.id, title: item.title, url: item.url, site, excerpt: item.excerpt, publishedAt: item.publishedAt, text: text.slice(0, ARTICLE_TEXT_MAX) }],
     { siteName, length: 'normal', points: true },
   );
   const messages: ChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: `${prompt}${NO_THINK}` },
+    { role: 'user', content: prompt },
   ];
   const first = await ai(messages);
   let neurons = estimateNeurons(model, first.usage, { input: SYSTEM_PROMPT.length + prompt.length, output: first.text.length });
@@ -317,7 +395,11 @@ export async function summarizeItem(item: Item, text: string, site: string, ai: 
   // 保存を止める注意がなければそのまま使う（ほかの注意は管理画面の「要確認」に出る）
   if (blocking(accepted).length === 0) return { result: 'saved', entry: accepted, neurons };
 
-  // 保存を止める注意があれば、同じ会話で1回だけ直してもらう
+  // 保存を止める注意があれば、同じ会話で1回だけ直してもらう（使う量の上限を超えそうなら頼まない）
+  if (!canSpend(neurons)) {
+    const issues = blocking(accepted).map((warning) => warning.message).join(' / ');
+    return { result: 'quality', neurons, detail: `${issues}（使う量の上限に近いため、直しは頼まなかった）`.slice(0, 300) };
+  }
   const fixPrompt = buildFixPrompt(
     [
       {
@@ -332,7 +414,7 @@ export async function summarizeItem(item: Item, text: string, site: string, ai: 
     ],
     { length: 'normal', points: true },
   );
-  const second = await ai([...messages, { role: 'assistant', content: first.text }, { role: 'user', content: `${fixPrompt}${NO_THINK}` }]);
+  const second = await ai([...messages, { role: 'assistant', content: first.text }, { role: 'user', content: fixPrompt }]);
   neurons += estimateNeurons(model, second.usage, { input: SYSTEM_PROMPT.length + prompt.length + first.text.length + fixPrompt.length, output: second.text.length });
   const secondCheck = check(item, second.text);
   // 直した回答の形が崩れていたら、最初の回答で判断する
@@ -398,10 +480,15 @@ export interface RunOutput {
   state: AutoSummaryState;
 }
 
-/** 選んだ記事を順に要約する（1日の件数・使った量の上限で止める。権限がない・無料枠を使い切ったら止める） */
+/**
+ * 選んだ記事を順に要約する（1日の件数・使った量の上限で止める。使う量は1日の時間で均す。権限がない・無料枠を使い切ったら止める）
+ */
 export async function runAutoSummary({ candidates, state, options, now, siteName, siteOf, ai, get, wait, log = () => {}, deadline }: RunInput): Promise<RunOutput> {
   const entries: RunOutput['entries'] = [];
   const next: AutoSummaryState = { ...state, attempts: [...state.attempts] };
+  // 1回の依頼で使う量の多めの見積もり（依頼の前に、これを足しても上限を超えないかを確かめる）
+  const reserve = reserveNeurons(options.model, options.reasoning);
+  const paced = pacedBudget(options.neuronBudget, now);
   const robotsCache: RobotsCache = new Map();
   const visited = new Set<string>();
   let tried = 0;
@@ -420,8 +507,12 @@ export async function runAutoSummary({ candidates, state, options, now, siteName
       message = `今日（UTC）の上限（${options.perDay}件）に達しました`;
       break;
     }
-    if (next.neurons + AUTO_SUMMARY_DEFAULTS.neuronsPerSummary > options.neuronBudget) {
+    if (next.neurons + reserve > options.neuronBudget) {
       message = `今日（UTC）の使用量の見積もりが上限（${options.neuronBudget}ニューロン）に近いため止めました`;
+      break;
+    }
+    if (next.neurons > paced) {
+      message = '1日の使う量を時間で均すため、残りは次の実行に回します';
       break;
     }
     // 本文を取得する（同じサイトへは間隔を空ける）
@@ -438,7 +529,7 @@ export async function runAutoSummary({ candidates, state, options, now, siteName
     const { text } = article;
     tried += 1;
     try {
-      const outcome = await summarizeItem(item, text, siteOf(item), ai, options.model, siteName);
+      const outcome = await summarizeItem(item, text, siteOf(item), ai, options.model, siteName, (spent) => next.neurons + spent + reserve <= options.neuronBudget);
       next.neurons += outcome.neurons;
       if (outcome.result === 'saved') {
         next.saved += 1;
@@ -459,7 +550,8 @@ export async function runAutoSummary({ candidates, state, options, now, siteName
         log(`::warning::${detail}`);
         break;
       }
-      next.neurons += AUTO_SUMMARY_DEFAULTS.neuronsPerSummary;
+      // 使った量が分からないので、多めの見積もりを足しておく
+      next.neurons += reserve;
       aiErrors += 1;
       lastAiError = detail;
       record({ id: item.id, at, result: 'ai-error', detail: detail.slice(0, 300) });
@@ -469,6 +561,6 @@ export async function runAutoSummary({ candidates, state, options, now, siteName
   if (entries.length > 0) delete next.problem;
   // 1件も保存できず、AI への依頼が続けて失敗したとき（モデルの提供が終わったなど）は管理画面に出す
   else if (aiErrors >= 2) next.problem = { at: now.toISOString(), kind: 'other', message: `AI への依頼が続けて失敗しました（${lastAiError.slice(0, 200)}）` };
-  next.lastRun = { at: now.toISOString(), saved: entries.length, tried, ...(message ? { message } : {}) };
+  next.lastRun = { at: now.toISOString(), saved: entries.length, tried, model: options.model, reasoning: options.reasoning, ...(message ? { message } : {}) };
   return { entries, state: next };
 }

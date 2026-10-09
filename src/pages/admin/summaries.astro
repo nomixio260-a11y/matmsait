@@ -208,7 +208,7 @@ import { href } from '../../lib/items.ts';
       <summary><span class="summary-title">AI の自動要約</span><span class="badge" id="auto-badge">-</span></summary>
       <div class="card-body">
         <p class="hint">
-          毎時の更新のたびに、要約のない記事（多くの媒体が報じたトピックの記事を優先）を最大4件、Cloudflare Workers AI の無料枠（1日1万ニューロン）で AI（Qwen3）が記事の本文をもとに自動で要約し、保存します。本文を取得できない記事（robots.txt や AI での利用を断っているサイトなど）は要約しません。要約の決まりに合わない回答（推測・宣伝の言葉・中身のない定型文・見出しと関係のない内容など）は1回だけ直させ、それでも直らなければ保存しません。自動で作った要約は、下の「保存済みの要約」に「自動」と表示されるので、記事と見比べて必要なら編集・作り直し・削除をしてください（編集すると、サイトの「自動で作成」の表示が消えます）。止めるときは、GitHub の変数 <code>AUTO_SUMMARY_PER_RUN</code> を <code>0</code> にします（README の「AI の自動要約」）。
+          毎時の更新のたびに、要約のない記事（多くの媒体が報じたトピックの記事を優先）を、Cloudflare Workers AI の無料枠（1日1万ニューロン）の中で AI（既定は Qwen3.8 27B を考える量 xhigh で）が記事の本文をもとに自動で要約し、保存します。考える量が多いほど要約はよくなりますが、使う量が増えるので1日の件数は少なくなります（xhigh で1日3件前後。使う量は1日の時間で均します）。本文を取得できない記事（robots.txt や AI での利用を断っているサイトなど）は要約しません。要約の決まりに合わない回答（推測・宣伝の言葉・中身のない定型文・見出しと関係のない内容など）は1回だけ直させ、それでも直らなければ保存しません。自動で作った要約は、下の「保存済みの要約」に「自動」と表示されるので、記事と見比べて必要なら編集・作り直し・削除をしてください（編集すると、サイトの「自動で作成」の表示が消えます）。止めるときは GitHub の変数 <code>AUTO_SUMMARY_PER_RUN</code> を <code>0</code> に、考える量は <code>AUTO_SUMMARY_REASONING</code>（off・low・medium・xhigh）、モデルは <code>AUTO_SUMMARY_MODEL</code> で変えられます（README の「AI の自動要約」）。
         </p>
         <ul class="auto-status" id="auto-status"></ul>
       </div>

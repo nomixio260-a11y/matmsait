@@ -2,13 +2,15 @@
 //
 //   npm run auto-summary -- --out <file>   要約して、保存する要約を <file> に書く（取り込みは npm run summaries -- import <file> --skip-existing）
 //   npm run auto-summary -- --dry-run      AI には頼まず、選んだ記事と本文が取れるかだけを表示する（記録も書かない）
+//   --min-interval <分>                    前回の自動要約からこの時間がたっていなければ何もしない（push のときの更新で使う）
 //
 // 環境変数:
 //   CLOUDFLARE_ACCOUNT_ID   Cloudflare のアカウント ID
 //   CLOUDFLARE_AI_TOKEN     Workers AI の権限のある API トークン（なければ CLOUDFLARE_API_TOKEN を試す）
 //   AUTO_SUMMARY_PER_RUN    1回に要約する数（既定4。0 で止める）
 //   AUTO_SUMMARY_PER_DAY    1日（UTC）に要約する数（既定60）
-//   AUTO_SUMMARY_MODEL      Workers AI のモデル（既定 @cf/qwen/qwen3-30b-a3b-fp8）
+//   AUTO_SUMMARY_MODEL      Workers AI のモデル（既定 @cf/qwen/qwen3.8-27b）
+//   AUTO_SUMMARY_REASONING  考える量（off・low・medium・xhigh。既定 xhigh。多いほど要約はよくなるが、使う量が増えて1日の件数が減る）
 // 試した記録と、その日に使った量の見積もりは data/auto-summary.json に置く
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -37,7 +39,9 @@ const STATE_PATH = resolve(process.cwd(), AUTO_SUMMARY_STATE_PATH);
 /** この時間を過ぎたら新しい記事に取りかからない（ワークフローの手順の制限時間より短く） */
 const TIME_LIMIT = 4 * 60 * 1000;
 
-const { values } = parseArgs({ options: { out: { type: 'string' }, 'dry-run': { type: 'boolean', default: false } } });
+const { values } = parseArgs({
+  options: { out: { type: 'string' }, 'dry-run': { type: 'boolean', default: false }, 'min-interval': { type: 'string', default: '0' } },
+});
 const dryRun = values['dry-run'];
 const now = new Date();
 const options = parseAutoSummaryOptions(process.env);
@@ -54,6 +58,13 @@ function saveState(next: typeof state) {
 async function main() {
   if (options.perRun === 0) {
     log('自動要約は止めています（変数 AUTO_SUMMARY_PER_RUN が 0）');
+    return;
+  }
+  // 管理画面の保存などの push のたびに待たせないよう、前回から間もなければ何もしない（定期の更新では 0）
+  const minInterval = Number(values['min-interval']) * 60_000;
+  const last = state.lastRun ? Date.parse(state.lastRun.at) : NaN;
+  if (minInterval > 0 && now.getTime() - last < minInterval) {
+    log(`前回の自動要約（${state.lastRun?.at}）から${values['min-interval']}分たっていないため、今回は行いません`);
     return;
   }
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
@@ -80,7 +91,9 @@ async function main() {
     limit: Math.min(options.perRun * 3, remaining),
     preferredCategories: SOCIAL_LIMITS.preferredCategories,
   });
-  log(`自動要約（${options.model}）: 候補 ${candidates.length}件・今日（UTC）の保存 ${state.saved}/${options.perDay}件・使用量の見積もり ${state.neurons}ニューロン`);
+  log(
+    `自動要約（${options.model}・考える量 ${options.reasoning}）: 候補 ${candidates.length}件・今日（UTC）の保存 ${state.saved}/${options.perDay}件・使用量の見積もり ${state.neurons}ニューロン`,
+  );
   if (candidates.length === 0) {
     saveState({ ...state, lastRun: { at: now.toISOString(), saved: 0, tried: 0, message: remaining === 0 ? '今日の上限に達しています' : '要約する記事がありません' } });
     return;
@@ -102,7 +115,7 @@ async function main() {
     now,
     siteName: site.name,
     siteOf: (item) => siteOf(item).label,
-    ai: workersAiClient({ accountId: accountId!, token: token!, model: options.model }),
+    ai: workersAiClient({ accountId: accountId!, token: token!, model: options.model, reasoning: options.reasoning }),
     get: httpGet,
     wait: () => sleep(jitter(3000, 5000)),
     log,

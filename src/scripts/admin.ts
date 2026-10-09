@@ -1843,8 +1843,9 @@ function renderAutoSummary() {
   const rows: HTMLElement[] = [];
   if (status.problem) rows.push(el('li', 'warn', `${dateFormat.format(new Date(status.problem.at))} ${autoProblemText(status.problem)}`));
   if (status.lastRun) {
-    const { at, saved, tried, message } = status.lastRun;
-    rows.push(el('li', '', `最後の実行: ${dateFormat.format(new Date(at))}（保存 ${saved}件・AI に依頼 ${tried}件${message ? `。${message}` : ''}）`));
+    const { at, saved, tried, model, reasoning, message } = status.lastRun;
+    const using = model ? `・${model.replace(/^@cf\//, '')}${reasoning ? `・考える量 ${reasoning}` : ''}` : '';
+    rows.push(el('li', '', `最後の実行: ${dateFormat.format(new Date(at))}（保存 ${saved}件・AI に依頼 ${tried}件${using}${message ? `。${message}` : ''}）`));
   }
   rows.push(
     el(
