@@ -52,6 +52,8 @@ if (mergeIndex >= 0) {
     now,
     get: httpGet,
     titleOf: (id) => titles.get(id),
+    // 要約を保存した記事は取りに行かない（その結果は writeResults で外すので、渡さないと毎回取り直してしまう）
+    done: (id) => !!getSummary(id),
     log: (message) => console.log(message),
   });
   closeConnections();

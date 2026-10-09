@@ -98,6 +98,25 @@ describe('fetchTexts', async () => {
     expect(result).toMatchObject({ id: 'r', status: 'error', detail: 'HTTP 500', tries: 2, v: TEXT_FETCH_VERSION });
   });
 
+  it('要約を保存した記事（もう本文が要らない記事）の依頼は取りに行かない', async () => {
+    const { get, calls } = fakeSite({
+      'https://ok.example.jp/robots.txt': { status: 404 },
+      'https://ok.example.jp/1': { body: articleHtml() },
+      'https://ok.example.jp/2': { body: articleHtml() },
+    });
+    const results = await fetchTexts({
+      requests: [request('done', 'https://ok.example.jp/1'), request('todo', 'https://ok.example.jp/2')],
+      results: [],
+      keys: [key],
+      now,
+      get,
+      wait: async () => {},
+      done: (id) => id === 'done',
+    });
+    expect(results.map((r) => r.id)).toEqual(['todo']);
+    expect(calls.map((call) => call.url)).not.toContain('https://ok.example.jp/1');
+  });
+
   it('時間の上限を過ぎたら新しい記事は取りに行かず、次の実行に回す', async () => {
     const { get, calls } = fakeSite({});
     const logs: string[] = [];

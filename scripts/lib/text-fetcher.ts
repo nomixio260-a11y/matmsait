@@ -58,6 +58,11 @@ export interface FetchTextsOptions {
   titleOf?: (id: string) => string | undefined;
   /** 取得に使う時間の上限（ミリ秒。既定は RUN_BUDGET_MS） */
   budgetMs?: number;
+  /**
+   * もう本文が要らない記事か（要約を保存した記事。結果はファイルに書くときに外されるので、
+   * これを渡さないと「結果のない依頼」として毎回取りに行ってしまう）
+   */
+  done?: (id: string) => boolean;
   log?: (message: string) => void;
 }
 
@@ -324,7 +329,11 @@ async function fetchOne(
 export async function fetchTexts(options: FetchTextsOptions): Promise<TextResult[]> {
   const { requests, results, keys, now, log = () => {} } = options;
   const wait = options.wait ?? (() => sleep(jitter(3000, 5000)));
-  const pending = pendingRequests(requests, results, now.getTime()).slice(0, MAX_PER_RUN);
+  const pending = pendingRequests(
+    requests.filter((request) => !options.done?.(request.id)),
+    results,
+    now.getTime(),
+  ).slice(0, MAX_PER_RUN);
   if (pending.length === 0) {
     log('本文の取得の依頼はありません');
     return [];
