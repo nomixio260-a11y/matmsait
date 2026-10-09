@@ -104,8 +104,8 @@ const noticeLink = notice?.url ? (notice.url.startsWith('/') ? href(notice.url) 
     }
     <link rel="sitemap" href={href('/sitemap-index.xml')} />
     <link rel="preconnect" href="https://www.google.com" />
-    {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
-    {bingSiteVerification && <meta name="msvalidate.01" content={bingSiteVerification} />}
+    {googleSiteVerification.map((code) => <meta name="google-site-verification" content={code} />)}
+    {bingSiteVerification.map((code) => <meta name="msvalidate.01" content={code} />)}
     {jsonLd.map((data) => <script type="application/ld+json" set:html={toJson(data)} />)}
     <script is:inline>
       // 表示テーマと表示の設定（文字の大きさ・抜粋・既読）を、表示が始まる前に反映する（ちらつかないように）

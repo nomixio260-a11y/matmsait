@@ -70,7 +70,8 @@
 | 管理画面のログイン（新しい URL） | 運営者が pages.dev の管理画面で初回設定済み（2026-10-07。本文の自動取得の鍵を新しく登録した push で確認） |
 | お知らせ・ピックアップ・通知 | 機能は公開済み。お知らせ（`data/notice.json`）とピックアップ（`data/picks.json`）は、運営者が管理画面から保存すると作られる（まだない） |
 | SNS（Bluesky） | アカウント `@topiatsume.bsky.social`（運営者が用意）。プロフィール（名前・説明・アイコン・バナー・サイトの URL）・「自動で投稿するアカウント」（bot）のラベル・固定の紹介の投稿は 2026-10-07 に設定済みで、同日に本番と同じ処理で2件（今日のまとめ・いま話題）を投稿して確かめた。GitHub の Secrets の `BLUESKY_APP_PASSWORD` は運営者が登録済み（2026-10-07。update.yml run #69 のログで値が入っていることを確認。ハンドルは既定値が入るので `BLUESKY_IDENTIFIER` は不要）。管理画面の「今すぐ Bluesky に投稿」も使える。X は使わない（API に無料枠がなく、URL つきの投稿は1件0.2ドル）。Mastodon・Misskey は未設定（任意） |
-| AdSense・Google アナリティクス・Search Console | 未設定（変数を設定すると有効になる。Google アナリティクスは上のアクセス解析と併用できる。Search Console は `PUBLIC_GOOGLE_SITE_VERIFICATION` を設定するか DNS で確認し、サイトマップに `https://topiatsume.pages.dev/sitemap.xml` を登録する） |
+| AdSense・Google アナリティクス | 未設定（変数を設定すると有効になる。Google アナリティクスは上のアクセス解析と併用できる） |
+| Search Console | 確認待ち。2026-10-09 に運営者が変数 `PUBLIC_GOOGLE_SITE_VERIFICATION` を設定した（DNS の TXT レコード用の形 `google-site-verification=…` で入っていたので、サイトはコードだけを取り出して meta タグに出す）。「ドメイン」のプロパティで DNS の確認をして失敗した（`pages.dev` は DNS を変えられない）ので、「URL プレフィックス」（`https://topiatsume.pages.dev/`）のプロパティを作り、HTML タグで確認する。確認できたらサイトマップに `sitemap.xml` を送信する |
 | Cloudflare Web Analytics | 未設定（任意。Pages のプロジェクトの「Metrics」から無料で有効にできる。自前のアクセス解析と併用できる） |
 | 独自ドメイン | なし（収益化の段階で取得を推奨） |
 
@@ -186,12 +187,24 @@ SITE_URL=https://nomixio260-a11y.github.io BASE_PATH=/matmsait npx astro preview
 23. **運営者の作業（任意）: 要確認の要約を直す。** 2026-10-08 時点で、保存済みの要約314件のうち45件に「要確認」が出る（多くは100字を超える文と「注目が集まっている」「期待される」のような定型文。ほかに「革新的」「画期的」「究極」「高い完成度」・「今月」「先月」・「と思われる」・「反響を呼んでいる」）。管理画面の「保存済みの要約」で「要確認の要約だけ表示」にし、編集するか作り直す。要確認は文字の並びから機械的に見つけたもので、本文どおりの言い方なら直さなくてよい（例: 「圧倒的な強さ」）。誤検出が多い言葉があれば `src/lib/summary-quality.ts` の一覧から外す。
 24. 要約のプロンプトは、書き方の決まりを増やしたので長くなった（記事1件のプロンプトで約3,200字 → 約6,500字）。「1回に貼り付ける長さの上限」を8,000字にしていると、本文入りの記事は1回に1件ずつになる（既定の15,000字なら問題ない）。決まりの文を削るときは `summaryRules` と `tests/summary-core.test.ts` をあわせて直す。
 25. SNS の投稿だけの実行（`social.yml`）は1回1分ほどで、サイトの公開（Cloudflare Pages へのデプロイ）はしないので、公開の回数は増えない（更新は今までどおり1時間ごと）。GitHub Actions の実行時間は公開リポジトリなので無料。投稿の時刻は「毎時の更新のあと（更新から約2分後）」と「更新の30分後」なので、間隔は約28〜32分になる。管理画面から更新が続いたときは、前の投稿から20分たつまで投稿しない。
+26. **運営者の作業: Search Console の所有権の確認。** 「URL プレフィックス」で `https://topiatsume.pages.dev/` を追加する（「ドメイン」は DNS の TXT レコードが必要で、`pages.dev` では使えない）。いまのサイトに出ているコード（変数の値から取り出したもの）で自動で確認されなければ、確認方法「HTML タグ」に出るタグを、GitHub の変数 `PUBLIC_GOOGLE_SITE_VERIFICATION` に入れ直すか、`src/config/services.ts` の `GOOGLE_SITE_VERIFICATION_IN_REPO` に書いて公開し直し、「確認」を押す。変数とコードは確認のあとも消さない（Google がときどき確かめ直す）。
 
 （解決済み: Bluesky のプロフィールの説明とバナーは 2026-10-08 に新しいキャッチコピーにそろえた。Bluesky の Secrets（`BLUESKY_APP_PASSWORD`）は 2026-10-07 に運営者が登録した。GitHub の Secrets（Cloudflare）の登録と新しい URL の管理画面の初回設定は、2026-10-07 に運営者が行い、毎時の更新が pages.dev に公開されることを確かめた。はてなブックマークの商用利用の問題と、外した収集元・要約を禁じている掲載元の要約は、2026-10-06 に削除して解決した。管理画面のパスワードの設定し直しは、2026-10-07 に運営者が行った（本文を読むための公開鍵も登録済み）。下の記録を参照）
 
 ---
 
 ## 開発の記録（新しい順）
+
+### 2026-10-09 Search Console の確認コードを、タグ全体や DNS 用の形で入れても使えるように
+
+- 依頼・目的: 運営者が Search Console に登録しようとして「所有権を証明できませんでした（ドメイン名プロバイダ・TXT レコードが見つからない）」となり、「できないからそっちで設定して」。運営者は「ドメイン」のプロパティで DNS の TXT レコード用の値（`google-site-verification=…`）を GitHub の変数 `PUBLIC_GOOGLE_SITE_VERIFICATION` に入れていて、サイトには `content="google-site-verification=…"` という形の正しくないタグが出ていた。
+- やったこと:
+  - 確認のコードを取り出す `verificationCodes`（新規 `src/lib/site-verification.ts`）: 変数にタグ全体（`<meta … content="…">`）・DNS の TXT レコードの形（`google-site-verification=…`、かぎかっこ付きも）・コードだけのどれを入れても、meta タグの content に入れるコードだけを取り出す。複数のコード（空白・カンマ・改行で区切る）にも対応し、HTML ファイルの名前やタグを壊す文字を含むものは出さない。Bing の確認コードにも使う。
+  - `src/config/services.ts` の `googleSiteVerification`・`bingSiteVerification` をコードの配列にし、`BaseLayout.astro` はコードごとに meta タグを出す。運営者が GitHub の変数を設定できないときのために、リポジトリに書ける欄（`GOOGLE_SITE_VERIFICATION_IN_REPO`。確認のコードはページに出る公開の情報）を足した（いまは空）。
+  - こちらから Search Console を操作することはできない（運営者の Google アカウントで「URL プレフィックス」のプロパティを作って「確認」を押す必要がある）。`pages.dev` は DNS を変えられないので「ドメイン」のプロパティは使えないことを、README の手順に書き足した。
+- 主な変更ファイル: `src/lib/site-verification.ts`（新規）、`src/config/services.ts`、`src/layouts/BaseLayout.astro`、`tests/site-verification.test.ts`（新規）、`README.md`、`.env.example`
+- 確認したこと: `npm test`（38ファイル・368件）・`npm run check`（エラー0）。いまの変数の値（`google-site-verification=3Ny1…`）でビルドし、すべてのページに `<meta name="google-site-verification" content="3Ny1…">`（コードだけ）が出ることを確かめた。
+- 残った課題・注意点: 未解決の課題の 26（Search Console での確認は運営者の作業。DNS 用のコードと URL プレフィックスの HTML タグのコードが違う場合は、HTML タグのコードを入れ直す必要がある）。
 
 ### 2026-10-08 Bluesky の投稿を30分ごとに（更新の合間の投稿だけの実行・1回1件・上限の見直し）
 

@@ -113,9 +113,9 @@ sources.yaml ─▶ scripts/fetch-feeds.ts ─▶ data/items.json ─▶ Astro �
 ### 運営者が行う必要があること
 
 1. **Google Search Console に登録する（Google 検索に早く載せるために最重要）**
-   1. https://search.google.com/search-console で「URL プレフィックス」に公開URLを入力
-   2. 確認方法「HTML タグ」を選び、表示された `content="..."` の値をコピー
-   3. GitHub の Settings → Secrets and variables → Actions → **Variables** に `PUBLIC_GOOGLE_SITE_VERIFICATION` として登録し、Actions から再実行
+   1. https://search.google.com/search-console で「**URL プレフィックス**」に公開URL（`https://topiatsume.pages.dev/`）を入力（「ドメイン」は DNS の TXT レコードで確かめる方法で、`pages.dev` は DNS を変えられないので使えない）
+   2. 確認方法「HTML タグ」を選び、表示されたタグ（またはその `content="..."` の値）をコピー
+   3. GitHub の Settings → Secrets and variables → Actions → **Variables** に `PUBLIC_GOOGLE_SITE_VERIFICATION` として登録し、管理画面の「今すぐ更新」で公開し直す（タグ全体や `google-site-verification=…` の形で貼り付けても、コードだけを取り出して使う。GitHub の変数を設定できないときは、`src/config/services.ts` の `GOOGLE_SITE_VERIFICATION_IN_REPO` に書いてもよい）
    4. Search Console で「確認」→「サイトマップ」に `sitemap.xml` を送信（`sitemap-index.xml` でも同じ）
 2. **Bing Web マスターツール**（任意）: Search Console から設定をインポートするか、`PUBLIC_BING_SITE_VERIFICATION` を登録
 3. **SNS（Bluesky）の自動投稿を動かす**: GitHub の Settings → Secrets and variables → Actions → **Secrets** に `BLUESKY_APP_PASSWORD`（Bluesky の「設定 → プライバシーとセキュリティ → アプリパスワード」で発行したもの）を登録すると、次の毎時の更新から投稿が始まります。
@@ -468,8 +468,8 @@ GitHub の **Settings → Secrets and variables → Actions → Variables** に�
 | `PUBLIC_ADSENSE_CLIENT` | AdSense のパブリッシャー ID（例: `ca-pub-1234567890123456`）。全ページに AdSense タグを出力（自動広告）し、`ads.txt` も生成 |
 | `PUBLIC_ADSENSE_SLOT` | （任意）広告ユニットのスロット ID。記事一覧の 10 件ごととサイドバーに広告枠を表示 |
 | `PUBLIC_GA_ID` | （任意）Google アナリティクス 4 の測定 ID（例: `G-XXXXXXXXXX`） |
-| `PUBLIC_GOOGLE_SITE_VERIFICATION` | （任意）Google Search Console の所有権確認コード |
-| `PUBLIC_BING_SITE_VERIFICATION` | （任意）Bing Web マスターツールの所有権確認コード |
+| `PUBLIC_GOOGLE_SITE_VERIFICATION` | （任意）Google Search Console の所有権確認コード（タグ全体・`google-site-verification=…` の形でもよい。複数は改行・カンマで区切る） |
+| `PUBLIC_BING_SITE_VERIFICATION` | （任意）Bing Web マスターツールの所有権確認コード（タグ全体でもよい） |
 | `PUBLIC_ANALYTICS_URL` | （任意）アクセス解析の接続先。Cloudflare に公開するときはワークフローが `/api` にするので設定不要 |
 | `SITE_URL` | （任意）独自ドメインで公開するときの URL（例: `https://example.com`）。Cloudflare に公開するときだけ使う |
 
