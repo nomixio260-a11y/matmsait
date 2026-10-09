@@ -51,6 +51,8 @@ import {
   pickRequests,
   pickResults,
   serializeLines,
+  shouldRetry,
+  TEXT_MAX_TRIES,
   type TextRequest,
   type TextResult,
 } from '../lib/article-texts.ts';
@@ -893,7 +895,7 @@ function pasteRow(article: AdminArticle, marks: Map<string, UnavailableMark>): H
     else if (parsed.text && length < 200) warnings.push('本文が短いようです。本文全体をコピーできているか確かめてください。');
     info.textContent = parsed.text
       ? [
-          `${autoTexts.has(article.id) ? '自動で取得した本文' : '本文'} ${length.toLocaleString()}字（AI は URL を開かずに、この本文から要約します）。`,
+          `${autoTexts.has(article.id) ? `自動で取得した本文${autoPages(article.id)}` : '本文'} ${length.toLocaleString()}字（AI は URL を開かずに、この本文から要約します）。`,
           ...warnings,
         ].join(' ')
       : '本文はまだありません（このままでは AI が URL を開こうとします）。';
@@ -950,6 +952,12 @@ function refusedSources(): Set<string> {
   return refused;
 }
 
+/** 自動で取得した本文が何ページ分か（「（3ページ分）」。1ページなら空） */
+function autoPages(id: string): string {
+  const detail = textResults.get(id)?.detail;
+  return detail && /^\d+ページ分$/.test(detail) ? `（${detail}）` : '';
+}
+
 /** 記事の最新の依頼と結果 */
 function textState(id: string): { request?: TextRequest; result?: TextResult; waiting: boolean } {
   const request = textRequests.find((entry) => entry.id === id);
@@ -979,7 +987,14 @@ function autoInfo(article: AdminArticle): HTMLElement | undefined {
     box.append('自動で取得した本文を、このログインの鍵では読めませんでした（鍵を作り直す前に取得した本文です）。', retry('もう一度自動で取得'));
   } else if (result && result.status !== 'ok') {
     box.classList.add('warn');
-    box.append(`自動で取得できませんでした: ${TEXT_STATUS_LABELS[result.status]}${result.detail ? `（${result.detail}）` : ''}。本文を貼り付けてください。`);
+    // 一時的な失敗・前の取り方で取れなかった記事は、毎時の更新で自動で取り直す
+    const again = shouldRetry(result, Date.now()) || (result.status === 'error' && (result.tries ?? 1) < TEXT_MAX_TRIES);
+    // 本文がない理由（動画が中心のページなど）が分かっていれば、一般的な説明の代わりにそれを出す
+    const reason = result.status === 'no-text' && result.detail ? `本文を見つけられませんでした（${result.detail}）` : `${TEXT_STATUS_LABELS[result.status]}${result.detail ? `（${result.detail}）` : ''}`;
+    box.append(
+      `自動で取得できませんでした: ${reason}。`,
+      again ? '毎時の更新のときに、自動でもう一度試します（すぐに使うなら本文を貼り付けてください）。' : '本文を貼り付けてください。',
+    );
     // サイトが断っている場合は、依頼し直しても同じなのでボタンを出さない
     if (result.status === 'error' || result.status === 'no-text') box.append(retry('もう一度自動で取得'));
   } else if (!request && !texts.has(article.id)) {

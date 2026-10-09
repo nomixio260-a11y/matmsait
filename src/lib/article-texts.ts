@@ -16,6 +16,14 @@ export const TEXT_RETENTION_DAYS = 14;
 export const TEXT_REQUEST_LIMIT = 100;
 /** 登録しておく公開鍵の数の上限（端末ごとに鍵があるため、新しいものから） */
 export const TEXT_KEY_LIMIT = 5;
+/**
+ * 本文の取り方の版。取り方を改善したら上げると、前の版で本文を取れなかった記事（本文なし・取得の失敗）を1回だけ取り直す
+ * （2: 続きのページ・「全文を読む」の先・記事本体へのリンク・AMP 版・WordPress の API をたどる、本文の候補を比べて選ぶ、など）
+ */
+export const TEXT_FETCH_VERSION = 2;
+/** 一時的な失敗（通信の失敗・サイトの一時的なエラー）を取り直すまでの時間と、試す回数の上限 */
+export const TEXT_RETRY_AFTER_MS = 30 * 60 * 1000;
+export const TEXT_MAX_TRIES = 3;
 
 export interface TextRequest {
   id: string;
@@ -37,6 +45,10 @@ export interface TextResult {
   length?: number;
   /** 暗号化した本文（取得できたとき） */
   enc?: EncryptedText;
+  /** 取り方の版（TEXT_FETCH_VERSION。ないものは 1） */
+  v?: number;
+  /** 同じ依頼を試した回数（一時的な失敗の取り直しを数える。ないものは 1） */
+  tries?: number;
 }
 
 export interface TextsFile {
@@ -51,21 +63,29 @@ export const TEXT_STATUS_LABELS: Record<TextStatus, string> = {
   'ai-optout': 'サイトが AI での利用を断っている（robots.txt・noai）ため、取得しませんでした',
   blocked: 'サイトが自動取得を拒否しました',
   'not-found': '記事のページが見つかりませんでした',
-  'no-text': '本文を見つけられませんでした（JavaScript で表示するページなど）',
+  'no-text': '本文を見つけられませんでした（動画・画像が中心のページ、JavaScript で本文を出すページなど）',
   error: '取得できませんでした',
 };
 
 const DAY = 24 * 60 * 60 * 1000;
 const fresh = (at: string, now: number) => now - Date.parse(at) < TEXT_RETENTION_DAYS * DAY;
 
-/** まだ結果がない（または依頼し直された）依頼。古い順 */
+/** その結果の記事を、もう一度取りに行くか（依頼し直されたとき以外） */
+export function shouldRetry(result: TextResult, now: number): boolean {
+  // 取り方を改善したら、前の版で本文を取れなかった記事を1回だけ取り直す（拒否・ページなしは取り直さない）
+  if ((result.status === 'no-text' || result.status === 'error') && (result.v ?? 1) < TEXT_FETCH_VERSION) return true;
+  // 一時的な失敗は、時間を空けて何回か取り直す
+  return result.status === 'error' && (result.tries ?? 1) < TEXT_MAX_TRIES && now - Date.parse(result.fetchedAt) >= TEXT_RETRY_AFTER_MS;
+}
+
+/** まだ結果がない（または依頼し直された・取り直す）依頼。古い順 */
 export function pendingRequests(requests: TextRequest[], results: TextResult[], now: number): TextRequest[] {
-  const latest = new Map(results.map((result) => [result.id, result.fetchedAt]));
+  const latest = new Map(results.map((result) => [result.id, result]));
   return requests
     .filter((request) => fresh(request.requestedAt, now))
     .filter((request) => {
-      const fetchedAt = latest.get(request.id);
-      return !fetchedAt || fetchedAt < request.requestedAt;
+      const result = latest.get(request.id);
+      return !result || result.fetchedAt < request.requestedAt || shouldRetry(result, now);
     })
     .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt));
 }

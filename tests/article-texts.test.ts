@@ -9,6 +9,8 @@ import {
   pickRequests,
   pickResults,
   serializeTextsFile,
+  shouldRetry,
+  TEXT_FETCH_VERSION,
   type TextRequest,
   type TextResult,
 } from '../src/lib/article-texts.ts';
@@ -28,6 +30,23 @@ describe('本文の自動取得の依頼と結果', () => {
     const requests = [request('a', 1), request('b', 3), request('c', 2), request('old', 24 * 15)];
     const results = [result('b', 4), result('c', 1)];
     expect(pendingRequests(requests, results, now).map((r) => r.id)).toEqual(['b', 'a']);
+  });
+
+  it('取り方を改善する前に本文を取れなかった記事は1回だけ取り直し、一時的な失敗は30分あけて3回まで試す', () => {
+    const minutes = (m: number) => new Date(now - m * 60e3).toISOString();
+    const r = (status: TextResult['status'], extra: Partial<TextResult> = {}): TextResult => ({ ...result('a', 1, status), ...extra });
+    // 前の版の「本文なし」「失敗」は取り直す（拒否・ページなし・取得済みは取り直さない）
+    expect(shouldRetry(r('no-text'), now)).toBe(true);
+    expect(shouldRetry(r('error'), now)).toBe(true);
+    expect(shouldRetry(r('no-text', { v: TEXT_FETCH_VERSION }), now)).toBe(false);
+    for (const status of ['ok', 'robots', 'ai-optout', 'blocked', 'not-found'] as const) expect(shouldRetry(r(status), now)).toBe(false);
+    // 今の版の一時的な失敗は、30分たってから3回目まで
+    expect(shouldRetry(r('error', { v: TEXT_FETCH_VERSION, fetchedAt: minutes(10) }), now)).toBe(false);
+    expect(shouldRetry(r('error', { v: TEXT_FETCH_VERSION, fetchedAt: minutes(31) }), now)).toBe(true);
+    expect(shouldRetry(r('error', { v: TEXT_FETCH_VERSION, fetchedAt: minutes(31), tries: 3 }), now)).toBe(false);
+    // 取り直す記事は、依頼の一覧にも入る
+    expect(pendingRequests([request('a', 3)], [r('no-text')], now).map((x) => x.id)).toEqual(['a']);
+    expect(pendingRequests([request('a', 3)], [r('no-text', { v: TEXT_FETCH_VERSION })], now)).toEqual([]);
   });
 
   it('依頼を足すと同じ記事は新しい日時にし、古い依頼は外す', () => {

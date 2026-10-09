@@ -20,6 +20,7 @@ import {
   serializeTextsFile,
   type TextResult,
 } from '../src/lib/article-texts.ts';
+import { getAllItems } from '../src/lib/items.ts';
 import { getSummary } from '../src/lib/summaries.ts';
 import { closeConnections, httpGet } from './lib/http.ts';
 import { fetchTexts } from './lib/text-fetcher.ts';
@@ -42,12 +43,15 @@ if (mergeIndex >= 0) {
 } else {
   const now = new Date();
   const results = readResults();
+  // 記事の見出し（取り出した本文が見出しの記事のものかを確かめる）
+  const titles = new Map(getAllItems().map((item) => [item.id, item.title]));
   const fetched = await fetchTexts({
     requests: parseJsonList(readText(TEXT_REQUESTS_PATH), pickRequests),
     results,
     keys: parseJsonList(readText(TEXT_KEYS_PATH), pickKeys),
     now,
     get: httpGet,
+    titleOf: (id) => titles.get(id),
     log: (message) => console.log(message),
   });
   closeConnections();

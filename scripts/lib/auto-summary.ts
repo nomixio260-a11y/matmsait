@@ -446,7 +446,11 @@ export async function articleTextOf(item: Item, get: Get, robotsCache: RobotsCac
   }
   if (!robotsCache.has(origin)) robotsCache.set(origin, await loadRobots(origin, get));
   const robots = robotsCache.get(origin)!;
-  const article = robots === 'error' ? ({ status: 'error', detail: 'robots.txt を読めませんでした' } as const) : await fetchArticleText(item.url, robots, get);
+  // 本文はプロンプトに入れる長さ（ARTICLE_TEXT_MAX）までしか使わないので、続きのページはそのくらいまで
+  const article =
+    robots === 'error'
+      ? ({ status: 'error', detail: 'robots.txt を読めませんでした' } as const)
+      : await fetchArticleText(item.url, robots, get, { title: item.title, maxChars: ARTICLE_TEXT_MAX * 2 });
   if (article.status !== 'ok') {
     return { status: 'failed', result: article.status === 'error' ? 'fetch-error' : article.status, ...(article.detail ? { detail: article.detail } : {}) };
   }

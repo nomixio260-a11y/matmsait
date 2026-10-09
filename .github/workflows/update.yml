@@ -102,6 +102,8 @@ jobs:
       # 利用の拒否・アクセスの拒否を守る。本文は運営者の公開鍵で暗号化して data/texts.json に置く）。失敗しても収集・公開は続ける
       - name: AI が開けない記事の本文を取得
         continue-on-error: true
+        # 取得は5分で打ち切る（scripts/lib/text-fetcher.ts の RUN_BUDGET_MS）。それでも終わらないときの安全のための上限
+        timeout-minutes: 10
         run: npm run texts
 
       # アクセス解析（Cloudflare に公開しているとき）から、よく読まれている記事を取ってくる（data/popular.json）

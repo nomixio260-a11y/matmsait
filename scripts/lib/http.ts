@@ -31,7 +31,7 @@ export const ACCEPT_ENCODING = zstdDecompressSync ? 'gzip, deflate, br, zstd' : 
 export type RequestKind = 'document' | 'fetch';
 
 /** Windows 版 Chrome が送るのと同じヘッダーを同じ順序で返す（Host は送信時に先頭へ付ける） */
-export function browserHeaders(kind: RequestKind, now: Date = new Date()): [string, string][] {
+export function browserHeaders(kind: RequestKind, now: Date = new Date(), referer?: string): [string, string][] {
   const version = chromeMajorVersion(now);
   const brands = `"Google Chrome";v="${version}", "Chromium";v="${version}", "Not/A)Brand";v="24"`;
   const userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${version}.0.0.0 Safari/537.36`;
@@ -49,10 +49,12 @@ export function browserHeaders(kind: RequestKind, now: Date = new Date()): [stri
         'Accept',
         'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
       ],
-      ['Sec-Fetch-Site', 'none'],
+      // ページの中のリンクから移るとき（記事の続きのページなど）は、ブラウザと同じく移る前のページを Referer で送る
+      ['Sec-Fetch-Site', referer ? 'same-origin' : 'none'],
       ['Sec-Fetch-Mode', 'navigate'],
       ['Sec-Fetch-User', '?1'],
       ['Sec-Fetch-Dest', 'document'],
+      ...(referer ? ([['Referer', referer]] as [string, string][]) : []),
       ['Accept-Encoding', ACCEPT_ENCODING],
       ['Accept-Language', language],
     ];
@@ -87,6 +89,65 @@ export interface HttpGetOptions {
   maxRedirects?: number;
   /** ブラウザの既定のヘッダーの後ろに足すヘッダー（条件付きリクエストの If-None-Match など） */
   headers?: [string, string][];
+  /** ページの中のリンクから移るときの、移る前のページ（Referer） */
+  referer?: string;
+  /**
+   * Cookie を覚えて送り返す（ブラウザと同じく。初めて開くと Cookie を付けて同じページへ転送するサイトや、
+   * 記事の続きのページで同じ Cookie が要るサイトのため）。同じ記事の取得の間だけ使い、保存はしない
+   */
+  cookies?: CookieJar;
+  /**
+   * 転送（リダイレクト）の先へ進むか。進まなければ、転送の応答をそのまま返す
+   * （記事の本文の取得で、転送先のページが robots.txt で断られていないかを確かめてから進むため）
+   */
+  followRedirect?: (to: URL) => boolean | Promise<boolean>;
+}
+
+/** Cookie の入れ物（ホスト名 → 名前 → 値） */
+export type CookieJar = Map<string, Map<string, string>>;
+
+/** そのホストに送る Cookie（Domain で指定されたものは、そのドメインの下のホストにも送る） */
+export function cookieHeader(jar: CookieJar, hostname: string): string {
+  const pairs = new Map<string, string>();
+  for (const [domain, cookies] of jar) {
+    if (hostname !== domain && !hostname.endsWith(`.${domain}`)) continue;
+    for (const [name, value] of cookies) pairs.set(name, value);
+  }
+  return [...pairs].map(([name, value]) => `${name}=${value}`).join('; ');
+}
+
+/** 応答の Set-Cookie を覚える（期限切れ・Max-Age=0 は消す。属性は Domain だけを見る） */
+export function storeCookies(jar: CookieJar, hostname: string, setCookie: string[] | string | undefined): void {
+  for (const line of [setCookie ?? []].flat()) {
+    const [pair, ...attributes] = line.split(';');
+    const index = pair.indexOf('=');
+    if (index <= 0) continue;
+    const name = pair.slice(0, index).trim();
+    const value = pair.slice(index + 1).trim();
+    let domain = hostname;
+    let expired = false;
+    let foreign = false;
+    for (const attribute of attributes) {
+      const [key, raw = ''] = attribute.split('=');
+      const attr = key.trim().toLowerCase();
+      const val = raw.trim();
+      if (attr === 'domain' && val) {
+        const candidate = val.replace(/^\./, '').toLowerCase();
+        // ほかのサイトのドメインの Cookie は受け取らない（ブラウザと同じ）
+        if (hostname === candidate || hostname.endsWith(`.${candidate}`)) domain = candidate;
+        else foreign = true;
+      } else if (attr === 'max-age' && Number(val) <= 0) {
+        expired = true;
+      } else if (attr === 'expires' && Date.parse(val) < Date.now()) {
+        expired = true;
+      }
+    }
+    if (foreign) continue;
+    const cookies = jar.get(domain) ?? new Map<string, string>();
+    if (expired) cookies.delete(name);
+    else cookies.set(name, value);
+    jar.set(domain, cookies);
+  }
 }
 
 // Node の fetch は Sec-Fetch-Mode を cors に固定し独自の既定ヘッダーも足すため、
@@ -98,16 +159,24 @@ const agents = {
 
 /** リダイレクトを辿って GET し、圧縮を展開した本文を返す */
 export async function httpGet(url: string, options: HttpGetOptions = {}): Promise<HttpResponse> {
-  const { kind = 'document', timeoutMs = 15_000, maxRedirects = 5, headers = [] } = options;
+  const { kind = 'document', timeoutMs = 15_000, maxRedirects = 5, headers = [], referer, cookies, followRedirect } = options;
   let current = new URL(url);
   for (let redirects = 0; ; redirects++) {
-    const res = await requestOnce(current, [...browserHeaders(kind), ...headers], timeoutMs);
+    const cookie = cookies ? cookieHeader(cookies, current.hostname) : '';
+    const res = await requestOnce(
+      current,
+      [...browserHeaders(kind, new Date(), referer), ...headers, ...(cookie ? ([['Cookie', cookie]] as [string, string][]) : [])],
+      timeoutMs,
+    );
+    if (cookies) storeCookies(cookies, current.hostname, res.headers['set-cookie']);
     const location = res.headers.location;
     if (!REDIRECT_STATUSES.has(res.status) || !location) {
       return { url: current.toString(), ...res };
     }
     if (redirects >= maxRedirects) throw new Error('リダイレクトが多すぎます');
-    current = new URL(location, current);
+    const next = new URL(location, current);
+    if (followRedirect && !(await followRedirect(next))) return { url: current.toString(), ...res };
+    current = next;
   }
 }
 
@@ -257,12 +326,16 @@ const CHARSET_ALIASES: Record<string, string> = {
   'x-euc-jp': 'euc-jp',
 };
 
-/** Content-Type の charset → XML 宣言の encoding → UTF-8 の順で文字コードを決めて文字列にする */
+/**
+ * Content-Type の charset → XML 宣言の encoding → HTML の meta（charset・http-equiv）→ UTF-8 の順で文字コードを決めて文字列にする
+ * （Shift_JIS・EUC-JP のページで、HTTP のヘッダーに charset がなく meta にだけ書いてあるサイトがある）
+ */
 export function decodeBody(body: Buffer, contentType: string | undefined): string {
   const fromHeader = contentType?.match(/charset\s*=\s*["']?([\w.:-]+)/i)?.[1];
   const head = body.subarray(0, 512).toString('latin1');
   const fromXml = head.match(/^\s*<\?xml[^>]*\bencoding\s*=\s*["']([\w.:-]+)["']/i)?.[1];
-  const label = (fromHeader || fromXml || 'utf-8').toLowerCase();
+  const fromMeta = fromHeader || fromXml ? undefined : body.subarray(0, 4096).toString('latin1').match(/<meta[^>]+charset\s*=\s*["']?([\w.:-]+)/i)?.[1];
+  const label = (fromHeader || fromXml || fromMeta || 'utf-8').toLowerCase();
   try {
     return new TextDecoder(CHARSET_ALIASES[label] ?? label).decode(body);
   } catch {
