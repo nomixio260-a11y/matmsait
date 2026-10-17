@@ -1,0 +1,21 @@
+# このリポジトリは git-crypt で暗号化する（公開のまま、コードの中身だけを暗号化する）。
+# 手元の作業ツリーと GitHub Actions・開発セッションの中だけ、鍵で生コードに戻す（git-crypt unlock）。push すると自動でまた暗号化される。
+# 既定ですべてを暗号化し、下の行で「平文のまま置くもの」を除外する（除外しないと動かない・整合しないもの）。
+* filter=git-crypt diff=git-crypt
+
+# git-crypt 自身と git が、復号の前に読む設定ファイル
+.gitattributes !filter !diff
+.gitignore !filter !diff
+
+# GitHub Actions が平文で解釈する必要がある（暗号化するとワークフローが動かない）
+.github/** !filter !diff
+
+# 開発セッションが復号の前に実行する起動フック・設定（この中で unlock する）
+.claude/** !filter !diff
+
+# 毎時の更新と管理画面が GitHub API 経由で平文のまま書き込む場所。
+# ここを暗号化すると、API 書き込み（平文）と git-crypt（暗号）が食い違って壊れるため、平文のままにする。
+data/** !filter !diff
+
+# 開発セッションが起動時（復号の前）に読む運用ルール。平文のまま置く。
+CLAUDE.md !filter !diff

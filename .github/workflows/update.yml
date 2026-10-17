@@ -1,0 +1,384 @@
+name: フィード更新とデプロイ
+
+# 定期的な更新は「自動更新タイマー」（timer.yml）がこのワークフローを実行する。
+# （GitHub の定期実行 schedule は新しいリポジトリだと動かないことがあるため使わない）
+on:
+  push:
+    # 開発記録や説明書きだけの変更では、収集・公開をやり直さない（自動更新タイマーの間隔も崩さない）
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  # 自動更新タイマー、管理画面の「今すぐ更新」ボタン、Actions 画面の Run workflow から実行
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  # 以前の公開先（GitHub Pages）が残っているか調べ、空にする（clear-pages）
+  pages: write
+  id-token: write
+
+env:
+  ASTRO_TELEMETRY_DISABLED: 1
+
+jobs:
+  build:
+    # 公開は既定ブランチだけ
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    # 収集・公開は1つずつ動かす（定期の更新と push・「今すぐ更新」が同時に動くと、AI の自動要約の使った量の記録
+    # （data/auto-summary.json）が後から終わった方で上書きされ、無料枠の見積もりが食い違うなど、データが競合するため）。
+    # 待っている実行は、次の実行が来ると取り消される（次の実行が最新のデータで収集・公開するので問題ない）
+    concurrency:
+      group: update-build
+      cancel-in-progress: false
+    # AI の自動要約（最大12分）を含めて
+    timeout-minutes: 25
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+      base_url: ${{ steps.target.outputs.base_url }}
+      clear_pages: ${{ steps.old_pages.outputs.clear }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: リポジトリを復号（git-crypt）
+        env:
+          REPO_KEY: ${{ secrets.REPO_KEY }}
+        run: |
+          if [ -z "$REPO_KEY" ]; then
+            echo '::error::Secrets に REPO_KEY（git-crypt の鍵を base64 にしたもの）がありません。登録しないと復号できず、収集・公開ができません'
+            exit 1
+          fi
+          sudo apt-get update -qq && sudo apt-get install -y -qq git-crypt
+          printf '%s' "$REPO_KEY" | base64 -d > "$RUNNER_TEMP/repo.key"
+          git-crypt unlock "$RUNNER_TEMP/repo.key"
+          rm -f "$RUNNER_TEMP/repo.key"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            analytics/package-lock.json
+
+      - run: npm ci
+
+      - name: テスト・型チェック
+        run: |
+          npm test
+          npm run check
+
+      # 公開先を決める。サイトは Cloudflare Pages（pages.dev。アクセス解析つき）だけに公開する。
+      # （2026-10-16 から、Cloudflare の Secrets がないときに GitHub Pages へ公開する切り替えはやめた。サイトに GitHub の
+      #   痕跡を出さないため。Secrets がなければ、公開済みのサイトはそのままにして、この実行を失敗にする）
+      - name: 公開先を決める
+        id: target
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # ルートの wrangler.jsonc の name と同じにする
+          PROJECT: topiatsume
+          # 独自ドメインを Cloudflare Pages に付けたときは、変数 SITE_URL にその URL（例: https://example.com）を入れる
+          CUSTOM_SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo '::error::Cloudflare の Secrets（CLOUDFLARE_API_TOKEN・CLOUDFLARE_ACCOUNT_ID）がないため、公開できません'
+            exit 1
+          fi
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID"
+          auth="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+          # Pages のプロジェクトがなければ作る（本番のブランチは main。公開のときに --branch main を付ける）
+          if ! res=$(curl -fsS "$api/pages/projects/$PROJECT" -H "$auth"); then
+            res=$(curl -fsS -X POST "$api/pages/projects" -H "$auth" -H 'Content-Type: application/json' \
+              -d "{\"name\":\"$PROJECT\",\"production_branch\":\"main\"}") || true
+          fi
+          host=$(printf '%s' "$res" | jq -r '.result.subdomain // empty')
+          if [ -z "$host" ]; then
+            echo '::error::Cloudflare Pages のプロジェクトを確かめられませんでした。トークンの権限（Cloudflare Pages の編集）と Account ID を確認してください'
+            exit 1
+          fi
+          # アクセス解析の Durable Object を持つ Worker（analytics/）がまだなければ、先に公開する（サイトの /api が使う）
+          if curl -fsS -o /dev/null "$api/workers/scripts/topiatsume-analytics/settings" -H "$auth"; then
+            echo 'analytics_worker=ready' >> "$GITHUB_OUTPUT"
+          else
+            echo 'analytics_worker=missing' >> "$GITHUB_OUTPUT"
+          fi
+          site="${CUSTOM_SITE_URL%/}"
+          [ -n "$site" ] || site="https://$host"
+          { echo "project=$PROJECT"; echo "site_url=$site"; echo 'base_path=/'; echo "base_url=$site"; echo 'analytics=/api'; } >> "$GITHUB_OUTPUT"
+          echo "公開先: $site"
+
+      # 以前の公開先（GitHub Pages）が、まだ何かを返しているか（2026-10-16 まで新しい公開先への転送ページを置いていた）。
+      # 返していれば、下の clear-pages で空にする。運営者が Settings → Pages で公開をやめていれば何もしない
+      - name: 以前の公開先が残っているか調べる
+        id: old_pages
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url // empty' 2>/dev/null) || url=''
+          if [ -z "$url" ]; then
+            echo '以前の公開先は公開をやめています'
+            exit 0
+          fi
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo 000)
+          if [ "$status" = '404' ]; then
+            echo '以前の公開先は空になっています'
+          else
+            echo "以前の公開先がまだ応答しています（HTTP $status）。空にします"
+            echo 'clear=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: フィードを取得
+        run: npm run fetch
+
+      # 管理画面から依頼された「AI が開けない記事」の本文を取得する（フィードと同じブラウザ相当の通信で、robots.txt・AI での
+      # 利用の拒否・アクセスの拒否を守る。本文は運営者の公開鍵で暗号化して data/texts.json に置く）。失敗しても収集・公開は続ける
+      - name: AI が開けない記事の本文を取得
+        continue-on-error: true
+        # 取得は5分で打ち切る（scripts/lib/text-fetcher.ts の RUN_BUDGET_MS）。それでも終わらないときの安全のための上限
+        timeout-minutes: 10
+        run: npm run texts
+
+      # アクセス解析（Cloudflare に公開しているとき）から、よく読まれている記事を取ってくる（data/popular.json）
+      - name: よく読まれている記事を取得
+        continue-on-error: true
+        run: npm run popular
+        env:
+          PUBLIC_ANALYTICS_URL: ${{ steps.target.outputs.analytics || vars.PUBLIC_ANALYTICS_URL }}
+          SITE_URL: ${{ steps.target.outputs.site_url }}
+
+      # AI による自動要約（Cloudflare Workers AI の無料枠で Qwen を使う。既定は Qwen3.8 27B を考える量 low で。仕組みは scripts/lib/auto-summary.ts）。
+      # 要約のない話題の記事を1回に最大4件。無料枠（1日1万ニューロン）の手前で止め、使う量を1日の時間で均すので料金はかからない。
+      # 定期の更新と「今すぐ更新」（workflow_dispatch）では毎回、管理画面の保存などの push では前回から50分以上たっているときだけ動かす
+      # （push のたびに待たせないため。自動更新タイマーは push のたびに数え直すので、push が続いても止まらないように）。
+      # 止めるときは変数 AUTO_SUMMARY_PER_RUN を 0 にする。失敗しても収集・公開は続ける
+      - name: AI で自動要約
+        continue-on-error: true
+        # 考えるモデルは1回の依頼に数分かかることがある（4分を過ぎたら新しい記事には取りかからない）
+        timeout-minutes: 12
+        run: npm run auto-summary -- --out "$RUNNER_TEMP/auto-summaries.json" --min-interval "$MIN_INTERVAL"
+        env:
+          MIN_INTERVAL: ${{ github.event_name == 'push' && '50' || '0' }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Workers AI の権限のある API トークン（登録していなければ、公開に使う CLOUDFLARE_API_TOKEN を試す）
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          AUTO_SUMMARY_PER_RUN: ${{ vars.AUTO_SUMMARY_PER_RUN }}
+          AUTO_SUMMARY_PER_DAY: ${{ vars.AUTO_SUMMARY_PER_DAY }}
+          AUTO_SUMMARY_MODEL: ${{ vars.AUTO_SUMMARY_MODEL }}
+          AUTO_SUMMARY_REASONING: ${{ vars.AUTO_SUMMARY_REASONING }}
+
+      - name: 取得したデータをコミット
+        id: commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # 取得結果を退避し、ブランチの最新状態に取り込み直してから push する。
+          # （再実行や同時更新で古いコミットから始まっても、データが衝突しない）
+          cp data/items.json "$RUNNER_TEMP/fetched-items.json"
+          # 収集元ごとの取得状態（ETag・連続失敗の回数など）は、今回の取得結果で上書きする
+          cp data/feeds.json "$RUNNER_TEMP/feeds.json"
+          # 本文の自動取得の結果は、最新の data/texts.json にまとめる（同じ記事は新しく取得した方を残す）
+          if [ -f data/texts.json ]; then cp data/texts.json "$RUNNER_TEMP/texts.json"; fi
+          # よく読まれている記事は、今回取ってきたもので上書きする
+          if [ -f data/popular.json ]; then cp data/popular.json "$RUNNER_TEMP/popular.json"; fi
+          # AI の自動要約の記録は、この実行で書き換えたときだけ今回の結果で上書きする（作った要約は、下で最新の要約に足す）
+          if [ -n "$(git status --porcelain -- data/auto-summary.json)" ]; then cp data/auto-summary.json "$RUNNER_TEMP/auto-summary.json"; fi
+          for attempt in 1 2 3; do
+            git fetch --quiet origin "$GITHUB_REF_NAME"
+            git reset --quiet --hard "origin/$GITHUB_REF_NAME"
+            git diff --quiet "$GITHUB_SHA" HEAD -- package-lock.json || npm ci
+            npm run --silent merge -- "$RUNNER_TEMP/fetched-items.json"
+            cp "$RUNNER_TEMP/feeds.json" data/feeds.json
+            if [ -f "$RUNNER_TEMP/texts.json" ]; then npm run --silent texts -- --merge "$RUNNER_TEMP/texts.json"; fi
+            if [ -f "$RUNNER_TEMP/popular.json" ]; then cp "$RUNNER_TEMP/popular.json" data/popular.json; fi
+            if [ -f "$RUNNER_TEMP/auto-summary.json" ]; then cp "$RUNNER_TEMP/auto-summary.json" data/auto-summary.json; fi
+            # 自動で作った要約を取り込む（その間に運営者が保存した要約は上書きしない。失敗してもデータのコミットは続ける）
+            if [ -f "$RUNNER_TEMP/auto-summaries.json" ]; then
+              npm run --silent summaries -- import "$RUNNER_TEMP/auto-summaries.json" --skip-existing || echo '::warning::自動で作った要約の取り込みに失敗しました'
+            fi
+            git add data
+            if git diff --cached --quiet; then
+              echo '更新なし'
+              echo 'changed=false' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            git commit --quiet -m 'chore: フィードを更新'
+            if git push --quiet origin "HEAD:$GITHUB_REF_NAME"; then
+              echo 'changed=true' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo 'データのコミットに失敗しました' >&2
+          exit 1
+
+      # 共有画像（話題・要約・日別まとめの見出しのカード。src/lib/og-image.ts）は、内容が変わらなければ前のビルドで作ったものを使い回す
+      # （新しく作るのは1枚0.2秒ほどかかるため。使われなくなった画像は3日で消える）
+      - name: 共有画像の前回の分を取り込む
+        uses: actions/cache@v6
+        with:
+          path: .cache/og
+          key: og-images-${{ github.run_id }}
+          restore-keys: og-images-
+
+      - name: サイトをビルド
+        run: npm run build
+        env:
+          SITE_URL: ${{ steps.target.outputs.site_url }}
+          BASE_PATH: ${{ steps.target.outputs.base_path }}
+          PUBLIC_ADSENSE_CLIENT: ${{ vars.PUBLIC_ADSENSE_CLIENT }}
+          PUBLIC_ADSENSE_SLOT: ${{ vars.PUBLIC_ADSENSE_SLOT }}
+          PUBLIC_GA_ID: ${{ vars.PUBLIC_GA_ID }}
+          PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}
+          PUBLIC_BING_SITE_VERIFICATION: ${{ vars.PUBLIC_BING_SITE_VERIFICATION }}
+          PUBLIC_ANALYTICS_URL: ${{ steps.target.outputs.analytics || vars.PUBLIC_ANALYTICS_URL }}
+
+      - name: Cloudflare Pages に公開
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: ${{ steps.target.outputs.project }}
+          ANALYTICS_WORKER: ${{ steps.target.outputs.analytics_worker }}
+          SITE_URL: ${{ steps.target.outputs.site_url }}
+        run: |
+          npm ci --prefix analytics --no-audit --no-fund
+          if [ "$ANALYTICS_WORKER" = 'missing' ]; then
+            (cd analytics && npx wrangler deploy --var "REPOSITORY:$GITHUB_REPOSITORY" --var "SITE_URL:$SITE_URL")
+          fi
+          # dist（静的なページ）と functions/（サイトの /api）を公開する。設定はルートの wrangler.jsonc
+          analytics/node_modules/.bin/wrangler pages deploy --project-name "$PROJECT" --branch main \
+            --commit-hash "$(git rev-parse HEAD)" --commit-message "update $(date -u +%Y-%m-%dT%H:%MZ)" --commit-dirty=true
+
+      - name: フォロー中の新着を通知
+        # 公開したサイトの updates.json を通知のサーバー（サイトの /api の Durable Object）が読み、
+        # フォローしているジャンル・掲載元・キーワードに当てはまる新着を、通知をオンにした人に送る（失敗しても公開は続ける）
+        env:
+          SITE_URL: ${{ steps.target.outputs.site_url }}
+        run: |
+          sleep 10
+          status=$(curl -sS -o push-check.json -w '%{http_code}' -X POST "$SITE_URL/api/push/check" --max-time 60 || echo 000)
+          echo "通知の確認: HTTP $status $(cat push-check.json 2>/dev/null || true)"
+          if [ "$status" != '200' ]; then echo "::warning::フォロー中の新着の通知を確認できませんでした（HTTP $status）"; fi
+          rm -f push-check.json
+
+  # 以前の公開先（GitHub Pages）を空にする（.nojekyll だけを公開し、どのページも 404 にする。サイトへの転送や
+  # サイトの名前を残さない）。build の「以前の公開先が残っているか調べる」が、まだ応答していると判断したときだけ動く
+  clear-pages:
+    needs: build
+    if: needs.build.outputs.clear_pages == 'true'
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # 空にできなくても、収集・公開の結果（成功）には影響させない
+    continue-on-error: true
+    environment:
+      name: github-pages
+    steps:
+      - name: 空の内容を作る
+        run: mkdir -p empty && touch empty/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: empty
+
+      - uses: actions/deploy-pages@v5
+
+  # 自動更新タイマー（timer.yml）が止まっていたら再開する。更新が動くたびに確かめる
+  keep-timer:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # タイマーの確認に失敗しても、収集・公開の結果（成功）には影響させない
+    continue-on-error: true
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: 自動更新タイマーを確認・再開
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = "true" ]; then
+            echo '非公開リポジトリでは自動更新タイマーを使いません'
+            exit 0
+          fi
+          active=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/timer.yml/runs?per_page=10" \
+            --jq '[.workflow_runs[] | select(.status != "completed")] | length')
+          if [ "$active" -gt 0 ]; then
+            echo '自動更新タイマーは動いています'
+          else
+            gh workflow run timer.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
+            echo '自動更新タイマーが止まっていたので再開しました' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # 公開後に検索エンジン（IndexNow）・フィード購読者（WebSub）へ更新を知らせ、SNS に自動投稿する
+  notify:
+    # 公開は build の中で終わっているので、すぐに知らせる・投稿する（管理画面の「今すぐ投稿」を早くするため）
+    needs: build
+    # 同じまとめを二重に投稿しないよう、通知・SNS 投稿も1つずつ（更新の合間の投稿 social.yml とも同じグループ）
+    concurrency:
+      group: notify
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # build ジョブがコミットした最新のデータを使う
+          ref: ${{ github.ref_name }}
+
+      - name: リポジトリを復号（git-crypt）
+        env:
+          REPO_KEY: ${{ secrets.REPO_KEY }}
+        run: |
+          if [ -z "$REPO_KEY" ]; then
+            echo '::error::Secrets に REPO_KEY（git-crypt の鍵を base64 にしたもの）がありません。登録しないと復号できず、収集・公開ができません'
+            exit 1
+          fi
+          sudo apt-get update -qq && sudo apt-get install -y -qq git-crypt
+          printf '%s' "$REPO_KEY" | base64 -d > "$RUNNER_TEMP/repo.key"
+          git-crypt unlock "$RUNNER_TEMP/repo.key"
+          rm -f "$RUNNER_TEMP/repo.key"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: 更新を通知・SNS に投稿
+        run: npm run notify
+        env:
+          SITE_BASE_URL: ${{ needs.build.outputs.base_url }}
+          DATA_CHANGED: ${{ needs.build.outputs.changed }}
+          # Bluesky のアカウント（ハンドルは公開の情報なので既定値を置く。パスワードは Secrets の BLUESKY_APP_PASSWORD だけ）
+          BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER || vars.BLUESKY_IDENTIFIER || 'topiatsume.bsky.social' }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          MASTODON_URL: ${{ secrets.MASTODON_URL }}
+          MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
+          MISSKEY_URL: ${{ secrets.MISSKEY_URL }}
+          MISSKEY_TOKEN: ${{ secrets.MISSKEY_TOKEN }}
+
+      - name: 投稿の記録をコミット
+        run: |
+          [ -f data/social.json ] || exit 0
+          # 今回投稿していなければ（記録が変わっていなければ）何もしない（ほかで更新された記録を古い内容で上書きしないため）
+          [ -z "$(git status --porcelain -- data/social.json)" ] && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          cp data/social.json "$RUNNER_TEMP/social.json"
+          for attempt in 1 2 3; do
+            git fetch --quiet origin "$GITHUB_REF_NAME"
+            git reset --quiet --hard "origin/$GITHUB_REF_NAME"
+            cp "$RUNNER_TEMP/social.json" data/social.json
+            git add data/social.json
+            git diff --cached --quiet && exit 0
+            git commit --quiet -m 'chore: SNS 投稿の記録を更新'
+            git push --quiet origin "HEAD:$GITHUB_REF_NAME" && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1

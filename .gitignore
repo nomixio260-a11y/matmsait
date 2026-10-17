@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.astro/
+.env
+.env.*
+!.env.example
+.DS_Store
+.wrangler/
+# wrangler の手元用の秘密のファイル（ルートで wrangler pages dev を使うとき）
+.dev.vars*
+.cache/
