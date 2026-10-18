@@ -1,6 +1,6 @@
 {
  "day": "2026-10-18",
- "neurons": 3038,
+ "neurons": 3435,
  "saved": 0,
  "attempts": [
   {
@@ -164,12 +164,25 @@
    "at": "2026-10-18T00:00:40.815Z",
    "result": "ai-error",
    "detail": "Workers AI が時間内に答えを返しませんでした（HTTP 408: 3046 AiError: AiError: Request timeout (e676632c-fcbf-47ee-ac05-d056a0c8c6ae)）"
+  },
+  {
+   "id": "6a18a9e3dd2afc0a",
+   "at": "2026-10-18T09:06:28.495Z",
+   "result": "no-text",
+   "detail": "本文が短いページ（67字）"
+  },
+  {
+   "id": "dafd9cb6d8382a0d",
+   "at": "2026-10-18T09:06:28.848Z",
+   "result": "unavailable",
+   "neurons": 397,
+   "detail": "AI が記事を読めなかったため要約がありません"
   }
  ],
  "lastRun": {
-  "at": "2026-10-18T08:06:02.075Z",
+  "at": "2026-10-18T09:06:26.510Z",
   "saved": 0,
-  "tried": 0,
+  "tried": 1,
   "model": "@cf/qwen/qwen3.8-27b",
   "reasoning": "low",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
