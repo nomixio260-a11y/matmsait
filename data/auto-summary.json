@@ -1,6 +1,6 @@
 {
  "day": "2026-10-18",
- "neurons": 3435,
+ "neurons": 6473,
  "saved": 0,
  "attempts": [
   {
@@ -177,19 +177,25 @@
    "result": "unavailable",
    "neurons": 397,
    "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "e69661428a22b494",
+   "at": "2026-10-18T10:07:10.030Z",
+   "result": "ai-error",
+   "detail": "Workers AI が時間内に答えを返しませんでした（HTTP 408: 3046 AiError: AiError: Request timeout (a003fdc9-9019-4861-94d4-719c358a25b4)）"
   }
  ],
  "lastRun": {
-  "at": "2026-10-18T09:06:26.510Z",
+  "at": "2026-10-18T10:07:06.428Z",
   "saved": 0,
   "tried": 1,
   "model": "@cf/qwen/qwen3.8-27b",
   "reasoning": "low",
-  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
+  "message": "Workers AI が時間内に答えを返さなかったため、この回はここまでにします（次の更新でほかの記事を試します）"
  },
  "problem": {
-  "at": "2026-10-18T00:00:38.912Z",
+  "at": "2026-10-18T10:07:06.428Z",
   "kind": "timeout",
-  "message": "Workers AI が時間内に答えを返しませんでした（HTTP 408: 3046 AiError: AiError: Request timeout (e676632c-fcbf-47ee-ac05-d056a0c8c6ae)）"
+  "message": "Workers AI が時間内に答えを返しませんでした（HTTP 408: 3046 AiError: AiError: Request timeout (a003fdc9-9019-4861-94d4-719c358a25b4)）"
  }
 }
