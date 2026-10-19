@@ -1,7 +1,7 @@
 {
  "day": "2026-10-19",
- "neurons": 4593,
- "saved": 32,
+ "neurons": 4762,
+ "saved": 36,
  "attempts": [
   {
    "id": "c463db51bebcb908",
@@ -448,10 +448,40 @@
    "at": "2026-10-19T17:52:21.271Z",
    "result": "saved",
    "neurons": 39
+  },
+  {
+   "id": "3fcb3b23d3e67550",
+   "at": "2026-10-19T18:52:10.967Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（54字）"
+  },
+  {
+   "id": "57ba18b67e7010a8",
+   "at": "2026-10-19T18:52:12.364Z",
+   "result": "saved",
+   "neurons": 38
+  },
+  {
+   "id": "34f9767c9d7eb2dd",
+   "at": "2026-10-19T18:52:18.064Z",
+   "result": "saved",
+   "neurons": 56
+  },
+  {
+   "id": "e77f5461f9a41ceb",
+   "at": "2026-10-19T18:52:25.763Z",
+   "result": "saved",
+   "neurons": 38
+  },
+  {
+   "id": "eb50969e890b2209",
+   "at": "2026-10-19T18:52:30.278Z",
+   "result": "saved",
+   "neurons": 37
   }
  ],
  "lastRun": {
-  "at": "2026-10-19T17:52:02.123Z",
+  "at": "2026-10-19T18:52:07.569Z",
   "saved": 4,
   "tried": 4,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
