@@ -148,7 +148,7 @@ jobs:
           PUBLIC_ANALYTICS_URL: ${{ steps.target.outputs.analytics || vars.PUBLIC_ANALYTICS_URL }}
           SITE_URL: ${{ steps.target.outputs.site_url }}
 
-      # AI による自動要約（Cloudflare Workers AI の無料枠で Qwen を使う。既定は Qwen3.8 27B を考える量 low で。仕組みは scripts/lib/auto-summary.ts）。
+      # AI による自動要約（Cloudflare Workers AI の無料枠で Qwen を使う。既定は Qwen3 30B を考えない設定で。仕組みは scripts/lib/auto-summary.ts）。
       # 要約のない話題の記事を1回に最大4件。無料枠（1日1万ニューロン）の手前で止め、使う量を1日の時間で均すので料金はかからない。
       # 定期の更新と「今すぐ更新」（workflow_dispatch）では毎回、管理画面の保存などの push では前回から50分以上たっているときだけ動かす
       # （push のたびに待たせないため。自動更新タイマーは push のたびに数え直すので、push が続いても止まらないように）。
