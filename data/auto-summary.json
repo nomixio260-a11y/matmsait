@@ -199,11 +199,11 @@
   }
  ],
  "lastRun": {
-  "at": "2026-10-19T06:21:46.422Z",
+  "at": "2026-10-19T07:45:24.331Z",
   "saved": 0,
   "tried": 0,
-  "model": "@cf/qwen/qwen3.8-27b",
-  "reasoning": "low",
+  "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+  "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  },
  "problem": {
