@@ -1,7 +1,7 @@
 {
  "day": "2026-10-19",
- "neurons": 3375,
- "saved": 0,
+ "neurons": 3526,
+ "saved": 4,
  "attempts": [
   {
    "id": "c463db51bebcb908",
@@ -196,19 +196,37 @@
    "at": "2026-10-19T01:17:24.785Z",
    "result": "ai-error",
    "detail": "Workers AI が時間内に答えを返しませんでした（HTTP 408: 3046 AiError: AiError: Request timeout (79998306-a0ef-4589-9b92-aee76e9c1ab9)）"
+  },
+  {
+   "id": "783a89da04f93b31",
+   "at": "2026-10-19T10:47:02.258Z",
+   "result": "saved",
+   "neurons": 39
+  },
+  {
+   "id": "37273b7fc1c649bb",
+   "at": "2026-10-19T10:47:05.024Z",
+   "result": "saved",
+   "neurons": 35
+  },
+  {
+   "id": "8a07887933218af0",
+   "at": "2026-10-19T10:47:08.774Z",
+   "result": "saved",
+   "neurons": 39
+  },
+  {
+   "id": "135037a6f412371f",
+   "at": "2026-10-19T10:47:12.390Z",
+   "result": "saved",
+   "neurons": 38
   }
  ],
  "lastRun": {
-  "at": "2026-10-19T09:46:15.978Z",
-  "saved": 0,
-  "tried": 0,
+  "at": "2026-10-19T10:46:58.556Z",
+  "saved": 4,
+  "tried": 4,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off",
-  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
- },
- "problem": {
-  "at": "2026-10-19T01:17:20.722Z",
-  "kind": "timeout",
-  "message": "Workers AI が時間内に答えを返しませんでした（HTTP 408: 3046 AiError: AiError: Request timeout (79998306-a0ef-4589-9b92-aee76e9c1ab9)）"
+  "reasoning": "off"
  }
 }
