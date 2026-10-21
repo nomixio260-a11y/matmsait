@@ -1,7 +1,7 @@
 {
  "day": "2026-10-21",
- "neurons": 305,
- "saved": 7,
+ "neurons": 458,
+ "saved": 11,
  "attempts": [
   {
    "id": "c463db51bebcb908",
@@ -1057,11 +1057,35 @@
    "result": "unavailable",
    "neurons": 30,
    "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "dea8f841690dd7c1",
+   "at": "2026-10-21T02:24:59.355Z",
+   "result": "saved",
+   "neurons": 37
+  },
+  {
+   "id": "7410094cf0e68deb",
+   "at": "2026-10-21T02:25:06.738Z",
+   "result": "saved",
+   "neurons": 36
+  },
+  {
+   "id": "f702efab1f144960",
+   "at": "2026-10-21T02:25:13.012Z",
+   "result": "saved",
+   "neurons": 38
+  },
+  {
+   "id": "73514a18c1f58ad6",
+   "at": "2026-10-21T02:25:19.090Z",
+   "result": "saved",
+   "neurons": 42
   }
  ],
  "lastRun": {
-  "at": "2026-10-21T01:23:52.463Z",
-  "saved": 3,
+  "at": "2026-10-21T02:24:57.281Z",
+  "saved": 4,
   "tried": 4,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off"
