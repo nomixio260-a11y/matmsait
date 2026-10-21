@@ -1,7 +1,7 @@
 {
  "day": "2026-10-21",
- "neurons": 1118,
- "saved": 27,
+ "neurons": 1279,
+ "saved": 31,
  "attempts": [
   {
    "id": "c463db51bebcb908",
@@ -1177,10 +1177,34 @@
    "at": "2026-10-21T06:28:39.074Z",
    "result": "saved",
    "neurons": 45
+  },
+  {
+   "id": "816e8018b918597a",
+   "at": "2026-10-21T07:29:40.511Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "b02c0a1bd2692f1c",
+   "at": "2026-10-21T07:29:46.386Z",
+   "result": "saved",
+   "neurons": 36
+  },
+  {
+   "id": "13834e3b31ed1450",
+   "at": "2026-10-21T07:29:53.838Z",
+   "result": "saved",
+   "neurons": 40
+  },
+  {
+   "id": "a9fea8325bd5cbf7",
+   "at": "2026-10-21T07:29:56.981Z",
+   "result": "saved",
+   "neurons": 42
   }
  ],
  "lastRun": {
-  "at": "2026-10-21T06:28:08.000Z",
+  "at": "2026-10-21T07:29:33.783Z",
   "saved": 4,
   "tried": 4,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
