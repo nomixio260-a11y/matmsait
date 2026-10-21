@@ -1,7 +1,7 @@
 {
  "day": "2026-10-21",
- "neurons": 158,
- "saved": 4,
+ "neurons": 305,
+ "saved": 7,
  "attempts": [
   {
    "id": "c463db51bebcb908",
@@ -1020,11 +1020,48 @@
    "at": "2026-10-21T00:23:45.959Z",
    "result": "saved",
    "neurons": 41
+  },
+  {
+   "id": "f0858029f317ce9d",
+   "at": "2026-10-21T01:23:55.304Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で GPTBot を拒否"
+  },
+  {
+   "id": "7e7c4685f565bab9",
+   "at": "2026-10-21T01:23:58.388Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で GPTBot を拒否"
+  },
+  {
+   "id": "d1f82a5d11744d4e",
+   "at": "2026-10-21T01:24:00.144Z",
+   "result": "saved",
+   "neurons": 40
+  },
+  {
+   "id": "a266e9d7713f9b59",
+   "at": "2026-10-21T01:24:04.820Z",
+   "result": "saved",
+   "neurons": 38
+  },
+  {
+   "id": "41b25fb9a11feff4",
+   "at": "2026-10-21T01:24:07.742Z",
+   "result": "saved",
+   "neurons": 39
+  },
+  {
+   "id": "2edd56a5cbd2c074",
+   "at": "2026-10-21T01:24:10.088Z",
+   "result": "unavailable",
+   "neurons": 30,
+   "detail": "AI が記事を読めなかったため要約がありません"
   }
  ],
  "lastRun": {
-  "at": "2026-10-21T00:23:19.587Z",
-  "saved": 4,
+  "at": "2026-10-21T01:23:52.463Z",
+  "saved": 3,
   "tried": 4,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off"
