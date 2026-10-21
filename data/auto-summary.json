@@ -1,7 +1,7 @@
 {
  "day": "2026-10-21",
- "neurons": 2267,
- "saved": 55,
+ "neurons": 2439,
+ "saved": 59,
  "attempts": [
   {
    "id": "c463db51bebcb908",
@@ -1381,10 +1381,40 @@
    "at": "2026-10-21T13:32:34.676Z",
    "result": "saved",
    "neurons": 52
+  },
+  {
+   "id": "989c5e4a73438136",
+   "at": "2026-10-21T14:33:40.122Z",
+   "result": "saved",
+   "neurons": 40
+  },
+  {
+   "id": "ad5415e30ece47d1",
+   "at": "2026-10-21T14:33:44.063Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "1bccf8bd23e114f7",
+   "at": "2026-10-21T14:33:51.905Z",
+   "result": "saved",
+   "neurons": 37
+  },
+  {
+   "id": "dab5a6af86b5203a",
+   "at": "2026-10-21T14:33:55.168Z",
+   "result": "fetch-error",
+   "detail": "robots.txt を読めませんでした"
+  },
+  {
+   "id": "f7d96fffe8ff0a07",
+   "at": "2026-10-21T14:33:55.455Z",
+   "result": "saved",
+   "neurons": 40
   }
  ],
  "lastRun": {
-  "at": "2026-10-21T13:32:15.425Z",
+  "at": "2026-10-21T14:33:38.501Z",
   "saved": 4,
   "tried": 4,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
