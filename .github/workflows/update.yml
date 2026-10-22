@@ -233,6 +233,8 @@ jobs:
           PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}
           PUBLIC_BING_SITE_VERIFICATION: ${{ vars.PUBLIC_BING_SITE_VERIFICATION }}
           PUBLIC_ANALYTICS_URL: ${{ steps.target.outputs.analytics || vars.PUBLIC_ANALYTICS_URL }}
+          # 人の確認（Cloudflare Turnstile）のサイトの鍵（公開してよい値なので変数に置く。秘密の鍵は analytics.yml が Worker に入れる）
+          PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
 
       - name: Cloudflare Pages に公開
         env:
