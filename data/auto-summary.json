@@ -1,7 +1,7 @@
 {
- "day": "2026-10-21",
- "neurons": 2479,
- "saved": 60,
+ "day": "2026-10-22",
+ "neurons": 148,
+ "saved": 3,
  "attempts": [
   {
    "id": "c463db51bebcb908",
@@ -1417,12 +1417,44 @@
    "at": "2026-10-21T16:07:29.444Z",
    "result": "saved",
    "neurons": 40
+  },
+  {
+   "id": "6a214a941551ba93",
+   "at": "2026-10-22T00:13:22.507Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "0a6ca8414f4bd218",
+   "at": "2026-10-22T00:13:26.772Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で GPTBot を拒否"
+  },
+  {
+   "id": "44cf1b6ab33eac95",
+   "at": "2026-10-22T00:13:27.855Z",
+   "result": "saved",
+   "neurons": 38
+  },
+  {
+   "id": "a984d1c5d3edfc7b",
+   "at": "2026-10-22T00:13:30.713Z",
+   "result": "saved",
+   "neurons": 36
+  },
+  {
+   "id": "791d757aac3908ff",
+   "at": "2026-10-22T00:13:37.534Z",
+   "result": "unavailable",
+   "neurons": 30,
+   "detail": "AI が記事を読めなかったため要約がありません"
   }
  ],
  "lastRun": {
-  "at": "2026-10-21T23:11:55.541Z",
-  "saved": 0,
-  "tried": 0,
-  "message": "今日の上限に達しています"
+  "at": "2026-10-22T00:13:20.228Z",
+  "saved": 3,
+  "tried": 4,
+  "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+  "reasoning": "off"
  }
 }
