@@ -36,8 +36,9 @@ if git-crypt unlock "$keyfile" 2>/dev/null; then
 else
   echo 'git-crypt: 復号に失敗しました（鍵が違う可能性があります）。' >&2
 fi
-# 復号後、依存がなければ入れる（既にあれば何もしない）
+# 復号後、依存がなければ入れる（既にあれば何もしない）。package-lock.json のとおりに入れ、インストールのスクリプトは動かさない
+# （GitHub Actions と同じ。esbuild・workerd はなくても動く。2026-10-24 のセキュリティの点検）
 if [ ! -d node_modules ] && head -c 1 package.json 2>/dev/null | grep -qa '{'; then
-  npm install >/dev/null 2>&1 || echo 'git-crypt 後の npm install に失敗しました（手動で npm install してください）。' >&2
+  npm ci --ignore-scripts --no-audit --no-fund >/dev/null 2>&1 || echo 'git-crypt 後の npm ci に失敗しました（手動で npm ci --ignore-scripts を実行してください）。' >&2
 fi
 exit 0

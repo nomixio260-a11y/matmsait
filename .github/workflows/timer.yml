@@ -44,12 +44,30 @@ jobs:
           git-crypt unlock "$RUNNER_TEMP/repo.key"
           rm -f "$RUNNER_TEMP/repo.key"
 
+      # 暗号化されているはずのファイルに、平文のファイルが差し込まれていないかを確かめる（update.yml と同じ。git-crypt は平文のファイルを
+      # そのまま通すので、リポジトリに書き込めるトークンがあれば、鍵なしでコードを差し込めてしまうため。2026-10-24 のセキュリティの点検）。
+      # 平文で置いてよいものは .gitattributes と同じだが、.gitattributes も書き換えられるので、ここに直接書く
+      - name: 暗号化されていないファイルがないか確かめる
+        run: |
+          bad=''
+          while IFS= read -r -d '' entry; do
+            path=${entry#*$'\t'}
+            case "$path" in data/* | .github/* | .claude/* | CLAUDE.md | .gitattributes | .gitignore | */.gitattributes | */.gitignore) continue ;; esac
+            rest=${entry#* }
+            [ "$(git cat-file blob "${rest%% *}" 2>/dev/null | head -c 10 | tr -d '\000')" = GITCRYPT ] || bad="$bad $path"
+          done < <(git ls-files -s -z)
+          if [ -n "$bad" ]; then
+            echo "::error::暗号化されていないファイルがあります（差し込まれたおそれがあるため止めます）:$bad"
+            exit 1
+          fi
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      # 依存パッケージのインストールのスクリプトは動かさない（update.yml と同じ）
+      - run: npm ci --ignore-scripts
 
       - name: 前回の更新から待って、収集・公開を実行
         run: npm run --silent timer

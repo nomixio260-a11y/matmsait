@@ -15,8 +15,8 @@ permissions:
 
 jobs:
   post:
-    # 投稿は既定ブランチだけ
-    if: github.ref_name == github.event.repository.default_branch
+    # 投稿は既定ブランチだけ（ref_name だと、同じ名前のタグでも当てはまるので refs/heads/ で比べる）
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     # 同じ話題を二重に投稿しないよう、update.yml の通知・SNS 投稿（notify）と1つずつ実行する
     concurrency:
       group: notify
@@ -28,6 +28,8 @@ jobs:
         with:
           # 投稿の記録（data/social.json）を含む最新のデータを使う
           ref: ${{ github.ref_name }}
+          # GitHub のトークンを .git に残さない（push は「投稿の記録をコミット」で、そのときだけ渡す。2026-10-24 のセキュリティの点検）
+          persist-credentials: false
 
       - name: リポジトリを復号（git-crypt）
         env:
@@ -42,12 +44,30 @@ jobs:
           git-crypt unlock "$RUNNER_TEMP/repo.key"
           rm -f "$RUNNER_TEMP/repo.key"
 
+      # 暗号化されているはずのファイルに、平文のファイルが差し込まれていないかを確かめる（update.yml と同じ。git-crypt は平文のファイルを
+      # そのまま通すので、リポジトリに書き込めるトークンがあれば、鍵なしでコードを差し込めてしまうため。2026-10-24 のセキュリティの点検）。
+      # 平文で置いてよいものは .gitattributes と同じだが、.gitattributes も書き換えられるので、ここに直接書く
+      - name: 暗号化されていないファイルがないか確かめる
+        run: |
+          bad=''
+          while IFS= read -r -d '' entry; do
+            path=${entry#*$'\t'}
+            case "$path" in data/* | .github/* | .claude/* | CLAUDE.md | .gitattributes | .gitignore | */.gitattributes | */.gitignore) continue ;; esac
+            rest=${entry#* }
+            [ "$(git cat-file blob "${rest%% *}" 2>/dev/null | head -c 10 | tr -d '\000')" = GITCRYPT ] || bad="$bad $path"
+          done < <(git ls-files -s -z)
+          if [ -n "$bad" ]; then
+            echo "::error::暗号化されていないファイルがあります（差し込まれたおそれがあるため止めます）:$bad"
+            exit 1
+          fi
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      # 依存パッケージのインストールのスクリプトは動かさない（update.yml と同じ）
+      - run: npm ci --ignore-scripts
 
       # 投稿のリンク先（update.yml の「公開先を決める」と同じ。Cloudflare Pages。独自ドメインなら変数 SITE_URL）
       - name: 公開先の URL を調べる
@@ -92,21 +112,28 @@ jobs:
 
       - name: 投稿の記録をコミット
         if: steps.target.outputs.base_url != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           [ -f data/social.json ] || exit 0
           # 今回投稿していなければ（記録が変わっていなければ）何もしない（ほかで更新された記録を古い内容で上書きしないため）
           [ -z "$(git status --porcelain -- data/social.json)" ] && exit 0
+          # トークンは git の fetch・push のときだけ使う
+          git_auth() {
+            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
+              GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" git "$@"
+          }
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           cp data/social.json "$RUNNER_TEMP/social.json"
           for attempt in 1 2 3; do
-            git fetch --quiet origin "$GITHUB_REF_NAME"
+            git_auth fetch --quiet origin "$GITHUB_REF_NAME"
             git reset --quiet --hard "origin/$GITHUB_REF_NAME"
             cp "$RUNNER_TEMP/social.json" data/social.json
             git add data/social.json
             git diff --cached --quiet && exit 0
             git commit --quiet -m 'chore: SNS 投稿の記録を更新'
-            git push --quiet origin "HEAD:$GITHUB_REF_NAME" && exit 0
+            git_auth push --quiet origin "HEAD:$GITHUB_REF_NAME" && exit 0
             sleep $((attempt * 5))
           done
           exit 1
