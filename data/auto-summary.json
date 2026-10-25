@@ -1,7 +1,7 @@
 {
- "day": "2026-10-24",
- "neurons": 2690,
- "saved": 60,
+ "day": "2026-10-25",
+ "neurons": 174,
+ "saved": 4,
  "attempts": [
   {
    "id": "c463db51bebcb908",
@@ -2689,12 +2689,43 @@
    "at": "2026-10-24T15:27:01.477Z",
    "result": "saved",
    "neurons": 37
+  },
+  {
+   "id": "7c9e3b0e033bf752",
+   "at": "2026-10-25T00:37:30.220Z",
+   "result": "saved",
+   "neurons": 37
+  },
+  {
+   "id": "882b8b01b6c58279",
+   "at": "2026-10-25T00:37:32.298Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "2f46d380f615799d",
+   "at": "2026-10-25T00:37:35.892Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で GPTBot を拒否"
+  },
+  {
+   "id": "049586d366af9cc2",
+   "at": "2026-10-25T00:37:37.009Z",
+   "result": "saved",
+   "neurons": 37
+  },
+  {
+   "id": "76b21c1a88b9bd4a",
+   "at": "2026-10-25T00:37:39.730Z",
+   "result": "saved",
+   "neurons": 50
   }
  ],
  "lastRun": {
-  "at": "2026-10-24T23:35:48.440Z",
-  "saved": 0,
-  "tried": 0,
-  "message": "今日の上限に達しています"
+  "at": "2026-10-25T00:37:27.941Z",
+  "saved": 4,
+  "tried": 4,
+  "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+  "reasoning": "off"
  }
 }
