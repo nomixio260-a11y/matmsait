@@ -1,20 +1,8 @@
 {
  "day": "2026-10-25",
- "neurons": 2231,
- "saved": 52,
+ "neurons": 2387,
+ "saved": 56,
  "attempts": [
-  {
-   "id": "c463db51bebcb908",
-   "at": "2026-10-11T14:07:02.091Z",
-   "result": "ai-error",
-   "detail": "Workers AI がエラーを返しました（HTTP 408: 3046 AiError: AiError: Request timeout (3645d1a1-90f2-4551-b9e0-32d6a95e304b)）"
-  },
-  {
-   "id": "3c479517f111c289",
-   "at": "2026-10-11T14:09:03.110Z",
-   "result": "ai-error",
-   "detail": "Workers AI がエラーを返しました（HTTP 408: 3046 AiError: AiError: Request timeout (d98f8b9b-28f0-4dd7-8146-f9325986dfe4)）"
-  },
   {
    "id": "174aaa603bc3e974",
    "at": "2026-10-12T01:21:58.870Z",
@@ -3073,10 +3061,40 @@
    "at": "2026-10-25T13:10:02.137Z",
    "result": "saved",
    "neurons": 44
+  },
+  {
+   "id": "da142163751fc26c",
+   "at": "2026-10-25T14:10:30.530Z",
+   "result": "saved",
+   "neurons": 38
+  },
+  {
+   "id": "6ca735076ed03dee",
+   "at": "2026-10-25T14:10:38.639Z",
+   "result": "saved",
+   "neurons": 37
+  },
+  {
+   "id": "c3a4daaa9534bb3e",
+   "at": "2026-10-25T14:10:43.602Z",
+   "result": "saved",
+   "neurons": 38
+  },
+  {
+   "id": "4f4a498ed01e9c04",
+   "at": "2026-10-25T14:10:45.930Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で ClaudeBot を拒否"
+  },
+  {
+   "id": "98e69acc5e38403e",
+   "at": "2026-10-25T14:10:46.682Z",
+   "result": "saved",
+   "neurons": 43
   }
  ],
  "lastRun": {
-  "at": "2026-10-25T13:09:42.020Z",
+  "at": "2026-10-25T14:10:28.058Z",
   "saved": 4,
   "tried": 4,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
