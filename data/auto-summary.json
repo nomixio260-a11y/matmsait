@@ -1,20 +1,8 @@
 {
  "day": "2026-10-27",
- "neurons": 3674,
- "saved": 80,
+ "neurons": 4072,
+ "saved": 88,
  "attempts": [
-  {
-   "id": "6583c8f7fc587a15",
-   "at": "2026-10-13T12:01:29.451Z",
-   "result": "no-text",
-   "detail": "取り出した本文が見出しの記事と一致しません"
-  },
-  {
-   "id": "b1e5437605fab639",
-   "at": "2026-10-13T12:01:29.844Z",
-   "result": "saved",
-   "neurons": 1081
-  },
   {
    "id": "7d1230b52e2fa7bf",
    "at": "2026-10-14T00:13:14.963Z",
@@ -3975,10 +3963,70 @@
    "at": "2026-10-27T11:36:05.678Z",
    "result": "saved",
    "neurons": 48
+  },
+  {
+   "id": "f6dd68fd86f9f056",
+   "at": "2026-10-27T12:36:21.188Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "24ce2f1293a5f7b9",
+   "at": "2026-10-27T12:36:26.686Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "73f6f8dbfd204aa4",
+   "at": "2026-10-27T12:36:37.010Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "907022b544a3c52b",
+   "at": "2026-10-27T12:36:42.773Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "f352bd4fd9d7b6ec",
+   "at": "2026-10-27T12:36:49.271Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "df4da5088e9939fd",
+   "at": "2026-10-27T12:36:53.940Z",
+   "result": "saved",
+   "neurons": 57
+  },
+  {
+   "id": "676d733723f00bf9",
+   "at": "2026-10-27T12:37:00.175Z",
+   "result": "no-text",
+   "detail": "取り出した本文が見出しの記事と一致しません"
+  },
+  {
+   "id": "45e3ef9ba4da585b",
+   "at": "2026-10-27T12:37:01.918Z",
+   "result": "not-found",
+   "detail": "HTTP 404"
+  },
+  {
+   "id": "ad6df6186cf74ab6",
+   "at": "2026-10-27T12:37:05.718Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "0d0bfb64d7b1c844",
+   "at": "2026-10-27T12:37:11.365Z",
+   "result": "saved",
+   "neurons": 44
   }
  ],
  "lastRun": {
-  "at": "2026-10-27T11:35:18.891Z",
+  "at": "2026-10-27T12:36:18.385Z",
   "saved": 8,
   "tried": 8,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
