@@ -1,7 +1,7 @@
 {
  "day": "2026-10-28",
- "neurons": 4700,
- "saved": 87,
+ "neurons": 5018,
+ "saved": 94,
  "attempts": [
   {
    "id": "da59fb0a1dfb0d12",
@@ -5044,12 +5044,72 @@
    "result": "quality",
    "neurons": 112,
    "detail": "見出しの言い換えに近い要約です。本文から見出しにない重要な情報（数字・日付・条件・今後の予定など）を加えてください"
+  },
+  {
+   "id": "7f9f222f58bef9fa",
+   "at": "2026-10-28T14:55:22.863Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "ee2444dde206995b",
+   "at": "2026-10-28T14:55:27.306Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "6a5698379da61492",
+   "at": "2026-10-28T14:55:36.102Z",
+   "result": "no-text",
+   "detail": "画像が中心のページ（109字）"
+  },
+  {
+   "id": "8fae65775ba8eaf7",
+   "at": "2026-10-28T14:55:41.337Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "1cfcf26d720e8026",
+   "at": "2026-10-28T14:55:51.400Z",
+   "result": "no-text",
+   "detail": "画像が中心のページ（99字）"
+  },
+  {
+   "id": "e5d2beebea31737a",
+   "at": "2026-10-28T14:55:57.816Z",
+   "result": "no-text",
+   "detail": "画像が中心のページ（191字）"
+  },
+  {
+   "id": "537b9b6cc6a8b586",
+   "at": "2026-10-28T14:56:02.989Z",
+   "result": "saved",
+   "neurons": 42
+  },
+  {
+   "id": "50c71db504b5ed42",
+   "at": "2026-10-28T14:56:05.722Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "ccaaec7132c7a069",
+   "at": "2026-10-28T14:56:10.278Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "75fd4185564bc29b",
+   "at": "2026-10-28T14:56:17.028Z",
+   "result": "saved",
+   "neurons": 46
   }
  ],
  "lastRun": {
-  "at": "2026-10-28T13:53:42.071Z",
-  "saved": 4,
-  "tried": 5,
+  "at": "2026-10-28T14:55:20.046Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
