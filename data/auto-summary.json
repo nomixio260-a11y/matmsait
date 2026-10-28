@@ -1,7 +1,7 @@
 {
  "day": "2026-10-28",
- "neurons": 1015,
- "saved": 21,
+ "neurons": 1438,
+ "saved": 27,
  "attempts": [
   {
    "id": "8d3247664660066a",
@@ -4620,11 +4620,54 @@
    "at": "2026-10-28T02:46:39.468Z",
    "result": "saved",
    "neurons": 46
+  },
+  {
+   "id": "420d1508919c93f7",
+   "at": "2026-10-28T03:46:42.850Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "bfa3210466fddfc4",
+   "at": "2026-10-28T03:46:48.229Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "09ffa685bdef7337",
+   "at": "2026-10-28T03:46:52.090Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "b88e88b7ae69594d",
+   "at": "2026-10-28T03:47:01.871Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "3d8611d410105c67",
+   "at": "2026-10-28T03:47:06.508Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "0ab889d0f07ceecd",
+   "at": "2026-10-28T03:47:15.134Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "f1819ec50fceb5aa",
+   "at": "2026-10-28T03:47:18.103Z",
+   "result": "quality",
+   "neurons": 134,
+   "detail": "「〜を紹介している」のように、記事が何をしているかを書いています。記事に書かれている中身（方法・手順・結果・数字）を書いてください"
   }
  ],
  "lastRun": {
-  "at": "2026-10-28T02:45:49.818Z",
-  "saved": 7,
+  "at": "2026-10-28T03:46:38.920Z",
+  "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
