@@ -1,7 +1,7 @@
 {
  "day": "2026-10-28",
- "neurons": 1438,
- "saved": 27,
+ "neurons": 1705,
+ "saved": 32,
  "attempts": [
   {
    "id": "8d3247664660066a",
@@ -4663,12 +4663,42 @@
    "result": "quality",
    "neurons": 134,
    "detail": "「〜を紹介している」のように、記事が何をしているかを書いています。記事に書かれている中身（方法・手順・結果・数字）を書いてください"
+  },
+  {
+   "id": "a60c3ee12a59a688",
+   "at": "2026-10-28T04:47:51.895Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "49fcdd4fbe4152cb",
+   "at": "2026-10-28T04:47:55.838Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "91a30263e07ab068",
+   "at": "2026-10-28T04:48:03.819Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "31efa2bb37e6cc36",
+   "at": "2026-10-28T04:48:10.307Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "e344700f88e2e366",
+   "at": "2026-10-28T04:48:17.829Z",
+   "result": "saved",
+   "neurons": 65
   }
  ],
  "lastRun": {
-  "at": "2026-10-28T03:46:38.920Z",
-  "saved": 6,
-  "tried": 7,
+  "at": "2026-10-28T04:47:46.549Z",
+  "saved": 5,
+  "tried": 5,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
