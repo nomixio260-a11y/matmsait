@@ -1,7 +1,7 @@
 {
  "day": "2026-10-29",
- "neurons": 7028,
- "saved": 135,
+ "neurons": 7390,
+ "saved": 141,
  "attempts": [
   {
    "id": "f76c7de3c2b302d1",
@@ -6308,12 +6308,48 @@
    "result": "quality",
    "neurons": 113,
    "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください"
+  },
+  {
+   "id": "759892640023f3da",
+   "at": "2026-10-29T21:03:24.326Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "752a47e487a0d241",
+   "at": "2026-10-29T21:03:29.275Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "d9137478f35c604a",
+   "at": "2026-10-29T21:03:36.626Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "0e89b2e2cd3f8082",
+   "at": "2026-10-29T21:03:41.155Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "4b594719f79859df",
+   "at": "2026-10-29T21:03:45.171Z",
+   "result": "saved",
+   "neurons": 106
+  },
+  {
+   "id": "32eca291f86c8d8d",
+   "at": "2026-10-29T21:04:03.785Z",
+   "result": "saved",
+   "neurons": 64
   }
  ],
  "lastRun": {
-  "at": "2026-10-29T20:02:30.225Z",
+  "at": "2026-10-29T21:03:21.779Z",
   "saved": 6,
-  "tried": 7,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
