@@ -1,0 +1,86 @@
+name: アクセス解析の記録を書き出す
+
+# 分析のために、アクセス解析の生の記録（最大14日。IP アドレス・市区町村・検索した言葉を除く。analytics/src/export.ts）を書き出す
+# （2026-10-29 から。運営者の「アクセス記録を分析して、ボット等の監視も強化」の依頼で作った）。手動でだけ動く。
+# サーバーへは、REPO_KEY（git-crypt の鍵）から決まった手順で作った合言葉で頼む（analytics.yml が同じものを Worker に入れている）。
+# 書き出したものは、同じく REPO_KEY から作ったパスワードで暗号化し、1日で消える成果物（artifact）にする
+# （このリポジトリは公開なので、ログ・成果物に平文を残さない）。開き方は README の「アクセス解析」の「記録の書き出し」
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: '書き出す日数（1〜14。今日を含む）'
+        required: false
+        default: '14'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: analytics-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    # 既定ブランチだけ
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # push しないので、GitHub のトークンを .git に残さない
+          persist-credentials: false
+
+      # 合言葉とパスワードを作るのに、git-crypt の鍵が要る
+      - name: リポジトリを復号（git-crypt）
+        env:
+          REPO_KEY: ${{ secrets.REPO_KEY }}
+        run: |
+          if [ -z "$REPO_KEY" ]; then
+            echo '::error::Secrets に REPO_KEY（git-crypt の鍵を base64 にしたもの）がありません'
+            exit 1
+          fi
+          sudo apt-get update -qq && sudo apt-get install -y -qq git-crypt
+          printf '%s' "$REPO_KEY" | base64 -d > "$RUNNER_TEMP/repo.key"
+          git-crypt unlock "$RUNNER_TEMP/repo.key"
+          rm -f "$RUNNER_TEMP/repo.key"
+
+      - name: 書き出して暗号化
+        env:
+          # 独自ドメインにしたときは変数 SITE_URL（update.yml と同じ）
+          CUSTOM_SITE_URL: ${{ vars.SITE_URL }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          set -euo pipefail
+          key=$(printf '%s' 'topiatsume analytics export key v1' | git-crypt clean | sha256sum | cut -d' ' -f1)
+          pass=$(printf '%s' 'topiatsume analytics export file v1' | git-crypt clean | sha256sum | cut -d' ' -f1)
+          echo "::add-mask::$key"
+          echo "::add-mask::$pass"
+          site="${CUSTOM_SITE_URL%/}"
+          [ -n "$site" ] || site='https://topiatsume.pages.dev'
+          days=$(printf '%s' "$DAYS" | tr -cd '0-9' | head -c 2)
+          [ -n "$days" ] || days=14
+          out="$RUNNER_TEMP/export"
+          mkdir -p "$out"
+          # 合言葉はヘッダーのファイルで渡す（コマンドの引数に置かない）
+          printf 'Authorization: Report %s\n' "$key" > "$out/headers"
+          status=$(curl -sS -o "$out/records.json" -w '%{http_code}' -X POST "$site/api/report/export?days=$days" -H @"$out/headers" --max-time 180 || echo 000)
+          rm -f "$out/headers"
+          if [ "$status" != 200 ]; then
+            rm -f "$out/records.json"
+            echo "::error::書き出せませんでした（HTTP $status）。analytics.yml を実行して合言葉を Worker に入れたか確かめてください"
+            exit 1
+          fi
+          size=$(wc -c < "$out/records.json")
+          gzip -9 "$out/records.json"
+          PASS="$pass" openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in "$out/records.json.gz" -out "$out/records.json.gz.enc" -pass env:PASS
+          rm -f "$out/records.json.gz"
+          echo "書き出し: ${days}日・${size} バイト（暗号化して成果物にした）"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: analytics-export
+          path: ${{ runner.temp }}/export/records.json.gz.enc
+          retention-days: 1
+          if-no-files-found: error

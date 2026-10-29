@@ -106,6 +106,22 @@ jobs:
             npx wrangler deploy --var "REPOSITORY:$GITHUB_REPOSITORY"
           fi
 
+      # 分析のための記録の書き出し（analytics-export.yml。2026-10-29）の合言葉: 復号した鍵（REPO_KEY）で決まった文を git-crypt で暗号化した
+      # ものの SHA-256 を、Worker の秘密の変数 REPORT_KEY に入れる（REPO_KEY を知っていれば同じものを作れるので、新しい Secrets は要らない）。
+      # 合言葉はログに出さず（::add-mask::）、コマンドの引数にも置かない（jq が環境変数から読む）
+      - name: 記録の書き出しの合言葉を設定
+        if: steps.config.outputs.ready == 'true'
+        working-directory: analytics
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          REPORT_KEY=$(printf '%s' 'topiatsume analytics export key v1' | git-crypt clean | sha256sum | cut -d' ' -f1)
+          echo "::add-mask::$REPORT_KEY"
+          export REPORT_KEY
+          jq -n '{REPORT_KEY: env.REPORT_KEY}' | npx wrangler secret bulk
+
       # 人の確認（Cloudflare Turnstile）の秘密の鍵: Secrets の TURNSTILE_SECRET_KEY を Worker の秘密の変数 TURNSTILE_SECRET に入れる。
       # 登録していなければ Worker からも消す（確認を求めない）。鍵は標準入力で渡し、ファイルにもログにも残さない
       - name: 人の確認の鍵を設定
