@@ -1,7 +1,7 @@
 {
  "day": "2026-10-29",
- "neurons": 6626,
- "saved": 129,
+ "neurons": 7028,
+ "saved": 135,
  "attempts": [
   {
    "id": "f76c7de3c2b302d1",
@@ -6265,13 +6265,57 @@
    "at": "2026-10-29T19:02:10.952Z",
    "result": "saved",
    "neurons": 54
+  },
+  {
+   "id": "cdee3ea54e31d5b9",
+   "at": "2026-10-29T20:02:32.634Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "bd86d6e047c2a886",
+   "at": "2026-10-29T20:02:36.325Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "fdc49a5a707869bc",
+   "at": "2026-10-29T20:02:45.772Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "2ee6ced586dfc228",
+   "at": "2026-10-29T20:02:51.595Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "4f0c270f2d8691ea",
+   "at": "2026-10-29T20:02:56.341Z",
+   "result": "saved",
+   "neurons": 58
+  },
+  {
+   "id": "2b9471b9694fe002",
+   "at": "2026-10-29T20:03:00.790Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "84a26f74f74baee7",
+   "at": "2026-10-29T20:03:09.830Z",
+   "result": "quality",
+   "neurons": 113,
+   "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください"
   }
  ],
  "lastRun": {
-  "at": "2026-10-29T19:01:28.603Z",
-  "saved": 8,
-  "tried": 8,
+  "at": "2026-10-29T20:02:30.225Z",
+  "saved": 6,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off"
+  "reasoning": "off",
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
