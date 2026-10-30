@@ -1,7 +1,7 @@
 {
  "day": "2026-10-30",
- "neurons": 7040,
- "saved": 139,
+ "neurons": 7375,
+ "saved": 145,
  "attempts": [
   {
    "id": "ff98ac789e17f9a4",
@@ -7289,10 +7289,53 @@
    "result": "invalid",
    "neurons": 44,
    "detail": "JSON として読み込めません（Expected ',' or ']' after array element in JSON at position 317 (line 8 column 55)）"
+  },
+  {
+   "id": "708d38674748184c",
+   "at": "2026-10-30T21:22:05.411Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "372617112c5258f9",
+   "at": "2026-10-30T21:22:08.873Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "92233f632c9eba38",
+   "at": "2026-10-30T21:22:14.337Z",
+   "result": "saved",
+   "neurons": 61
+  },
+  {
+   "id": "b275f75ef9ecac0f",
+   "at": "2026-10-30T21:22:18.657Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "c32ac8bce255a663",
+   "at": "2026-10-30T21:22:26.484Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "0b079f3ad859d754",
+   "at": "2026-10-30T21:22:34.559Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "8329bf34228c56ea",
+   "at": "2026-10-30T21:22:40.181Z",
+   "result": "invalid",
+   "neurons": 47,
+   "detail": "要約が見出しの記事の内容と一致しません"
   }
  ],
  "lastRun": {
-  "at": "2026-10-30T20:21:51.685Z",
+  "at": "2026-10-30T21:22:00.527Z",
   "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
