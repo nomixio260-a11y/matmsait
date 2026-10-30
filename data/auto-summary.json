@@ -1,7 +1,7 @@
 {
  "day": "2026-10-30",
- "neurons": 7375,
- "saved": 145,
+ "neurons": 7679,
+ "saved": 149,
  "attempts": [
   {
    "id": "ff98ac789e17f9a4",
@@ -7332,12 +7332,36 @@
    "result": "invalid",
    "neurons": 47,
    "detail": "要約が見出しの記事の内容と一致しません"
+  },
+  {
+   "id": "104ce203949023df",
+   "at": "2026-10-30T22:22:29.628Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "d8f9d2047c60c142",
+   "at": "2026-10-30T22:22:36.911Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "30c7cd71ba510472",
+   "at": "2026-10-30T22:22:42.059Z",
+   "result": "saved",
+   "neurons": 101
+  },
+  {
+   "id": "3dbd6a34ee2c7573",
+   "at": "2026-10-30T22:22:50.277Z",
+   "result": "saved",
+   "neurons": 103
   }
  ],
  "lastRun": {
-  "at": "2026-10-30T21:22:00.527Z",
-  "saved": 6,
-  "tried": 7,
+  "at": "2026-10-30T22:22:27.496Z",
+  "saved": 4,
+  "tried": 4,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
