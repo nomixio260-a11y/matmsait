@@ -1,79 +1,79 @@
 {
   "4gamer": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50,
-    "etag": "\"138d0-65f045477fec0-gzip\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:01 GMT"
+    "etag": "\"1390a-65f0540810d4c-gzip\"",
+    "lastModified": "Fri, 30 Oct 2026 02:07:01 GMT"
   },
   "aera-digital": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30
   },
   "ai-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
-    "etag": "\"6ae3ec35-6771\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:37 GMT"
+    "etag": "\"6ae3fa43-67a4\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:35 GMT"
   },
   "aidiver": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-21T16:06:12.224Z",
     "error": "Unexpected close tag\nLine: 114\nColumn: 7\nChar: >"
   },
   "akiba-pc": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 15,
     "failedAt": "2026-10-22T15:10:23.924Z",
     "error": "Unclosed root tag\nLine: 132\nColumn: 66\nChar: ",
-    "etag": "\"6ae3ec49-2e04\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:57 GMT"
+    "etag": "\"6ae3fa57-2db2\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:55 GMT"
   },
   "allabout": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20
   },
   "anzen-mofa": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-29T21:01:59.001Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 7,
-    "etag": "\"dd3285d073337e1ab7a504e1e6c5ed61:1793263359.47396\"",
-    "lastModified": "Thu, 29 Oct 2026 08:39:27 GMT"
+    "etag": "\"dd3285d073337e1ab7a504e1e6c5ed61:1793323845.491943\"",
+    "lastModified": "Fri, 30 Oct 2026 01:27:30 GMT"
   },
   "ascii": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 8,
     "failedAt": "2026-10-24T07:33:17.786Z",
     "error": "HTTP 500"
   },
   "automaton": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50,
     "failedAt": "2026-10-14T12:23:40.148Z",
     "error": "タイムアウト（15秒）",
-    "etag": "W/\"9e18bfb20e29199fd85dd535dfe76f0d\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:42 GMT"
+    "etag": "W/\"7b406682f8d321bda1b8a0d98364398a\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:59 GMT"
   },
   "autosport-web": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-30T01:05:32.375Z",
     "count": 8,
     "failedAt": "2026-10-21T22:09:52.787Z",
@@ -83,31 +83,31 @@
   },
   "av-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
-    "etag": "\"6ae3ec5c-4742\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:16 GMT"
+    "etag": "\"6ae3fa6a-4742\"",
+    "lastModified": "Fri, 30 Oct 2026 02:01:14 GMT"
   },
   "baseball-channel": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
     "failedAt": "2026-10-19T18:50:57.331Z",
     "error": "HTTP 500"
   },
   "bcn": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50,
-    "etag": "W/\"6ae3ec88-7fee4\"",
-    "lastModified": "Fri, 30 Oct 2026 01:02:00 GMT"
+    "etag": "W/\"6ae3f764-7fee4\"",
+    "lastModified": "Fri, 30 Oct 2026 01:48:20 GMT"
   },
   "bike-news": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T23:03:35.825Z",
     "count": 10,
     "failedAt": "2026-10-29T06:50:47.087Z",
@@ -117,15 +117,15 @@
   },
   "billboard-japan": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
     "failedAt": "2026-10-24T01:28:01.593Z",
     "error": "タイムアウト（15秒）"
   },
   "biz-journal": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T22:02:35.778Z",
     "count": 15,
     "etag": "\"4610d72cf992a6a316ff7e716ec17855\"",
@@ -133,175 +133,175 @@
   },
   "bizzine": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-21T16:06:12.224Z",
     "error": "Unexpected close tag\nLine: 114\nColumn: 7\nChar: >"
   },
   "bunshun": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
-    "count": 32
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
+    "count": 31
   },
   "car-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
-    "etag": "\"6ae3ec85-6c35\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:57 GMT"
+    "etag": "\"6ae3fa95-6c35\"",
+    "lastModified": "Fri, 30 Oct 2026 02:01:57 GMT"
   },
   "cinematoday": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
-    "count": 35,
-    "etag": "W/\"7326-Fdru+6b2gMcn51dqHbVKomQagQs\""
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
+    "count": 37,
+    "etag": "W/\"78d7-MnG9r619/Q17JFyPeN0OCZGZ+CQ\""
   },
   "cloud-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 15,
-    "etag": "\"6ae3ec41-3742\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:49 GMT"
+    "etag": "\"6ae3fa51-37ab\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:49 GMT"
   },
   "codezine": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-21T16:06:12.224Z",
     "error": "Unexpected close tag\nLine: 114\nColumn: 7\nChar: >"
   },
   "dailyportalz": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
-    "lastModified": "Fri, 30 Oct 2026 01:05:43 GMT"
+    "lastModified": "Fri, 30 Oct 2026 02:07:21 GMT"
   },
   "dailyshincho": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
-    "etag": "W/\"1e3fd11ce17b083b2c33a0a64adccda8\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:41 GMT"
+    "etag": "W/\"5a1f79b51cb60feace0ef79f1cc7d1dc\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:31 GMT"
   },
   "dc-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
-    "etag": "\"6ae3ec47-3cdf\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:55 GMT"
+    "etag": "\"6ae3fa57-3c75\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:55 GMT"
   },
   "denfaminicogamer": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50,
     "failedAt": "2026-10-15T04:57:34.898Z",
     "error": "HTTP 500",
-    "etag": "W/\"2ffd8a34dd301093177525511d3bb000\"",
-    "lastModified": "Fri, 30 Oct 2026 00:39:10 GMT"
+    "etag": "W/\"1ba1031e0b1eeda36646dbd9b05b8a7a\"",
+    "lastModified": "Fri, 30 Oct 2026 02:01:09 GMT"
   },
   "devio": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-30T00:04:42.472Z",
     "count": 30,
     "etag": "W/\"XWlg6Mm83gemipqQ5fODt2Z9q1M\""
   },
   "digital-agency": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
-    "count": 30,
-    "etag": "\"1793319008-gzip\"",
-    "lastModified": "Fri, 30 Oct 2026 00:10:08 GMT"
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
+    "count": 31,
+    "etag": "\"1793322830-gzip\"",
+    "lastModified": "Fri, 30 Oct 2026 01:13:50 GMT"
   },
   "drone-journal": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 15,
-    "etag": "\"3345-65f0462d223ef\"",
-    "lastModified": "Fri, 30 Oct 2026 01:05:02 GMT"
+    "etag": "\"3345-65f0539613024\"",
+    "lastModified": "Fri, 30 Oct 2026 02:05:02 GMT"
   },
   "encount": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10
   },
   "enterprisezine": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
     "failedAt": "2026-10-21T16:06:12.224Z",
     "error": "Unexpected close tag\nLine: 114\nColumn: 7\nChar: >"
   },
   "f1-gate": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 29,
-    "etag": "W/\"b278668fd6473cb1f4bc8009592c53f6\"",
-    "lastModified": "Fri, 30 Oct 2026 00:37:00 GMT"
+    "etag": "W/\"b7310588e5146d5eba7304348df53b66\"",
+    "lastModified": "Fri, 30 Oct 2026 01:27:00 GMT"
   },
   "fnn": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10
   },
   "football-zone": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
-    "etag": "W/\"48c96f53a7dce5292e2b772dd2a0415e\"",
-    "lastModified": "Fri, 30 Oct 2026 00:48:14 GMT"
+    "etag": "W/\"b92dc21a3d2a29304edb3cb4b3a816d0\"",
+    "lastModified": "Fri, 30 Oct 2026 01:50:00 GMT"
   },
   "fsa": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T21:01:59.001Z",
     "count": 15,
     "lastModified": "Thu, 29 Oct 2026 08:00:10 GMT"
   },
   "fukui-np": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10
   },
   "full-count": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
-    "etag": "W/\"65b948ba171d828f2c4f68a6f2a2e131\"",
-    "lastModified": "Fri, 30 Oct 2026 01:05:22 GMT"
+    "etag": "W/\"06ca95d8f3c0d49825fd015bb345cf16\"",
+    "lastModified": "Fri, 30 Oct 2026 01:51:25 GMT"
   },
   "game-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 29,
     "failedAt": "2026-10-24T11:21:57.218Z",
     "error": "Unclosed root tag\nLine: 246\nColumn: 5\nChar: ",
-    "etag": "\"6ae3ec6f-5e1b\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:35 GMT"
+    "etag": "\"6ae3fa82-5d54\"",
+    "lastModified": "Fri, 30 Oct 2026 02:01:38 GMT"
   },
   "gekkan-rikujo": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-30T01:05:32.375Z",
     "count": 50,
     "failedAt": "2026-10-29T22:02:35.778Z",
@@ -311,21 +311,21 @@
   },
   "getnews": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
-    "lastModified": "Fri, 30 Oct 2026 00:47:17 GMT"
+    "lastModified": "Fri, 30 Oct 2026 01:45:06 GMT"
   },
   "gigazine": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-29T23:03:35.825Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
-    "lastModified": "Thu, 29 Oct 2026 23:00:00 GMT"
+    "lastModified": "Fri, 30 Oct 2026 01:53:00 GMT"
   },
   "gihyo": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-30T01:05:32.375Z",
     "count": 50,
     "failedAt": "2026-10-22T02:13:31.239Z",
@@ -335,21 +335,21 @@
   },
   "gold-online": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30
   },
   "gourmet-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
-    "etag": "\"6ae3ec38-6555\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:40 GMT"
+    "etag": "\"6ae3fa47-6551\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:39 GMT"
   },
   "gov-online": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T19:00:11.064Z",
     "count": 20,
     "etag": "\"21eee1f328bf1e4ad699b86155a57a54\"",
@@ -357,78 +357,78 @@
   },
   "grape": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50
   },
   "hint-pot": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
-    "etag": "W/\"0148a32209954275bd2308de112ab582\"",
-    "lastModified": "Fri, 30 Oct 2026 00:17:39 GMT"
+    "etag": "W/\"e8edf72c09fd387abd98daa8f85c60af\"",
+    "lastModified": "Fri, 30 Oct 2026 01:37:17 GMT"
   },
   "hobby-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-26T04:20:34.075Z",
     "error": "Unclosed root tag\nLine: 172\nColumn: 95\nChar: ",
-    "etag": "\"6ae3ec35-3f6e\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:37 GMT"
+    "etag": "\"6ae3fa43-3f4e\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:35 GMT"
   },
   "hrzine": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-21T16:06:12.224Z",
     "error": "Unexpected close tag\nLine: 114\nColumn: 7\nChar: >"
   },
   "ibaraki-np": {
-    "failures": 168,
+    "failures": 169,
     "okAt": "2026-10-23T09:29:25.778Z",
     "fetchedAt": "2026-10-23T09:29:25.778Z",
     "count": 12,
     "etag": "\"19ed-65e7e78922d80\"",
     "lastModified": "Fri, 23 Oct 2026 09:19:02 GMT",
-    "failedAt": "2026-10-30T01:05:32.375Z",
+    "failedAt": "2026-10-30T02:07:14.986Z",
     "error": "HTTP 404"
   },
   "impress-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
-    "etag": "\"6ae3ec37-4021\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:39 GMT"
+    "etag": "\"6ae3fa4c-3fe4\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:44 GMT"
   },
   "internet-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
-    "etag": "\"6ae3ec47-45fa\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:55 GMT"
+    "etag": "\"6ae3fa57-45f4\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:55 GMT"
   },
   "ipa": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T17:59:55.407Z",
     "count": 30,
     "lastModified": "Tue, 27 Oct 2026 03:11:42 GMT"
   },
   "it-leaders": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20
   },
   "jaxa": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T17:59:55.407Z",
     "count": 20,
     "etag": "\"3f02-65ef3a3985fc0\"",
@@ -436,113 +436,113 @@
   },
   "jpcert": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-29T20:01:09.908Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 21,
-    "etag": "\"3724-65ef504a22e80\"",
-    "lastModified": "Thu, 29 Oct 2026 06:44:58 GMT"
+    "etag": "\"3724-65f0463ac2d40\"",
+    "lastModified": "Fri, 30 Oct 2026 01:05:17 GMT"
   },
   "kaden-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 15,
     "failedAt": "2026-10-15T07:00:07.978Z",
     "error": "Unclosed root tag\nLine: 132\nColumn: 197\nChar: ",
-    "etag": "\"6ae3ec40-314c\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:48 GMT"
+    "etag": "\"6ae3fa4f-3260\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:47 GMT"
   },
   "kai-you": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-21T15:05:30.894Z",
     "error": "HTTP 503"
   },
   "kantei": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-29T16:59:04.534Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 24,
-    "etag": "\"3bcd2a7e24a7dc526b239a31f2f42239\"",
-    "lastModified": "Thu, 29 Oct 2026 16:31:39 GMT"
+    "etag": "\"b83e2cb81295cad94a5e2b8ac966b5f0\"",
+    "lastModified": "Fri, 30 Oct 2026 02:02:56 GMT"
   },
   "karapaia": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
     "failedAt": "2026-10-21T14:36:48.396Z",
     "error": "HTTP 500",
-    "etag": "\"5ce20224ef24018681e29bf535231f59\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:02 GMT"
+    "etag": "\"4189c8431aa611a851e5f0c6ce38c436\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:01 GMT"
   },
   "kodomo-it": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
-    "etag": "\"6ae3ec3d-61f3\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:45 GMT"
+    "etag": "\"6ae3fa4b-61f3\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:43 GMT"
   },
   "ktai-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
     "failedAt": "2026-10-23T10:20:47.946Z",
     "error": "Unclosed root tag\nLine: 253\nColumn: 1\nChar: ",
-    "etag": "\"6ae3ec5b-60cb\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:15 GMT"
+    "etag": "\"6ae3fa6a-60cb\"",
+    "lastModified": "Fri, 30 Oct 2026 02:01:14 GMT"
   },
   "kuruma-news": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
-    "etag": "W/\"d86941dcaf15a97a8e4281a212042af9\"",
-    "lastModified": "Fri, 30 Oct 2026 00:50:00 GMT"
+    "etag": "W/\"eaaa3aca37cee2145764c68d7710915c\"",
+    "lastModified": "Fri, 30 Oct 2026 01:10:00 GMT"
   },
   "madonomori": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50,
-    "etag": "\"6ae3ec7f-c6cb\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:51 GMT"
+    "etag": "\"6ae3fa8e-c6cb\"",
+    "lastModified": "Fri, 30 Oct 2026 02:01:50 GMT"
   },
   "magmix": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
     "failedAt": "2026-10-29T06:50:47.087Z",
     "error": "Unexpected close tag\nLine: 92\nColumn: 7\nChar: >",
-    "etag": "\"d68d349043143beb75de16b9f5647083\"",
-    "lastModified": "Fri, 30 Oct 2026 00:42:40 GMT"
+    "etag": "\"442912425bf97abdf10351ad844c3001\"",
+    "lastModified": "Fri, 30 Oct 2026 02:02:52 GMT"
   },
   "markezine": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
     "failedAt": "2026-10-21T16:06:12.224Z",
     "error": "Unexpected close tag\nLine: 114\nColumn: 7\nChar: >"
   },
   "merkmal": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-29T06:50:47.087Z",
     "error": "Feed not recognized as RSS 1 or 2.",
-    "etag": "\"a46184434f4ce35dd3f12a201d866840\"",
-    "lastModified": "Fri, 30 Oct 2026 00:13:25 GMT"
+    "etag": "\"316cde3eda32821856571190639868ca\"",
+    "lastModified": "Fri, 30 Oct 2026 01:28:02 GMT"
   },
   "mlit": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-30T01:05:32.375Z",
     "count": 36,
     "etag": "W/\"f96b680002b343098a42a1ae489a7d29\"",
@@ -550,34 +550,34 @@
   },
   "moneyplus": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T00:04:42.472Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
-    "etag": "W/\"56cc8047cb8956ffde507cc60b53067b\""
+    "etag": "W/\"b5796a0cb135c01a0cb82fb44d8d7b58\""
   },
   "naoj": {
-    "failures": 0,
+    "failures": 1,
     "okAt": "2026-10-30T01:05:32.375Z",
     "fetchedAt": "2026-10-30T01:05:32.375Z",
     "count": 20,
-    "failedAt": "2026-10-29T08:51:58.730Z",
+    "failedAt": "2026-10-30T02:07:14.986Z",
     "error": "",
     "etag": "\"102a2-65e7a0706a28a-gzip\"",
     "lastModified": "Fri, 23 Oct 2026 04:00:57 GMT"
   },
   "nazology": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
     "failedAt": "2026-10-22T05:15:40.782Z",
     "error": "タイムアウト（15秒）",
-    "etag": "W/\"738b37ad3d00dfabe6e4a5078495572c\"",
-    "lastModified": "Fri, 30 Oct 2026 01:00:00 GMT"
+    "etag": "W/\"cc5945b7b75a5fa80114809bb91570b8\"",
+    "lastModified": "Fri, 30 Oct 2026 01:30:00 GMT"
   },
   "nict": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T22:02:35.778Z",
     "count": 50,
     "failedAt": "2026-10-23T04:17:02.487Z",
@@ -586,7 +586,7 @@
   },
   "nies": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T19:00:11.064Z",
     "count": 10,
     "etag": "\"ff5-65ef4057eb922\"",
@@ -594,13 +594,13 @@
   },
   "nikkan-spa": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10
   },
   "nims": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-30T00:04:42.472Z",
     "count": 10,
     "failedAt": "2026-10-19T08:44:15.445Z",
@@ -610,47 +610,47 @@
   },
   "npa": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T00:04:42.472Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 3,
-    "etag": "W/\"4ee-65eab78909a7a\"",
+    "etag": "W/\"4ee-65eab78907a0e\"",
     "lastModified": "Sun, 25 Oct 2026 15:00:15 GMT"
   },
   "otakuma": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
     "failedAt": "2026-10-21T10:29:11.338Z",
     "error": "タイムアウト（15秒）"
   },
   "otonanswer": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
     "failedAt": "2026-10-29T06:50:47.087Z",
     "error": "Unexpected close tag\nLine: 92\nColumn: 7\nChar: >",
-    "etag": "\"f8f28f13d6e58f68fa792a98d2a59222\"",
-    "lastModified": "Fri, 30 Oct 2026 01:02:34 GMT"
+    "etag": "\"1875f0db4e7023643fb6d87893bca204\"",
+    "lastModified": "Fri, 30 Oct 2026 01:42:38 GMT"
   },
   "pc-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
-    "etag": "\"6ae3ec8e-429b\"",
-    "lastModified": "Fri, 30 Oct 2026 01:02:06 GMT"
+    "etag": "\"6ae3fa99-423a\"",
+    "lastModified": "Fri, 30 Oct 2026 02:02:01 GMT"
   },
   "phileweb": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50
   },
   "pouch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T16:59:04.534Z",
     "count": 20,
     "etag": "W/\"2065795bdff8cda98411458630792eeb\"",
@@ -658,45 +658,45 @@
   },
   "president": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20
   },
   "publickey": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T14:57:22.024Z",
     "count": 15,
     "etag": "W/\"6f41-65ee6bdfb7c62\"",
     "lastModified": "Wed, 28 Oct 2026 13:43:03 GMT"
   },
   "qetic": {
-    "failures": 1,
+    "failures": 2,
     "okAt": "2026-10-30T00:04:42.472Z",
     "fetchedAt": "2026-10-29T22:02:35.778Z",
     "count": 16,
-    "failedAt": "2026-10-30T01:05:32.375Z",
-    "error": "Unexpected close tag\nLine: 85\nColumn: 146\nChar: >",
+    "failedAt": "2026-10-30T02:07:14.986Z",
+    "error": "Unexpected close tag\nLine: 122\nColumn: 146\nChar: >",
     "etag": "W/\"e590c7dfdcb7e11400ef96cb2c6e8cdc\"",
     "lastModified": "Thu, 29 Oct 2026 21:26:32 GMT"
   },
   "qiita": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-29T23:03:35.825Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
-    "etag": "W/\"53baa79ccc420da7b9b551e78c007bde\""
+    "etag": "W/\"edf155d4f27c852d7002fb768c977342\""
   },
   "qoly": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 12,
-    "lastModified": "Fri, 30 Oct 2026 01:01:08 GMT"
+    "lastModified": "Fri, 30 Oct 2026 02:07:08 GMT"
   },
   "railf": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T15:58:37.583Z",
     "count": 15,
     "etag": "\"18c0-65efc22d31a1e\"",
@@ -704,27 +704,27 @@
   },
   "realsound": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 15
   },
   "riken": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50
   },
   "rocketnews24": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
-    "etag": "W/\"ba12fb9f898f48ae9a4bfdf47fb825bf\"",
-    "lastModified": "Thu, 29 Oct 2026 10:33:07 GMT"
+    "etag": "W/\"97b2fe8a7c0016134252a13530abc429\"",
+    "lastModified": "Thu, 29 Oct 2026 11:42:44 GMT"
   },
   "scienceportal": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T19:00:11.064Z",
     "count": 10,
     "etag": "\"24e48-65ef4c2085112\"",
@@ -732,82 +732,82 @@
   },
   "screen-online": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 12,
-    "lastModified": "Fri, 30 Oct 2026 01:01:55 GMT"
+    "lastModified": "Fri, 30 Oct 2026 02:05:15 GMT"
   },
   "security-next": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-22T01:12:17.449Z",
     "error": "タイムアウト（15秒）",
-    "etag": "\"3b51-65f0396f42c08\"",
-    "lastModified": "Fri, 30 Oct 2026 00:08:02 GMT"
+    "etag": "\"3c4e-65f054415c6e8\"",
+    "lastModified": "Fri, 30 Oct 2026 02:08:02 GMT"
   },
   "shikoku-np": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50
   },
   "shimotsuke": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10
   },
   "smhn": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-29T13:56:01.214Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 11,
     "etag": "W/\"2fcbf581f94153c3ba986efbd93bb265\"",
     "lastModified": "Thu, 29 Oct 2026 13:16:22 GMT"
   },
   "soccer-digest": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50,
     "failedAt": "2026-10-22T00:12:07.436Z",
     "error": "HTTP 404",
-    "etag": "\"6ae3eb77-77e5\"",
-    "lastModified": "Fri, 30 Oct 2026 00:57:27 GMT"
+    "etag": "\"6ae3ef38-77b1\"",
+    "lastModified": "Fri, 30 Oct 2026 01:13:28 GMT"
   },
   "taisy0": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-28T14:53:54.196Z",
     "error": "タイムアウト（15秒）",
-    "etag": "W/\"14a2f096d0dfae2e8cd5934001dfb2c3\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:18 GMT"
+    "etag": "W/\"7843e45a3a47e99aa51c37e4a2beac97\"",
+    "lastModified": "Fri, 30 Oct 2026 01:43:15 GMT"
   },
   "the-answer": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10,
-    "etag": "W/\"41d79d22e1e85b86386ede1bec1f21cf\"",
-    "lastModified": "Fri, 30 Oct 2026 01:03:00 GMT"
+    "etag": "W/\"5100e633774a7350026c428ecf7493b1\"",
+    "lastModified": "Fri, 30 Oct 2026 02:03:00 GMT"
   },
   "the-digest": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50,
     "failedAt": "2026-10-22T00:12:07.436Z",
     "error": "HTTP 404",
-    "etag": "\"6ae3e8f1-7d42\"",
-    "lastModified": "Fri, 30 Oct 2026 00:46:41 GMT"
+    "etag": "\"6ae3fbb9-7da8\"",
+    "lastModified": "Fri, 30 Oct 2026 02:06:49 GMT"
   },
   "thinkit": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-30T00:04:42.472Z",
     "count": 30,
     "failedAt": "2026-10-21T19:08:03.685Z",
@@ -817,7 +817,7 @@
   },
   "tokyo-headline": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-30T01:05:32.375Z",
     "count": 10,
     "etag": "\"3560490ecefbefee9e6c9b3d40649d4e-gzip\"",
@@ -825,39 +825,39 @@
   },
   "tokyo-sports": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 10
   },
   "trafficnews": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 30,
-    "etag": "W/\"b382197070114e307cff9e3d51e9f835\"",
-    "lastModified": "Fri, 30 Oct 2026 00:57:30 GMT"
+    "etag": "W/\"e2192ae6f3887ff9607ef5ef809cd963\"",
+    "lastModified": "Fri, 30 Oct 2026 01:42:00 GMT"
   },
   "travel-watch": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 15,
-    "etag": "\"6ae3ec84-348e\"",
-    "lastModified": "Fri, 30 Oct 2026 01:01:56 GMT"
+    "etag": "\"6ae3fa92-348e\"",
+    "lastModified": "Fri, 30 Oct 2026 02:01:54 GMT"
   },
   "u-tokyo": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-29T19:00:11.064Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50,
     "failedAt": "2026-10-29T22:02:35.778Z",
     "error": "read ECONNRESET",
-    "etag": "\"5c7f-65edfe20705c4\"",
-    "lastModified": "Wed, 28 Oct 2026 05:32:03 GMT"
+    "etag": "\"5139-65f04fc9fdd17\"",
+    "lastModified": "Fri, 30 Oct 2026 01:48:03 GMT"
   },
   "vague": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-30T00:04:42.472Z",
     "count": 10,
     "failedAt": "2026-10-29T06:50:47.087Z",
@@ -867,7 +867,7 @@
   },
   "webcartop": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
     "fetchedAt": "2026-10-29T22:02:35.778Z",
     "count": 20,
     "etag": "\"9884aeb7852ab36ae396d96956345d66\"",
@@ -875,29 +875,29 @@
   },
   "wws": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T00:04:42.472Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 50,
     "failedAt": "2026-10-29T22:02:35.778Z",
     "error": "タイムアウト（15秒）",
-    "etag": "W/\"6d773eb655fe2e9b5dd524d46b5864b7\"",
-    "lastModified": "Fri, 30 Oct 2026 00:00:25 GMT"
+    "etag": "W/\"8ff27c8c7d29fae9da93da440ee57a37\"",
+    "lastModified": "Fri, 30 Oct 2026 02:00:28 GMT"
   },
   "zaikei": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-29T13:56:01.214Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
     "failedAt": "2026-10-29T22:02:35.778Z",
     "error": "タイムアウト（15秒）",
-    "etag": "W/\"364b-65efad830773a\"",
-    "lastModified": "Thu, 29 Oct 2026 13:42:02 GMT"
+    "etag": "W/\"369c-65f04e7157d15\"",
+    "lastModified": "Fri, 30 Oct 2026 01:42:01 GMT"
   },
   "zenn": {
     "failures": 0,
-    "okAt": "2026-10-30T01:05:32.375Z",
-    "fetchedAt": "2026-10-30T00:04:42.472Z",
+    "okAt": "2026-10-30T02:07:14.986Z",
+    "fetchedAt": "2026-10-30T02:07:14.986Z",
     "count": 20,
-    "lastModified": "Fri, 30 Oct 2026 00:04:53 GMT"
+    "lastModified": "Fri, 30 Oct 2026 00:32:10 GMT"
   }
 }
