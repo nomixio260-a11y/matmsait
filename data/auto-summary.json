@@ -1,7 +1,7 @@
 {
  "day": "2026-10-31",
- "neurons": 5696,
- "saved": 100,
+ "neurons": 6036,
+ "saved": 107,
  "attempts": [
   {
    "id": "6d33546b2bd8c02d",
@@ -8079,10 +8079,70 @@
    "at": "2026-10-31T16:40:30.590Z",
    "result": "saved",
    "neurons": 62
+  },
+  {
+   "id": "a30d566c6ba09742",
+   "at": "2026-10-31T17:40:49.995Z",
+   "result": "no-text",
+   "detail": "本文が短いページ（0字）"
+  },
+  {
+   "id": "f8a8a56c101cd5d3",
+   "at": "2026-10-31T17:40:50.865Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "45a95bdc22fbe35c",
+   "at": "2026-10-31T17:40:54.808Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "1438d317911bb263",
+   "at": "2026-10-31T17:40:57.789Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "c68687cd2030a00a",
+   "at": "2026-10-31T17:41:33.336Z",
+   "result": "fetch-error",
+   "detail": "robots.txt を読めませんでした"
+  },
+  {
+   "id": "8a855d78ad7dba99",
+   "at": "2026-10-31T17:41:36.726Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "2274a293680909c6",
+   "at": "2026-10-31T17:41:44.859Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "99fda2115d323da9",
+   "at": "2026-10-31T17:41:52.891Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "c699ff1011ddb101",
+   "at": "2026-10-31T17:41:58.810Z",
+   "result": "no-text",
+   "detail": "本文が短いページ（0字）"
+  },
+  {
+   "id": "b6a12f104891ba9c",
+   "at": "2026-10-31T17:42:03.443Z",
+   "result": "saved",
+   "neurons": 48
   }
  ],
  "lastRun": {
-  "at": "2026-10-31T16:39:37.711Z",
+  "at": "2026-10-31T17:40:47.105Z",
   "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
