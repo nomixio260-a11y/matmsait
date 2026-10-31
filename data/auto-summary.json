@@ -1,7 +1,7 @@
 {
  "day": "2026-10-31",
- "neurons": 4027,
- "saved": 69,
+ "neurons": 4360,
+ "saved": 74,
  "attempts": [
   {
    "id": "6d33546b2bd8c02d",
@@ -7843,11 +7843,48 @@
    "at": "2026-10-31T11:35:08.426Z",
    "result": "saved",
    "neurons": 60
+  },
+  {
+   "id": "8c5aaaa1c36246aa",
+   "at": "2026-10-31T12:35:04.970Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "33af0cf1dd39432c",
+   "at": "2026-10-31T12:35:14.110Z",
+   "result": "quality",
+   "neurons": 100,
+   "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください"
+  },
+  {
+   "id": "8f6099a39c774180",
+   "at": "2026-10-31T12:35:20.919Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "ec3877cbc25cba47",
+   "at": "2026-10-31T12:35:24.413Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "c5781607c92df81f",
+   "at": "2026-10-31T12:35:30.468Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "f388cb707cad3d09",
+   "at": "2026-10-31T12:35:38.613Z",
+   "result": "saved",
+   "neurons": 45
   }
  ],
  "lastRun": {
-  "at": "2026-10-31T11:34:25.252Z",
-  "saved": 6,
+  "at": "2026-10-31T12:35:02.176Z",
+  "saved": 5,
   "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
