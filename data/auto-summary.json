@@ -1,7 +1,7 @@
 {
  "day": "2026-10-31",
- "neurons": 3052,
- "saved": 53,
+ "neurons": 3373,
+ "saved": 56,
  "attempts": [
   {
    "id": "e7835397476fb8b3",
@@ -7734,12 +7734,37 @@
    "result": "invalid",
    "neurons": 62,
    "detail": "要約が見出しの記事の内容と一致しません"
+  },
+  {
+   "id": "4eea46a5dc76fdf3",
+   "at": "2026-10-31T09:32:21.928Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "99770a97f1573b2f",
+   "at": "2026-10-31T09:32:25.426Z",
+   "result": "saved",
+   "neurons": 65
+  },
+  {
+   "id": "6099b5416a28d530",
+   "at": "2026-10-31T09:32:28.629Z",
+   "result": "quality",
+   "neurons": 104,
+   "detail": "見出しの言い換えに近い要約です。本文から見出しにない重要な情報（数字・日付・条件・今後の予定など）を加えてください"
+  },
+  {
+   "id": "3a24f4871c9b3cde",
+   "at": "2026-10-31T09:32:36.273Z",
+   "result": "saved",
+   "neurons": 103
   }
  ],
  "lastRun": {
-  "at": "2026-10-31T08:31:46.186Z",
-  "saved": 6,
-  "tried": 7,
+  "at": "2026-10-31T09:32:19.080Z",
+  "saved": 3,
+  "tried": 4,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
