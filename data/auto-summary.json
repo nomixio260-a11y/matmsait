@@ -1,7 +1,7 @@
 {
  "day": "2026-10-31",
- "neurons": 1049,
- "saved": 18,
+ "neurons": 1345,
+ "saved": 23,
  "attempts": [
   {
    "id": "e7835397476fb8b3",
@@ -7483,11 +7483,54 @@
    "at": "2026-10-31T02:28:23.301Z",
    "result": "saved",
    "neurons": 101
+  },
+  {
+   "id": "a28fff463a08eba7",
+   "at": "2026-10-31T03:28:07.625Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "017ccacdcf3b3911",
+   "at": "2026-10-31T03:28:10.585Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "4a7a98cea4e6a12d",
+   "at": "2026-10-31T03:28:15.407Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（63字）"
+  },
+  {
+   "id": "0662449285af8383",
+   "at": "2026-10-31T03:28:15.502Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "233a7f263f4d31ec",
+   "at": "2026-10-31T03:28:22.565Z",
+   "result": "saved",
+   "neurons": 62
+  },
+  {
+   "id": "033194ab68121b88",
+   "at": "2026-10-31T03:28:26.823Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "fc6223e4de07a2f6",
+   "at": "2026-10-31T03:28:30.312Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
   }
  ],
  "lastRun": {
-  "at": "2026-10-31T02:27:56.880Z",
-  "saved": 6,
+  "at": "2026-10-31T03:28:04.132Z",
+  "saved": 5,
   "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
