@@ -1,7 +1,7 @@
 {
  "day": "2026-10-31",
- "neurons": 2695,
- "saved": 47,
+ "neurons": 3052,
+ "saved": 53,
  "attempts": [
   {
    "id": "e7835397476fb8b3",
@@ -7691,11 +7691,54 @@
    "at": "2026-10-31T07:31:49.055Z",
    "result": "saved",
    "neurons": 47
+  },
+  {
+   "id": "5924068fc363431f",
+   "at": "2026-10-31T08:31:55.513Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "8471728595994a24",
+   "at": "2026-10-31T08:31:59.905Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "294ccf613afa4bb8",
+   "at": "2026-10-31T08:32:03.466Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "35557430d5b7f3c1",
+   "at": "2026-10-31T08:32:08.507Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "ff33648516ca8aad",
+   "at": "2026-10-31T08:32:11.826Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "81c83125e8c822d9",
+   "at": "2026-10-31T08:32:17.806Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "58ef55927d62cbf2",
+   "at": "2026-10-31T08:32:32.669Z",
+   "result": "invalid",
+   "neurons": 62,
+   "detail": "要約が見出しの記事の内容と一致しません"
   }
  ],
  "lastRun": {
-  "at": "2026-10-31T07:31:16.975Z",
-  "saved": 5,
+  "at": "2026-10-31T08:31:46.186Z",
+  "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
