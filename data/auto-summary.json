@@ -1,14 +1,8 @@
 {
- "day": "2026-10-31",
- "neurons": 7903,
- "saved": 141,
+ "day": "2026-11-01",
+ "neurons": 353,
+ "saved": 7,
  "attempts": [
-  {
-   "id": "6d33546b2bd8c02d",
-   "at": "2026-10-18T00:00:40.815Z",
-   "result": "ai-error",
-   "detail": "Workers AI が時間内に答えを返しませんでした（HTTP 408: 3046 AiError: AiError: Request timeout (e676632c-fcbf-47ee-ac05-d056a0c8c6ae)）"
-  },
   {
    "id": "6a18a9e3dd2afc0a",
    "at": "2026-10-18T09:06:28.495Z",
@@ -8361,14 +8355,56 @@
    "at": "2026-10-31T23:45:13.240Z",
    "result": "saved",
    "neurons": 54
+  },
+  {
+   "id": "480f44c7412bd362",
+   "at": "2026-11-01T00:45:55.572Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "329c4ed974daf2b0",
+   "at": "2026-11-01T00:46:00.715Z",
+   "result": "saved",
+   "neurons": 63
+  },
+  {
+   "id": "9919acc02cc7bc1c",
+   "at": "2026-11-01T00:46:07.107Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "829a1293531559ef",
+   "at": "2026-11-01T00:46:10.102Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "86dd58a2a19be628",
+   "at": "2026-11-01T00:46:13.182Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "eb7b9c10c5a44de1",
+   "at": "2026-11-01T00:46:15.635Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "db68bf150f4f22ec",
+   "at": "2026-11-01T00:46:20.638Z",
+   "result": "saved",
+   "neurons": 49
   }
  ],
  "lastRun": {
-  "at": "2026-10-31T23:44:58.554Z",
-  "saved": 4,
-  "tried": 4,
+  "at": "2026-11-01T00:45:53.143Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
-  "message": "今日（UTC）の使用量の見積もりが上限（8000ニューロン）に近いため止めました"
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
