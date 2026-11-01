@@ -1,7 +1,7 @@
 {
  "day": "2026-11-01",
- "neurons": 353,
- "saved": 7,
+ "neurons": 705,
+ "saved": 13,
  "attempts": [
   {
    "id": "6a18a9e3dd2afc0a",
@@ -8397,11 +8397,60 @@
    "at": "2026-11-01T00:46:20.638Z",
    "result": "saved",
    "neurons": 49
+  },
+  {
+   "id": "d03b7d8aceacdbbf",
+   "at": "2026-11-01T01:46:03.993Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "9cd9c8e7a4e11a70",
+   "at": "2026-11-01T01:46:06.879Z",
+   "result": "saved",
+   "neurons": 56
+  },
+  {
+   "id": "35dff4113a49cf63",
+   "at": "2026-11-01T01:46:10.723Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "492b0ff76e5feafd",
+   "at": "2026-11-01T01:46:14.914Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "df9adb73b6471275",
+   "at": "2026-11-01T01:46:18.048Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で GPTBot を拒否"
+  },
+  {
+   "id": "085a35977c83f2be",
+   "at": "2026-11-01T01:46:22.758Z",
+   "result": "invalid",
+   "neurons": 54,
+   "detail": "要約が見出しの記事の内容と一致しません"
+  },
+  {
+   "id": "60fb3fb98cf3565d",
+   "at": "2026-11-01T01:46:26.079Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "8838fec28c2cf431",
+   "at": "2026-11-01T01:46:29.815Z",
+   "result": "saved",
+   "neurons": 44
   }
  ],
  "lastRun": {
-  "at": "2026-11-01T00:45:53.143Z",
-  "saved": 7,
+  "at": "2026-11-01T01:46:01.036Z",
+  "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
