@@ -1,27 +1,8 @@
 {
  "day": "2026-11-01",
- "neurons": 3013,
- "saved": 58,
+ "neurons": 3397,
+ "saved": 66,
  "attempts": [
-  {
-   "id": "6a18a9e3dd2afc0a",
-   "at": "2026-10-18T09:06:28.495Z",
-   "result": "no-text",
-   "detail": "本文が短いページ（67字）"
-  },
-  {
-   "id": "dafd9cb6d8382a0d",
-   "at": "2026-10-18T09:06:28.848Z",
-   "result": "unavailable",
-   "neurons": 397,
-   "detail": "AI が記事を読めなかったため要約がありません"
-  },
-  {
-   "id": "e69661428a22b494",
-   "at": "2026-10-18T10:07:10.030Z",
-   "result": "ai-error",
-   "detail": "Workers AI が時間内に答えを返しませんでした（HTTP 408: 3046 AiError: AiError: Request timeout (a003fdc9-9019-4861-94d4-719c358a25b4)）"
-  },
   {
    "id": "3d8a775e665086ab",
    "at": "2026-10-19T00:17:04.602Z",
@@ -8741,14 +8722,79 @@
    "at": "2026-11-01T08:52:50.925Z",
    "result": "saved",
    "neurons": 42
+  },
+  {
+   "id": "499c939f8e3c3e0b",
+   "at": "2026-11-01T10:52:47.532Z",
+   "result": "no-text",
+   "detail": "画像が中心のページ（0字）"
+  },
+  {
+   "id": "a9b90be1bfb43780",
+   "at": "2026-11-01T10:52:49.421Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "66cafbb00b2fd829",
+   "at": "2026-11-01T10:52:52.650Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で GPTBot を拒否"
+  },
+  {
+   "id": "3323cb787468ebbe",
+   "at": "2026-11-01T10:52:52.988Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "06b13c0b088b9053",
+   "at": "2026-11-01T10:52:59.467Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "29f385c0d8001d36",
+   "at": "2026-11-01T10:53:03.455Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "21615212fc880b41",
+   "at": "2026-11-01T10:53:10.532Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "6c7b8b5b53bae278",
+   "at": "2026-11-01T10:53:25.114Z",
+   "result": "saved",
+   "neurons": 57
+  },
+  {
+   "id": "025ccf84ed7fc58f",
+   "at": "2026-11-01T10:53:29.119Z",
+   "result": "no-text",
+   "detail": "本文が短いページ（21字）"
+  },
+  {
+   "id": "999c618a3b6b0a43",
+   "at": "2026-11-01T10:53:29.334Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "609df7b5445d119a",
+   "at": "2026-11-01T10:53:38.011Z",
+   "result": "saved",
+   "neurons": 44
   }
  ],
  "lastRun": {
-  "at": "2026-11-01T08:52:29.134Z",
-  "saved": 5,
-  "tried": 5,
+  "at": "2026-11-01T10:52:45.158Z",
+  "saved": 8,
+  "tried": 8,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off",
-  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
+  "reasoning": "off"
  }
 }
