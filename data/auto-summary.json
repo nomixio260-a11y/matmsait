@@ -1,7 +1,7 @@
 {
- "day": "2026-11-01",
- "neurons": 7908,
- "saved": 150,
+ "day": "2026-11-02",
+ "neurons": 340,
+ "saved": 5,
  "attempts": [
   {
    "id": "3d8a775e665086ab",
@@ -9336,14 +9336,57 @@
    "at": "2026-11-01T23:02:09.420Z",
    "result": "saved",
    "neurons": 45
+  },
+  {
+   "id": "efc561ebb66c0d06",
+   "at": "2026-11-02T00:02:16.732Z",
+   "result": "saved",
+   "neurons": 99
+  },
+  {
+   "id": "2cba90bc1d3db5ae",
+   "at": "2026-11-02T00:02:24.392Z",
+   "result": "saved",
+   "neurons": 62
+  },
+  {
+   "id": "e3ae0ed2982497bd",
+   "at": "2026-11-02T00:02:30.008Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "bf6f0d7fff377c52",
+   "at": "2026-11-02T00:02:35.168Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "1ec38c13286e51e3",
+   "at": "2026-11-02T00:03:11.016Z",
+   "result": "fetch-error",
+   "detail": "robots.txt を読めませんでした"
+  },
+  {
+   "id": "b70b62912623c5f8",
+   "at": "2026-11-02T00:03:23.199Z",
+   "result": "saved",
+   "neurons": 56
+  },
+  {
+   "id": "aa072d7384437e43",
+   "at": "2026-11-02T00:03:27.331Z",
+   "result": "saved",
+   "neurons": 44
   }
  ],
  "lastRun": {
-  "at": "2026-11-01T23:01:48.014Z",
+  "at": "2026-11-02T00:02:14.112Z",
   "saved": 5,
-  "tried": 5,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
-  "message": "今日（UTC）の使用量の見積もりが上限（8000ニューロン）に近いため止めました"
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
