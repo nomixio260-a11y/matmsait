@@ -1,7 +1,7 @@
 {
  "day": "2026-11-02",
- "neurons": 3418,
- "saved": 65,
+ "neurons": 3701,
+ "saved": 71,
  "attempts": [
   {
    "id": "783a89da04f93b31",
@@ -9758,12 +9758,54 @@
    "at": "2026-11-02T09:09:17.587Z",
    "result": "saved",
    "neurons": 110
+  },
+  {
+   "id": "9ddfb503be188903",
+   "at": "2026-11-02T10:09:29.467Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "825fecfb3e864c5b",
+   "at": "2026-11-02T10:09:34.728Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "fd743c6b8584796b",
+   "at": "2026-11-02T10:09:41.052Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "e9a1e34560604e7e",
+   "at": "2026-11-02T10:09:44.988Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で GPTBot を拒否"
+  },
+  {
+   "id": "6dfd50a6a2dbf504",
+   "at": "2026-11-02T10:09:45.127Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "8d4c8b6cbcf0b0e7",
+   "at": "2026-11-02T10:09:49.240Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "9d50e8a4eb4181b4",
+   "at": "2026-11-02T10:09:51.960Z",
+   "result": "saved",
+   "neurons": 49
   }
  ],
  "lastRun": {
-  "at": "2026-11-02T09:08:29.703Z",
-  "saved": 7,
-  "tried": 7,
+  "at": "2026-11-02T10:09:24.057Z",
+  "saved": 6,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
