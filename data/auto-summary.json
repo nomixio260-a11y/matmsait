@@ -1,38 +1,8 @@
 {
  "day": "2026-11-02",
- "neurons": 6335,
- "saved": 122,
+ "neurons": 6716,
+ "saved": 129,
  "attempts": [
-  {
-   "id": "3fcb3b23d3e67550",
-   "at": "2026-10-19T18:52:10.967Z",
-   "result": "no-text",
-   "detail": "動画が中心のページ（54字）"
-  },
-  {
-   "id": "57ba18b67e7010a8",
-   "at": "2026-10-19T18:52:12.364Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "34f9767c9d7eb2dd",
-   "at": "2026-10-19T18:52:18.064Z",
-   "result": "saved",
-   "neurons": 56
-  },
-  {
-   "id": "e77f5461f9a41ceb",
-   "at": "2026-10-19T18:52:25.763Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "eb50969e890b2209",
-   "at": "2026-10-19T18:52:30.278Z",
-   "result": "saved",
-   "neurons": 37
-  },
   {
    "id": "3f5485173358f6e3",
    "at": "2026-10-19T19:53:01.168Z",
@@ -9897,11 +9867,65 @@
    "at": "2026-11-02T18:16:34.174Z",
    "result": "saved",
    "neurons": 62
+  },
+  {
+   "id": "47433aa001edf233",
+   "at": "2026-11-02T19:16:50.271Z",
+   "result": "no-text",
+   "detail": "画像が中心のページ（50字）"
+  },
+  {
+   "id": "5a9cb60991c80aa6",
+   "at": "2026-11-02T19:16:54.616Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "b813660ffdbd6ba9",
+   "at": "2026-11-02T19:17:02.661Z",
+   "result": "no-text",
+   "detail": "画像が中心のページ（62字）"
+  },
+  {
+   "id": "fe5e2aac5ad1b46f",
+   "at": "2026-11-02T19:17:03.819Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "76b3f2f7c02b8727",
+   "at": "2026-11-02T19:17:07.999Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "e5b8f7b8723d41f7",
+   "at": "2026-11-02T19:17:15.400Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "fe06dbcc6d3da65d",
+   "at": "2026-11-02T19:17:21.111Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "77ef35a496860564",
+   "at": "2026-11-02T19:17:27.360Z",
+   "result": "saved",
+   "neurons": 103
+  },
+  {
+   "id": "338bf4c362e9bee2",
+   "at": "2026-11-02T19:17:36.597Z",
+   "result": "saved",
+   "neurons": 50
   }
  ],
  "lastRun": {
-  "at": "2026-11-02T18:15:29.795Z",
-  "saved": 6,
+  "at": "2026-11-02T19:16:46.225Z",
+  "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
