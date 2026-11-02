@@ -1,38 +1,8 @@
 {
  "day": "2026-11-02",
- "neurons": 6001,
- "saved": 116,
+ "neurons": 6335,
+ "saved": 122,
  "attempts": [
-  {
-   "id": "8329cb540f95c5d5",
-   "at": "2026-10-19T17:52:04.768Z",
-   "result": "saved",
-   "neurons": 36
-  },
-  {
-   "id": "41e63a1d7d310da9",
-   "at": "2026-10-19T17:52:08.212Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "3d01b085d242d9d0",
-   "at": "2026-10-19T17:52:08.610Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "54d4cb4ee0476d11",
-   "at": "2026-10-19T17:52:14.408Z",
-   "result": "saved",
-   "neurons": 36
-  },
-  {
-   "id": "12c37ab16473f30a",
-   "at": "2026-10-19T17:52:21.271Z",
-   "result": "saved",
-   "neurons": 39
-  },
   {
    "id": "3fcb3b23d3e67550",
    "at": "2026-10-19T18:52:10.967Z",
@@ -9860,11 +9830,78 @@
    "at": "2026-11-02T17:15:49.187Z",
    "result": "saved",
    "neurons": 43
+  },
+  {
+   "id": "f35b50ae32803e12",
+   "at": "2026-11-02T18:15:33.397Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（121字）"
+  },
+  {
+   "id": "86e5466bfbaa6aad",
+   "at": "2026-11-02T18:15:37.638Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（121字）"
+  },
+  {
+   "id": "8047ad4be6f45be1",
+   "at": "2026-11-02T18:15:41.658Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（133字）"
+  },
+  {
+   "id": "cf22a652d726f64d",
+   "at": "2026-11-02T18:15:42.108Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "f1f883265c1935da",
+   "at": "2026-11-02T18:15:51.178Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "cdd5431f671245b5",
+   "at": "2026-11-02T18:15:58.876Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "e46173b63529ac10",
+   "at": "2026-11-02T18:16:00.948Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（93字）"
+  },
+  {
+   "id": "aeb3a1742342b2f5",
+   "at": "2026-11-02T18:16:04.821Z",
+   "result": "saved",
+   "neurons": 42
+  },
+  {
+   "id": "c9642a185cb352a9",
+   "at": "2026-11-02T18:16:16.735Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "8e8da1cf5037cd8c",
+   "at": "2026-11-02T18:16:21.076Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "0a4cd69960b48cfa",
+   "at": "2026-11-02T18:16:34.174Z",
+   "result": "saved",
+   "neurons": 62
   }
  ],
  "lastRun": {
-  "at": "2026-11-02T17:14:48.293Z",
-  "saved": 7,
+  "at": "2026-11-02T18:15:29.795Z",
+  "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
