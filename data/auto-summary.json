@@ -1,14 +1,8 @@
 {
  "day": "2026-11-03",
- "neurons": 5675,
- "saved": 109,
+ "neurons": 6020,
+ "saved": 115,
  "attempts": [
-  {
-   "id": "bbb92ad0481487d2",
-   "at": "2026-10-20T17:03:48.190Z",
-   "result": "saved",
-   "neurons": 44
-  },
   {
    "id": "923ffa86275cff1b",
    "at": "2026-10-21T00:23:22.274Z",
@@ -10279,12 +10273,48 @@
    "at": "2026-11-03T16:34:24.418Z",
    "result": "saved",
    "neurons": 48
+  },
+  {
+   "id": "8a4ec9991b49de64",
+   "at": "2026-11-03T17:35:13.137Z",
+   "result": "saved",
+   "neurons": 59
+  },
+  {
+   "id": "15c787e37ab8b97a",
+   "at": "2026-11-03T17:35:18.406Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "e075b5efd8e24386",
+   "at": "2026-11-03T17:35:23.025Z",
+   "result": "saved",
+   "neurons": 97
+  },
+  {
+   "id": "8b58d43415578553",
+   "at": "2026-11-03T17:35:32.007Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "564df1f81ad9ecc3",
+   "at": "2026-11-03T17:35:36.755Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "acb812ee816f2e36",
+   "at": "2026-11-03T17:35:49.763Z",
+   "result": "saved",
+   "neurons": 44
   }
  ],
  "lastRun": {
-  "at": "2026-11-03T16:33:44.338Z",
-  "saved": 7,
-  "tried": 7,
+  "at": "2026-11-03T17:35:10.706Z",
+  "saved": 6,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
