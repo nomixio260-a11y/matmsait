@@ -1,32 +1,8 @@
 {
  "day": "2026-11-03",
- "neurons": 1677,
- "saved": 34,
+ "neurons": 2030,
+ "saved": 41,
  "attempts": [
-  {
-   "id": "bde17c763e228bdf",
-   "at": "2026-10-20T04:59:49.703Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "9ba453497bd3cc6f",
-   "at": "2026-10-20T04:59:53.896Z",
-   "result": "saved",
-   "neurons": 37
-  },
-  {
-   "id": "e656fd2b4951e748",
-   "at": "2026-10-20T04:59:56.173Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "5971523d943d0fdf",
-   "at": "2026-10-20T04:59:58.973Z",
-   "result": "saved",
-   "neurons": 42
-  },
   {
    "id": "6bc7fdd250b29ab2",
    "at": "2026-10-20T06:11:17.838Z",
@@ -10052,14 +10028,62 @@
    "result": "unavailable",
    "neurons": 36,
    "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "cb9b305190502dd8",
+   "at": "2026-11-03T05:24:16.884Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "4b35ca9d74b3761c",
+   "at": "2026-11-03T05:24:22.000Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "09d3dc236e9f91a6",
+   "at": "2026-11-03T05:24:26.525Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "3ca281a6eebb7bd3",
+   "at": "2026-11-03T05:24:37.017Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "1f1b5b51bb5decde",
+   "at": "2026-11-03T05:24:41.090Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "8ead81caf9745749",
+   "at": "2026-11-03T05:24:42.908Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "766e4e2c331930d0",
+   "at": "2026-11-03T05:24:50.768Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "ac6686ce64acb6bf",
+   "at": "2026-11-03T05:24:54.589Z",
+   "result": "saved",
+   "neurons": 51
   }
  ],
  "lastRun": {
-  "at": "2026-11-03T04:23:17.822Z",
-  "saved": 6,
-  "tried": 7,
+  "at": "2026-11-03T05:24:12.848Z",
+  "saved": 7,
+  "tried": 8,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off",
-  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
+  "reasoning": "off"
  }
 }
