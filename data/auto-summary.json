@@ -1,32 +1,8 @@
 {
  "day": "2026-11-03",
- "neurons": 1368,
- "saved": 28,
+ "neurons": 1677,
+ "saved": 34,
  "attempts": [
-  {
-   "id": "f2b4f614c9126a12",
-   "at": "2026-10-20T03:58:53.396Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "460fb5916d3d203d",
-   "at": "2026-10-20T03:58:57.211Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "11694e9d65ce7042",
-   "at": "2026-10-20T03:59:00.864Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "2ab0cf80354f4bf3",
-   "at": "2026-10-20T03:59:06.906Z",
-   "result": "saved",
-   "neurons": 39
-  },
   {
    "id": "bde17c763e228bdf",
    "at": "2026-10-20T04:59:49.703Z",
@@ -10021,11 +9997,66 @@
    "at": "2026-11-03T03:23:44.919Z",
    "result": "saved",
    "neurons": 44
+  },
+  {
+   "id": "41c3edee162856e6",
+   "at": "2026-11-03T04:23:20.202Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "79a01ba3d941f7dd",
+   "at": "2026-11-03T04:23:25.191Z",
+   "result": "no-text",
+   "detail": "画像が中心のページ（0字）"
+  },
+  {
+   "id": "f951539e333a7cd9",
+   "at": "2026-11-03T04:23:26.737Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "efb68deb7735f0b4",
+   "at": "2026-11-03T04:23:31.174Z",
+   "result": "not-found",
+   "detail": "HTTP 404"
+  },
+  {
+   "id": "1a0fe6b2f6543d27",
+   "at": "2026-11-03T04:23:31.977Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "d35a150356e9944d",
+   "at": "2026-11-03T04:23:40.851Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "df8c485b58c2dbb6",
+   "at": "2026-11-03T04:23:48.965Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "dc49bd35a42d325b",
+   "at": "2026-11-03T04:23:53.902Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "5eec37b2c7fbb64b",
+   "at": "2026-11-03T04:23:59.105Z",
+   "result": "unavailable",
+   "neurons": 36,
+   "detail": "AI が記事を読めなかったため要約がありません"
   }
  ],
  "lastRun": {
-  "at": "2026-11-03T03:23:00.690Z",
-  "saved": 7,
+  "at": "2026-11-03T04:23:17.822Z",
+  "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
