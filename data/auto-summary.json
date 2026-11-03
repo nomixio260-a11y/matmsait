@@ -1,44 +1,8 @@
 {
  "day": "2026-11-03",
- "neurons": 334,
- "saved": 7,
+ "neurons": 679,
+ "saved": 14,
  "attempts": [
-  {
-   "id": "ab0f546123701642",
-   "at": "2026-10-20T00:56:32.820Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "1f5af2f4bb4fac8b",
-   "at": "2026-10-20T00:56:33.258Z",
-   "result": "saved",
-   "neurons": 37
-  },
-  {
-   "id": "387c588827111a48",
-   "at": "2026-10-20T00:56:36.555Z",
-   "result": "no-text",
-   "detail": "本文が短いページ（0字）"
-  },
-  {
-   "id": "d983f891b04289dc",
-   "at": "2026-10-20T00:56:36.755Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "875d48bdc8af1fac",
-   "at": "2026-10-20T00:56:40.735Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "402682b56712711b",
-   "at": "2026-10-20T00:56:46.411Z",
-   "result": "saved",
-   "neurons": 36
-  },
   {
    "id": "5ba17253a73a13be",
    "at": "2026-10-20T01:57:58.087Z",
@@ -9985,10 +9949,52 @@
    "at": "2026-11-03T00:21:18.545Z",
    "result": "saved",
    "neurons": 44
+  },
+  {
+   "id": "a4abc7f3d06b0a82",
+   "at": "2026-11-03T01:22:00.857Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "138ea5bd589dc6b6",
+   "at": "2026-11-03T01:22:04.784Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "e5d872f802f8ae68",
+   "at": "2026-11-03T01:22:15.801Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "ece569eb3b85e4c5",
+   "at": "2026-11-03T01:22:21.534Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "a7d4c56e9c3b8a03",
+   "at": "2026-11-03T01:22:25.139Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "259729332985927a",
+   "at": "2026-11-03T01:22:37.362Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "5f7a7ee44000f825",
+   "at": "2026-11-03T01:22:41.559Z",
+   "result": "saved",
+   "neurons": 52
   }
  ],
  "lastRun": {
-  "at": "2026-11-03T00:20:41.485Z",
+  "at": "2026-11-03T01:21:57.480Z",
   "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
