@@ -1,32 +1,8 @@
 {
  "day": "2026-11-03",
- "neurons": 3353,
- "saved": 67,
+ "neurons": 3700,
+ "saved": 73,
  "attempts": [
-  {
-   "id": "db57eedfbadb4e76",
-   "at": "2026-10-20T10:13:18.479Z",
-   "result": "saved",
-   "neurons": 42
-  },
-  {
-   "id": "f1c1e8e4633f9b72",
-   "at": "2026-10-20T10:13:22.758Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "d7794ba40e35b13e",
-   "at": "2026-10-20T10:13:32.189Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "ad70305f8b9c89d7",
-   "at": "2026-10-20T10:13:39.527Z",
-   "result": "saved",
-   "neurons": 38
-  },
   {
    "id": "f8b0e40ecbb50dcc",
    "at": "2026-10-20T11:13:48.797Z",
@@ -10163,10 +10139,53 @@
    "result": "unavailable",
    "neurons": 34,
    "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "c1b0c913b68d6260",
+   "at": "2026-11-03T10:29:19.549Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "2d29ac14146230fc",
+   "at": "2026-11-03T10:29:23.530Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "053e5858e9b44c0f",
+   "at": "2026-11-03T10:29:26.980Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "711eb42d136aa817",
+   "at": "2026-11-03T10:29:30.705Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "cb2a74fddd8880fa",
+   "at": "2026-11-03T10:29:37.289Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "63df2179eaf1fb62",
+   "at": "2026-11-03T10:29:44.812Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "60418413181ccc25",
+   "at": "2026-11-03T10:29:48.692Z",
+   "result": "invalid",
+   "neurons": 44,
+   "detail": "要約が見出しの記事の内容と一致しません"
   }
  ],
  "lastRun": {
-  "at": "2026-11-03T09:28:26.821Z",
+  "at": "2026-11-03T10:29:16.782Z",
   "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
