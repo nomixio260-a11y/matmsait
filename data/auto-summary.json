@@ -1,32 +1,8 @@
 {
  "day": "2026-11-03",
- "neurons": 4339,
- "saved": 86,
+ "neurons": 4675,
+ "saved": 91,
  "attempts": [
-  {
-   "id": "d887c25912402f6a",
-   "at": "2026-10-20T13:15:48.294Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "444d04a63adf345f",
-   "at": "2026-10-20T13:15:52.345Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "4068b42b6ded97d3",
-   "at": "2026-10-20T13:15:59.893Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "25a66fc2349367cc",
-   "at": "2026-10-20T13:16:07.581Z",
-   "result": "saved",
-   "neurons": 39
-  },
   {
    "id": "5d41cbcdbac48ae7",
    "at": "2026-10-20T14:21:44.113Z",
@@ -10218,11 +10194,48 @@
    "at": "2026-11-03T12:31:23.144Z",
    "result": "saved",
    "neurons": 45
+  },
+  {
+   "id": "aac219c99a487d54",
+   "at": "2026-11-03T13:31:29.592Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "de211c783bfaaaaf",
+   "at": "2026-11-03T13:31:34.452Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "f0ca16a617af8cc9",
+   "at": "2026-11-03T13:31:42.644Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "1095ec9775f11f4a",
+   "at": "2026-11-03T13:31:46.730Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "b3227a3ed1b2b725",
+   "at": "2026-11-03T13:31:50.970Z",
+   "result": "quality",
+   "neurons": 101,
+   "detail": "見出しの言い換えに近い要約です。本文から見出しにない重要な情報（数字・日付・条件・今後の予定など）を加えてください"
+  },
+  {
+   "id": "57de3a0a03e8f6df",
+   "at": "2026-11-03T13:31:59.255Z",
+   "result": "saved",
+   "neurons": 45
   }
  ],
  "lastRun": {
-  "at": "2026-11-03T12:30:48.014Z",
-  "saved": 6,
+  "at": "2026-11-03T13:31:26.426Z",
+  "saved": 5,
   "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
