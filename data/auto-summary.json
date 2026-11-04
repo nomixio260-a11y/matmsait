@@ -1,45 +1,8 @@
 {
  "day": "2026-11-04",
- "neurons": 343,
- "saved": 7,
+ "neurons": 695,
+ "saved": 14,
  "attempts": [
-  {
-   "id": "f0858029f317ce9d",
-   "at": "2026-10-21T01:23:55.304Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "7e7c4685f565bab9",
-   "at": "2026-10-21T01:23:58.388Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "d1f82a5d11744d4e",
-   "at": "2026-10-21T01:24:00.144Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "a266e9d7713f9b59",
-   "at": "2026-10-21T01:24:04.820Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "41b25fb9a11feff4",
-   "at": "2026-10-21T01:24:07.742Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "2edd56a5cbd2c074",
-   "at": "2026-10-21T01:24:10.088Z",
-   "result": "unavailable",
-   "neurons": 30,
-   "detail": "AI が記事を読めなかったため要約がありません"
-  },
   {
    "id": "dea8f841690dd7c1",
    "at": "2026-10-21T02:24:59.355Z",
@@ -10563,10 +10526,52 @@
    "at": "2026-11-04T00:41:28.953Z",
    "result": "saved",
    "neurons": 47
+  },
+  {
+   "id": "5c28b76fe890dfc5",
+   "at": "2026-11-04T01:41:04.435Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "b9d5d46e0f8747d3",
+   "at": "2026-11-04T01:41:09.029Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "a8abdb09bc5bd95a",
+   "at": "2026-11-04T01:41:13.515Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "2e307abb0e989935",
+   "at": "2026-11-04T01:41:18.992Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "0cf0b64d08f5c3b6",
+   "at": "2026-11-04T01:41:26.778Z",
+   "result": "saved",
+   "neurons": 58
+  },
+  {
+   "id": "88473a6f75400d33",
+   "at": "2026-11-04T01:41:31.739Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "73a02a2164c362a4",
+   "at": "2026-11-04T01:41:37.084Z",
+   "result": "saved",
+   "neurons": 45
   }
  ],
  "lastRun": {
-  "at": "2026-11-04T00:40:54.294Z",
+  "at": "2026-11-04T01:40:59.930Z",
   "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
