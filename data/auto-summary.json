@@ -1,14 +1,8 @@
 {
  "day": "2026-11-04",
- "neurons": 5370,
- "saved": 104,
+ "neurons": 5715,
+ "saved": 111,
  "attempts": [
-  {
-   "id": "0ec8ef20a6d513d5",
-   "at": "2026-10-21T16:07:29.444Z",
-   "result": "saved",
-   "neurons": 40
-  },
   {
    "id": "6a214a941551ba93",
    "at": "2026-10-22T00:13:22.507Z",
@@ -10800,12 +10794,60 @@
    "at": "2026-11-04T15:51:42.652Z",
    "result": "saved",
    "neurons": 50
+  },
+  {
+   "id": "7073e75a16c57615",
+   "at": "2026-11-04T16:50:54.347Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "e210910e27283eb0",
+   "at": "2026-11-04T16:51:01.024Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "249464adb8ddcdf0",
+   "at": "2026-11-04T16:51:06.262Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "1daa0a9e5c57b3ae",
+   "at": "2026-11-04T16:51:10.193Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（108字）"
+  },
+  {
+   "id": "559dd124f2249703",
+   "at": "2026-11-04T16:51:11.389Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "930b440f839447f7",
+   "at": "2026-11-04T16:51:19.784Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "810184aeb9f0592c",
+   "at": "2026-11-04T16:51:29.500Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "10f5ae8c38bbf1e1",
+   "at": "2026-11-04T16:51:49.665Z",
+   "result": "saved",
+   "neurons": 63
   }
  ],
  "lastRun": {
-  "at": "2026-11-04T15:51:05.622Z",
-  "saved": 6,
-  "tried": 6,
+  "at": "2026-11-04T16:50:52.098Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
