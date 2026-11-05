@@ -1,32 +1,8 @@
 {
  "day": "2026-11-05",
- "neurons": 3022,
- "saved": 56,
+ "neurons": 3365,
+ "saved": 61,
  "attempts": [
-  {
-   "id": "cde625d16887b506",
-   "at": "2026-10-22T09:02:10.503Z",
-   "result": "saved",
-   "neurons": 56
-  },
-  {
-   "id": "3a4e07f0e69cba2e",
-   "at": "2026-10-22T09:02:16.263Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "5730eb0cad2b9ccf",
-   "at": "2026-10-22T09:02:22.078Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "2c7ee35eaa5708fc",
-   "at": "2026-10-22T09:02:28.953Z",
-   "result": "saved",
-   "neurons": 51
-  },
   {
    "id": "81abb719f88912e7",
    "at": "2026-10-22T10:03:57.857Z",
@@ -11264,11 +11240,48 @@
    "at": "2026-11-05T08:05:31.585Z",
    "result": "saved",
    "neurons": 58
+  },
+  {
+   "id": "daef59c4164fe696",
+   "at": "2026-11-05T09:05:39.374Z",
+   "result": "quality",
+   "neurons": 107,
+   "detail": "SNS・ネットの反応を大きく書いていないか、一部の意見を一般化していないか確かめてください（「大きな反響」）"
+  },
+  {
+   "id": "9203658ab6fb3ac3",
+   "at": "2026-11-05T09:05:44.534Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "6ded06af7d452d0a",
+   "at": "2026-11-05T09:05:48.120Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "dc49b22c14e4a510",
+   "at": "2026-11-05T09:05:52.102Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "3222039936cf658e",
+   "at": "2026-11-05T09:05:56.212Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "c84b551e6a3d7b18",
+   "at": "2026-11-05T09:06:02.036Z",
+   "result": "saved",
+   "neurons": 52
   }
  ],
  "lastRun": {
-  "at": "2026-11-05T08:04:52.268Z",
-  "saved": 6,
+  "at": "2026-11-05T09:05:37.055Z",
+  "saved": 5,
   "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
