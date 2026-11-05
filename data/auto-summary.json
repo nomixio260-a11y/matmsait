@@ -1,33 +1,8 @@
 {
  "day": "2026-11-05",
- "neurons": 1073,
- "saved": 20,
+ "neurons": 1512,
+ "saved": 27,
  "attempts": [
-  {
-   "id": "0d8603926c0b5c93",
-   "at": "2026-10-22T03:20:26.670Z",
-   "result": "unavailable",
-   "neurons": 31,
-   "detail": "AI が記事を読めなかったため要約がありません"
-  },
-  {
-   "id": "a6e68e290e8f4a38",
-   "at": "2026-10-22T03:20:28.226Z",
-   "result": "saved",
-   "neurons": 37
-  },
-  {
-   "id": "a35cb92cae4ee96b",
-   "at": "2026-10-22T03:20:31.559Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "5d25c6509422ac58",
-   "at": "2026-10-22T03:20:35.152Z",
-   "result": "saved",
-   "neurons": 51
-  },
   {
    "id": "ae9d9fbbc3d1234e",
    "at": "2026-10-22T04:16:53.072Z",
@@ -11156,14 +11131,62 @@
    "at": "2026-11-05T03:00:04.162Z",
    "result": "saved",
    "neurons": 95
+  },
+  {
+   "id": "87bd4892d688c565",
+   "at": "2026-11-05T04:00:42.791Z",
+   "result": "saved",
+   "neurons": 56
+  },
+  {
+   "id": "82d4e3e163241d19",
+   "at": "2026-11-05T04:00:46.368Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "360b51f6fd533504",
+   "at": "2026-11-05T04:00:48.547Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "eb72d5a7c7bb210f",
+   "at": "2026-11-05T04:00:53.604Z",
+   "result": "saved",
+   "neurons": 62
+  },
+  {
+   "id": "b5e7b63c66024054",
+   "at": "2026-11-05T04:01:02.764Z",
+   "result": "saved",
+   "neurons": 102
+  },
+  {
+   "id": "902f33c67b6da661",
+   "at": "2026-11-05T04:01:12.729Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "1e3eb9c06f62e7f1",
+   "at": "2026-11-05T04:01:17.442Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "2e6977a4169ce5df",
+   "at": "2026-11-05T04:01:24.015Z",
+   "result": "saved",
+   "neurons": 46
   }
  ],
  "lastRun": {
-  "at": "2026-11-05T02:59:37.716Z",
-  "saved": 6,
-  "tried": 7,
+  "at": "2026-11-05T04:00:39.329Z",
+  "saved": 7,
+  "tried": 8,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off",
-  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
+  "reasoning": "off"
  }
 }
