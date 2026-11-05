@@ -1,32 +1,8 @@
 {
  "day": "2026-11-05",
- "neurons": 3365,
- "saved": 61,
+ "neurons": 3690,
+ "saved": 67,
  "attempts": [
-  {
-   "id": "81abb719f88912e7",
-   "at": "2026-10-22T10:03:57.857Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "036147929373e27b",
-   "at": "2026-10-22T10:04:02.419Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "9bc36c139adb117a",
-   "at": "2026-10-22T10:04:07.021Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "3a4da61f2db09dae",
-   "at": "2026-10-22T10:04:14.574Z",
-   "result": "saved",
-   "neurons": 41
-  },
   {
    "id": "d55bbd019556c448",
    "at": "2026-10-22T11:04:09.654Z",
@@ -11277,12 +11253,55 @@
    "at": "2026-11-05T09:06:02.036Z",
    "result": "saved",
    "neurons": 52
+  },
+  {
+   "id": "1873e505f4a0e4b6",
+   "at": "2026-11-05T10:06:02.902Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "ceb93810afb6b5fa",
+   "at": "2026-11-05T10:06:06.703Z",
+   "result": "unavailable",
+   "neurons": 35,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "55d91b8ff376ad76",
+   "at": "2026-11-05T10:06:11.873Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "e88911cba414c9c8",
+   "at": "2026-11-05T10:06:19.151Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "ed86741d5c86d14f",
+   "at": "2026-11-05T10:06:22.428Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "99e7a8647ccdb9b0",
+   "at": "2026-11-05T10:06:26.771Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "ff99520ee42404f5",
+   "at": "2026-11-05T10:06:35.814Z",
+   "result": "saved",
+   "neurons": 49
   }
  ],
  "lastRun": {
-  "at": "2026-11-05T09:05:37.055Z",
-  "saved": 5,
-  "tried": 6,
+  "at": "2026-11-05T10:06:00.768Z",
+  "saved": 6,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
