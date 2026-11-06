@@ -1,32 +1,8 @@
 {
  "day": "2026-11-06",
- "neurons": 1701,
- "saved": 34,
+ "neurons": 2039,
+ "saved": 39,
  "attempts": [
-  {
-   "id": "88a2911c877e8a5c",
-   "at": "2026-10-23T05:18:26.804Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "bcf769a98f2bf649",
-   "at": "2026-10-23T05:18:30.247Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "33855a0feb2d07a3",
-   "at": "2026-10-23T05:18:33.990Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "480afd6a43e86a21",
-   "at": "2026-10-23T05:18:41.028Z",
-   "result": "saved",
-   "neurons": 38
-  },
   {
    "id": "1b3fe33f0a60548e",
    "at": "2026-10-23T06:19:44.417Z",
@@ -11788,13 +11764,51 @@
    "at": "2026-11-06T04:20:59.165Z",
    "result": "saved",
    "neurons": 47
+  },
+  {
+   "id": "1fc05e41b1b5ae0b",
+   "at": "2026-11-06T05:21:01.343Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "f50fd9ac707883af",
+   "at": "2026-11-06T05:21:06.828Z",
+   "result": "quality",
+   "neurons": 104,
+   "detail": "見出しの言い換えに近い要約です。本文から見出しにない重要な情報（数字・日付・条件・今後の予定など）を加えてください"
+  },
+  {
+   "id": "16800a1b3fb17f10",
+   "at": "2026-11-06T05:21:13.426Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "2a227fa10f7f61de",
+   "at": "2026-11-06T05:21:17.843Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "1c02bd12bb53d0a2",
+   "at": "2026-11-06T05:21:25.072Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "30b3a1cfdc0cd57b",
+   "at": "2026-11-06T05:21:30.648Z",
+   "result": "saved",
+   "neurons": 46
   }
  ],
  "lastRun": {
-  "at": "2026-11-06T04:20:18.542Z",
-  "saved": 7,
-  "tried": 8,
+  "at": "2026-11-06T05:20:57.343Z",
+  "saved": 5,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off"
+  "reasoning": "off",
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
