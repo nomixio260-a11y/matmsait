@@ -1,38 +1,8 @@
 {
  "day": "2026-11-06",
- "neurons": 379,
- "saved": 8,
+ "neurons": 716,
+ "saved": 15,
  "attempts": [
-  {
-   "id": "1eb160efc22fb475",
-   "at": "2026-10-23T01:17:05.111Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "202c6ee5e1a6f6d2",
-   "at": "2026-10-23T01:17:08.129Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "823ebe41372939cf",
-   "at": "2026-10-23T01:17:08.327Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "6be2936c70461f08",
-   "at": "2026-10-23T01:17:10.476Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "4db45108c7697340",
-   "at": "2026-10-23T01:17:15.348Z",
-   "result": "saved",
-   "neurons": 40
-  },
   {
    "id": "22d1d04f610e724f",
    "at": "2026-10-23T02:17:21.654Z",
@@ -11722,13 +11692,56 @@
    "at": "2026-11-06T00:17:43.791Z",
    "result": "saved",
    "neurons": 47
+  },
+  {
+   "id": "f21d06e7b8e656b2",
+   "at": "2026-11-06T01:17:55.748Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "c6cb2208baf45b54",
+   "at": "2026-11-06T01:18:00.560Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "09b358517851ad3e",
+   "at": "2026-11-06T01:18:04.112Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "a0a3f2a861f0a6a6",
+   "at": "2026-11-06T01:18:09.854Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "7b0b608c8d9430dc",
+   "at": "2026-11-06T01:18:15.079Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "945371b7ced37374",
+   "at": "2026-11-06T01:18:17.672Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "1971d96b49b7b8d6",
+   "at": "2026-11-06T01:18:22.040Z",
+   "result": "saved",
+   "neurons": 51
   }
  ],
  "lastRun": {
-  "at": "2026-11-06T00:17:11.649Z",
-  "saved": 8,
-  "tried": 8,
+  "at": "2026-11-06T01:17:52.731Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off"
+  "reasoning": "off",
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
