@@ -1,39 +1,8 @@
 {
  "day": "2026-11-06",
- "neurons": 3676,
- "saved": 73,
+ "neurons": 4018,
+ "saved": 80,
  "attempts": [
-  {
-   "id": "9fe9757124af3633",
-   "at": "2026-10-23T11:22:55.957Z",
-   "result": "saved",
-   "neurons": 37
-  },
-  {
-   "id": "ef90c632a55009a1",
-   "at": "2026-10-23T11:22:58.892Z",
-   "result": "unavailable",
-   "neurons": 31,
-   "detail": "AI が記事を読めなかったため要約がありません"
-  },
-  {
-   "id": "8a8aced1db6b6a51",
-   "at": "2026-10-23T11:23:00.282Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "8cf792dc258df9d3",
-   "at": "2026-10-23T11:23:02.186Z",
-   "result": "saved",
-   "neurons": 43
-  },
-  {
-   "id": "03736c9627b9a466",
-   "at": "2026-10-23T11:23:10.132Z",
-   "result": "saved",
-   "neurons": 48
-  },
   {
    "id": "3b64eaeba082484c",
    "at": "2026-10-23T12:24:17.909Z",
@@ -11867,12 +11836,54 @@
    "at": "2026-11-06T10:27:21.744Z",
    "result": "saved",
    "neurons": 60
+  },
+  {
+   "id": "b2910cd65b0e96a8",
+   "at": "2026-11-06T11:27:32.959Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "7860f4867a69d9a6",
+   "at": "2026-11-06T11:27:38.138Z",
+   "result": "saved",
+   "neurons": 57
+  },
+  {
+   "id": "483e39dfe4b8892e",
+   "at": "2026-11-06T11:27:42.939Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "e79999577640366f",
+   "at": "2026-11-06T11:27:46.436Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "f82fb43200f6ac0e",
+   "at": "2026-11-06T11:27:49.827Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "02cc0009d43b7e6a",
+   "at": "2026-11-06T11:27:58.244Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "f71c8c092f2fcca1",
+   "at": "2026-11-06T11:28:02.676Z",
+   "result": "saved",
+   "neurons": 48
   }
  ],
  "lastRun": {
-  "at": "2026-11-06T10:26:54.637Z",
-  "saved": 6,
-  "tried": 6,
+  "at": "2026-11-06T11:27:28.426Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
