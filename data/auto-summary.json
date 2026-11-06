@@ -1,7 +1,7 @@
 {
  "day": "2026-11-06",
- "neurons": 7745,
- "saved": 148,
+ "neurons": 7887,
+ "saved": 151,
  "attempts": [
   {
    "id": "dc46c92e80df8742",
@@ -12245,14 +12245,32 @@
    "result": "quality",
    "neurons": 123,
    "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください"
+  },
+  {
+   "id": "50cdd7c90d995016",
+   "at": "2026-11-06T23:35:33.180Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "af0c872433a5b71d",
+   "at": "2026-11-06T23:35:35.861Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "007df96d2a337abe",
+   "at": "2026-11-06T23:35:38.660Z",
+   "result": "saved",
+   "neurons": 50
   }
  ],
  "lastRun": {
-  "at": "2026-11-06T22:34:59.020Z",
-  "saved": 5,
-  "tried": 6,
+  "at": "2026-11-06T23:35:30.522Z",
+  "saved": 3,
+  "tried": 3,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
-  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
+  "message": "今日（UTC）の使用量の見積もりが上限（8000ニューロン）に近いため止めました"
  }
 }
