@@ -1,7 +1,7 @@
 {
  "day": "2026-11-06",
- "neurons": 7378,
- "saved": 143,
+ "neurons": 7745,
+ "saved": 148,
  "attempts": [
   {
    "id": "dc46c92e80df8742",
@@ -12208,11 +12208,48 @@
    "at": "2026-11-06T21:33:49.823Z",
    "result": "saved",
    "neurons": 64
+  },
+  {
+   "id": "d0029b6fbbeba4a3",
+   "at": "2026-11-06T22:35:01.041Z",
+   "result": "saved",
+   "neurons": 58
+  },
+  {
+   "id": "89c6d891a72ee324",
+   "at": "2026-11-06T22:35:05.303Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "7e86ee356172001b",
+   "at": "2026-11-06T22:35:09.887Z",
+   "result": "saved",
+   "neurons": 42
+  },
+  {
+   "id": "b2e59e03f325584b",
+   "at": "2026-11-06T22:35:14.010Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "2877ec2112e24e4e",
+   "at": "2026-11-06T22:35:18.761Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "3caebe864f26b62d",
+   "at": "2026-11-06T22:35:32.190Z",
+   "result": "quality",
+   "neurons": 123,
+   "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください"
   }
  ],
  "lastRun": {
-  "at": "2026-11-06T21:33:21.176Z",
-  "saved": 6,
+  "at": "2026-11-06T22:34:59.020Z",
+  "saved": 5,
   "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
