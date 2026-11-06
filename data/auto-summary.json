@@ -1,7 +1,7 @@
 {
  "day": "2026-11-06",
- "neurons": 6046,
- "saved": 117,
+ "neurons": 6369,
+ "saved": 124,
  "attempts": [
   {
    "id": "dc46c92e80df8742",
@@ -12016,10 +12016,76 @@
    "at": "2026-11-06T17:32:49.852Z",
    "result": "saved",
    "neurons": 51
+  },
+  {
+   "id": "2f4e7f61eccab4fd",
+   "at": "2026-11-06T18:32:32.953Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "b80de064f830a598",
+   "at": "2026-11-06T18:32:36.849Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（54字）"
+  },
+  {
+   "id": "07e27d4fa1ea127f",
+   "at": "2026-11-06T18:32:40.818Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（140字）"
+  },
+  {
+   "id": "d6ce490fc76d83db",
+   "at": "2026-11-06T18:32:45.753Z",
+   "result": "no-text",
+   "detail": "動画が中心のページ（109字）"
+  },
+  {
+   "id": "413c942978c8f0a4",
+   "at": "2026-11-06T18:32:46.685Z",
+   "result": "no-text",
+   "detail": "本文が短いページ（0字）"
+  },
+  {
+   "id": "b78854c500414bfc",
+   "at": "2026-11-06T18:32:47.809Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "1e2aef7c11ae4442",
+   "at": "2026-11-06T18:32:53.228Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "a427c99d214415ca",
+   "at": "2026-11-06T18:32:57.847Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "b4c6e77da3c51983",
+   "at": "2026-11-06T18:33:07.160Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "c90858f6de955d36",
+   "at": "2026-11-06T18:33:14.521Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "f82afb09b8107537",
+   "at": "2026-11-06T18:33:18.252Z",
+   "result": "saved",
+   "neurons": 48
   }
  ],
  "lastRun": {
-  "at": "2026-11-06T17:32:19.358Z",
+  "at": "2026-11-06T18:32:24.734Z",
   "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
