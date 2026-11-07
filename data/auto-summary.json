@@ -1,32 +1,8 @@
 {
  "day": "2026-11-07",
- "neurons": 1707,
- "saved": 35,
+ "neurons": 2021,
+ "saved": 39,
  "attempts": [
-  {
-   "id": "0806584917400395",
-   "at": "2026-10-24T05:33:31.639Z",
-   "result": "saved",
-   "neurons": 90
-  },
-  {
-   "id": "b0df81b4d33d6ebb",
-   "at": "2026-10-24T05:33:46.744Z",
-   "result": "saved",
-   "neurons": 43
-  },
-  {
-   "id": "8d3e66cc831fe3b6",
-   "at": "2026-10-24T05:33:52.026Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "b2be6a2a5d001646",
-   "at": "2026-10-24T05:33:57.956Z",
-   "result": "saved",
-   "neurons": 40
-  },
   {
    "id": "ff079bf6459ecfbf",
    "at": "2026-10-24T06:34:39.735Z",
@@ -12299,12 +12275,43 @@
    "at": "2026-11-07T04:39:42.795Z",
    "result": "saved",
    "neurons": 45
+  },
+  {
+   "id": "782509a8fc639b00",
+   "at": "2026-11-07T05:39:40.829Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "dcdd41eed7a5fccd",
+   "at": "2026-11-07T05:39:44.093Z",
+   "result": "quality",
+   "neurons": 123,
+   "detail": "「〜を紹介している」のように、記事が何をしているかを書いています。記事に書かれている中身（方法・手順・結果・数字）を書いてください"
+  },
+  {
+   "id": "dddb1825af40883a",
+   "at": "2026-11-07T05:39:50.348Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "412b5c1e6e335c10",
+   "at": "2026-11-07T05:39:56.826Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "ba025ffec1ebc552",
+   "at": "2026-11-07T05:40:00.086Z",
+   "result": "saved",
+   "neurons": 51
   }
  ],
  "lastRun": {
-  "at": "2026-11-07T04:39:16.680Z",
-  "saved": 7,
-  "tried": 7,
+  "at": "2026-11-07T05:39:36.898Z",
+  "saved": 4,
+  "tried": 5,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
