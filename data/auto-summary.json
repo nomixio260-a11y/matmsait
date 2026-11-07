@@ -1,38 +1,8 @@
 {
  "day": "2026-11-07",
- "neurons": 1358,
- "saved": 28,
+ "neurons": 1707,
+ "saved": 35,
  "attempts": [
-  {
-   "id": "14142409795d56d0",
-   "at": "2026-10-24T04:32:20.376Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で ClaudeBot を拒否"
-  },
-  {
-   "id": "05244b9073fdea76",
-   "at": "2026-10-24T04:32:20.971Z",
-   "result": "saved",
-   "neurons": 36
-  },
-  {
-   "id": "c9c9e04fce2381ca",
-   "at": "2026-10-24T04:32:29.869Z",
-   "result": "saved",
-   "neurons": 85
-  },
-  {
-   "id": "b08ca0796c9d5d0f",
-   "at": "2026-10-24T04:32:43.984Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "d440546bb2dac711",
-   "at": "2026-10-24T04:32:47.776Z",
-   "result": "saved",
-   "neurons": 36
-  },
   {
    "id": "0806584917400395",
    "at": "2026-10-24T05:33:31.639Z",
@@ -12281,10 +12251,58 @@
    "at": "2026-11-07T03:38:20.198Z",
    "result": "saved",
    "neurons": 49
+  },
+  {
+   "id": "bd8680505eadc14c",
+   "at": "2026-11-07T04:39:18.955Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "a89fd104bb49c85d",
+   "at": "2026-11-07T04:39:22.015Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "f3a49e21b0b6d847",
+   "at": "2026-11-07T04:39:25.994Z",
+   "result": "saved",
+   "neurons": 64
+  },
+  {
+   "id": "1d290b46a4a4645c",
+   "at": "2026-11-07T04:39:31.879Z",
+   "result": "no-text",
+   "detail": "画像が中心のページ（94字）"
+  },
+  {
+   "id": "94a4b679a2fd94b2",
+   "at": "2026-11-07T04:39:31.964Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "24eef5266ea3337c",
+   "at": "2026-11-07T04:39:35.823Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "9c255b2d803e5c2d",
+   "at": "2026-11-07T04:39:39.809Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "d2bd0848d104634e",
+   "at": "2026-11-07T04:39:42.795Z",
+   "result": "saved",
+   "neurons": 45
   }
  ],
  "lastRun": {
-  "at": "2026-11-07T03:37:38.944Z",
+  "at": "2026-11-07T04:39:16.680Z",
   "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
