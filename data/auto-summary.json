@@ -1,44 +1,8 @@
 {
  "day": "2026-11-07",
- "neurons": 1026,
- "saved": 21,
+ "neurons": 1358,
+ "saved": 28,
  "attempts": [
-  {
-   "id": "9987b7fa8e726db3",
-   "at": "2026-10-24T03:31:10.012Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "3667483bc68216a1",
-   "at": "2026-10-24T03:31:13.950Z",
-   "result": "saved",
-   "neurons": 36
-  },
-  {
-   "id": "05c62c00f11c8b54",
-   "at": "2026-10-24T03:31:16.915Z",
-   "result": "saved",
-   "neurons": 42
-  },
-  {
-   "id": "9410f00414cab686",
-   "at": "2026-10-24T03:31:24.163Z",
-   "result": "no-text",
-   "detail": "画像が中心のページ（52字）"
-  },
-  {
-   "id": "486f123aa8ac3634",
-   "at": "2026-10-24T03:31:28.072Z",
-   "result": "no-text",
-   "detail": "画像が中心のページ（61字）"
-  },
-  {
-   "id": "a628d94e89c94741",
-   "at": "2026-10-24T03:31:29.000Z",
-   "result": "saved",
-   "neurons": 43
-  },
   {
    "id": "14142409795d56d0",
    "at": "2026-10-24T04:32:20.376Z",
@@ -12275,10 +12239,52 @@
    "at": "2026-11-07T02:37:45.129Z",
    "result": "saved",
    "neurons": 51
+  },
+  {
+   "id": "f41a22f83b83ca64",
+   "at": "2026-11-07T03:37:44.301Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "0c53a70dbcd0e590",
+   "at": "2026-11-07T03:37:52.407Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "a08f890fd3fe4b34",
+   "at": "2026-11-07T03:37:57.223Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "98e637f6c564535c",
+   "at": "2026-11-07T03:38:03.849Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "3335abff7b0b68be",
+   "at": "2026-11-07T03:38:09.321Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "74f6ecce216ceb28",
+   "at": "2026-11-07T03:38:15.416Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "db17d20419a79d04",
+   "at": "2026-11-07T03:38:20.198Z",
+   "result": "saved",
+   "neurons": 49
   }
  ],
  "lastRun": {
-  "at": "2026-11-07T02:37:12.068Z",
+  "at": "2026-11-07T03:37:38.944Z",
   "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
