@@ -1,44 +1,8 @@
 {
  "day": "2026-11-07",
- "neurons": 393,
- "saved": 8,
+ "neurons": 685,
+ "saved": 14,
  "attempts": [
-  {
-   "id": "ddcb3a06f11fb32f",
-   "at": "2026-10-24T01:29:21.638Z",
-   "result": "saved",
-   "neurons": 91
-  },
-  {
-   "id": "b369ccf7ca5b22ad",
-   "at": "2026-10-24T01:29:28.859Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "c95b2ce9e487ea04",
-   "at": "2026-10-24T01:29:29.899Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "1597552990ce409f",
-   "at": "2026-10-24T01:29:34.227Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "0d59ff287e82bd80",
-   "at": "2026-10-24T01:29:37.794Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で ClaudeBot を拒否"
-  },
-  {
-   "id": "7aa7056d1829f8df",
-   "at": "2026-10-24T01:29:43.987Z",
-   "result": "saved",
-   "neurons": 36
-  },
   {
    "id": "2f7ed58639967e4d",
    "at": "2026-10-24T02:30:11.215Z",
@@ -12281,13 +12245,50 @@
    "at": "2026-11-07T00:36:41.524Z",
    "result": "saved",
    "neurons": 62
+  },
+  {
+   "id": "5d8fa2d44a0526bf",
+   "at": "2026-11-07T01:36:43.932Z",
+   "result": "saved",
+   "neurons": 42
+  },
+  {
+   "id": "c25adde7a0bc89bd",
+   "at": "2026-11-07T01:36:46.600Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "009801b610bde335",
+   "at": "2026-11-07T01:36:51.294Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "0bea98bbd8c7710d",
+   "at": "2026-11-07T01:36:55.087Z",
+   "result": "saved",
+   "neurons": 62
+  },
+  {
+   "id": "64500063178782e4",
+   "at": "2026-11-07T01:36:57.888Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "f277eee827ae99d7",
+   "at": "2026-11-07T01:37:05.861Z",
+   "result": "saved",
+   "neurons": 46
   }
  ],
  "lastRun": {
-  "at": "2026-11-07T00:36:03.958Z",
-  "saved": 8,
-  "tried": 8,
+  "at": "2026-11-07T01:36:39.735Z",
+  "saved": 6,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off"
+  "reasoning": "off",
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
