@@ -1,32 +1,8 @@
 {
  "day": "2026-11-08",
- "neurons": 3529,
- "saved": 72,
+ "neurons": 3956,
+ "saved": 79,
  "attempts": [
-  {
-   "id": "1ae487a90d1bd1e1",
-   "at": "2026-10-25T10:07:15.998Z",
-   "result": "saved",
-   "neurons": 36
-  },
-  {
-   "id": "820f089957d78e26",
-   "at": "2026-10-25T10:07:18.131Z",
-   "result": "saved",
-   "neurons": 85
-  },
-  {
-   "id": "d28518d29011e9d4",
-   "at": "2026-10-25T10:07:23.899Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "19ac9a216b1604c2",
-   "at": "2026-10-25T10:07:28.055Z",
-   "result": "saved",
-   "neurons": 47
-  },
   {
    "id": "3f4b711abe3a3ab6",
    "at": "2026-10-25T11:07:41.155Z",
@@ -12978,10 +12954,71 @@
    "at": "2026-11-08T10:02:37.979Z",
    "result": "saved",
    "neurons": 50
+  },
+  {
+   "id": "c3be078b0f9e5e23",
+   "at": "2026-11-08T11:02:28.282Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "7f50652f8d8bb3c6",
+   "at": "2026-11-08T11:02:35.075Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "588f11127c08101d",
+   "at": "2026-11-08T11:02:38.928Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "0f22aef0275b86d2",
+   "at": "2026-11-08T11:02:45.888Z",
+   "result": "saved",
+   "neurons": 42
+  },
+  {
+   "id": "f3809fefe2811a6c",
+   "at": "2026-11-08T11:02:49.222Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で GPTBot を拒否"
+  },
+  {
+   "id": "d3955c5d0fe2f1cc",
+   "at": "2026-11-08T11:02:50.327Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "b9d2582c8c45e267",
+   "at": "2026-11-08T11:02:53.657Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で ClaudeBot を拒否"
+  },
+  {
+   "id": "5f55dee1763a3090",
+   "at": "2026-11-08T11:02:59.862Z",
+   "result": "quality",
+   "neurons": 96,
+   "detail": "「〜を紹介している」のように、記事が何をしているかを書いています。記事に書かれている中身（方法・手順・結果・数字）を書いてください"
+  },
+  {
+   "id": "ca462206611ffffd",
+   "at": "2026-11-08T11:03:07.818Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "670969f152b28422",
+   "at": "2026-11-08T11:03:14.149Z",
+   "result": "saved",
+   "neurons": 44
   }
  ],
  "lastRun": {
-  "at": "2026-11-08T10:02:10.013Z",
+  "at": "2026-11-08T11:02:26.183Z",
   "saved": 7,
   "tried": 8,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
