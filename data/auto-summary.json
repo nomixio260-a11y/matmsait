@@ -1,38 +1,8 @@
 {
  "day": "2026-11-08",
- "neurons": 3956,
- "saved": 79,
+ "neurons": 4357,
+ "saved": 84,
  "attempts": [
-  {
-   "id": "3f4b711abe3a3ab6",
-   "at": "2026-10-25T11:07:41.155Z",
-   "result": "no-text",
-   "detail": "画像が中心のページ（198字）"
-  },
-  {
-   "id": "fe14c16c4ed354a5",
-   "at": "2026-10-25T11:07:42.774Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "1a17f680d31a5fa8",
-   "at": "2026-10-25T11:07:45.662Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "3eb2f1169c53ac4d",
-   "at": "2026-10-25T11:07:48.567Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "3b1ec1293935dd89",
-   "at": "2026-10-25T11:07:54.921Z",
-   "result": "saved",
-   "neurons": 41
-  },
   {
    "id": "93d01f07a30ab46c",
    "at": "2026-10-25T12:08:08.342Z",
@@ -13015,13 +12985,51 @@
    "at": "2026-11-08T11:03:14.149Z",
    "result": "saved",
    "neurons": 44
+  },
+  {
+   "id": "6d90cedac68971eb",
+   "at": "2026-11-08T12:04:03.691Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "af7edcb4beaa6cb5",
+   "at": "2026-11-08T12:04:08.636Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "8fe1524392495765",
+   "at": "2026-11-08T12:04:12.702Z",
+   "result": "saved",
+   "neurons": 112
+  },
+  {
+   "id": "9e988fb19dec98a9",
+   "at": "2026-11-08T12:04:20.117Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "8a4071c216038b94",
+   "at": "2026-11-08T12:04:26.810Z",
+   "result": "quality",
+   "neurons": 96,
+   "detail": "「〜を紹介している」のように、記事が何をしているかを書いています。記事に書かれている中身（方法・手順・結果・数字）を書いてください"
+  },
+  {
+   "id": "c547eb3591a90353",
+   "at": "2026-11-08T12:04:32.613Z",
+   "result": "saved",
+   "neurons": 42
   }
  ],
  "lastRun": {
-  "at": "2026-11-08T11:02:26.183Z",
-  "saved": 7,
-  "tried": 8,
+  "at": "2026-11-08T12:04:01.025Z",
+  "saved": 5,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off"
+  "reasoning": "off",
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
