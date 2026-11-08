@@ -1,7 +1,7 @@
 {
  "day": "2026-11-08",
- "neurons": 6018,
- "saved": 114,
+ "neurons": 6370,
+ "saved": 121,
  "attempts": [
   {
    "id": "c2836099e33c2974",
@@ -13095,11 +13095,59 @@
    "result": "invalid",
    "neurons": 50,
    "detail": "要約が見出しの記事の内容と一致しません"
+  },
+  {
+   "id": "54542fe2935fb898",
+   "at": "2026-11-08T18:06:50.802Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "6d1e229941094ebf",
+   "at": "2026-11-08T18:06:56.042Z",
+   "result": "no-text",
+   "detail": "画像が中心のページ（0字）"
+  },
+  {
+   "id": "776598e4700ea04c",
+   "at": "2026-11-08T18:06:57.184Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "bb45bfcce11973a5",
+   "at": "2026-11-08T18:07:01.058Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "ebc5f03516930139",
+   "at": "2026-11-08T18:07:05.820Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "0d17948f82916fd3",
+   "at": "2026-11-08T18:07:13.016Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "c3cf254af74804d8",
+   "at": "2026-11-08T18:07:16.844Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "645cebb7b922c51e",
+   "at": "2026-11-08T18:07:34.440Z",
+   "result": "saved",
+   "neurons": 62
   }
  ],
  "lastRun": {
-  "at": "2026-11-08T17:06:41.643Z",
-  "saved": 6,
+  "at": "2026-11-08T18:06:46.130Z",
+  "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
