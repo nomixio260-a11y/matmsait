@@ -1,50 +1,8 @@
 {
  "day": "2026-11-08",
- "neurons": 4701,
- "saved": 90,
+ "neurons": 5037,
+ "saved": 95,
  "attempts": [
-  {
-   "id": "79d6dfdb221246db",
-   "at": "2026-10-25T13:09:45.072Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "7b3ed6beaa0915b9",
-   "at": "2026-10-25T13:09:46.837Z",
-   "result": "saved",
-   "neurons": 35
-  },
-  {
-   "id": "1a794e23a096338e",
-   "at": "2026-10-25T13:09:50.028Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "a770689f07fc2a17",
-   "at": "2026-10-25T13:09:52.382Z",
-   "result": "no-text",
-   "detail": "本文が短いページ（0字）"
-  },
-  {
-   "id": "8a419b177f0172c2",
-   "at": "2026-10-25T13:09:52.472Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "d1d228d53bd1fa74",
-   "at": "2026-10-25T13:09:56.651Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "719a9641456314c6",
-   "at": "2026-10-25T13:10:02.137Z",
-   "result": "saved",
-   "neurons": 44
-  },
   {
    "id": "da142163751fc26c",
    "at": "2026-10-25T14:10:30.530Z",
@@ -13034,11 +12992,48 @@
    "at": "2026-11-08T13:04:56.897Z",
    "result": "saved",
    "neurons": 55
+  },
+  {
+   "id": "f300185d6928ebab",
+   "at": "2026-11-08T14:04:22.771Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "a1ed5e01839b0f3a",
+   "at": "2026-11-08T14:04:26.347Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "0ad1f2c0dedda8c1",
+   "at": "2026-11-08T14:04:30.995Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "02f92f00aa3724ac",
+   "at": "2026-11-08T14:04:38.755Z",
+   "result": "quality",
+   "neurons": 101,
+   "detail": "推測の言い方「と思われ」があります。記事にそう書かれていなければ削ってください"
+  },
+  {
+   "id": "4298f7ed142b278c",
+   "at": "2026-11-08T14:04:45.979Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "9daaf5f18bee6811",
+   "at": "2026-11-08T14:04:50.291Z",
+   "result": "saved",
+   "neurons": 48
   }
  ],
  "lastRun": {
-  "at": "2026-11-08T13:04:20.602Z",
-  "saved": 6,
+  "at": "2026-11-08T14:04:20.523Z",
+  "saved": 5,
   "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
