@@ -1,44 +1,8 @@
 {
  "day": "2026-11-09",
- "neurons": 4693,
- "saved": 88,
+ "neurons": 5002,
+ "saved": 94,
  "attempts": [
-  {
-   "id": "cc2d6c2c281a38bf",
-   "at": "2026-10-26T13:28:56.825Z",
-   "result": "saved",
-   "neurons": 39
-  },
-  {
-   "id": "bcd23959f246d57d",
-   "at": "2026-10-26T13:29:01.493Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "77c0761d2acc01e0",
-   "at": "2026-10-26T13:29:05.183Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "b9876d7be69d0b55",
-   "at": "2026-10-26T13:29:40.535Z",
-   "result": "fetch-error",
-   "detail": "robots.txt を読めませんでした"
-  },
-  {
-   "id": "a760c5d46e252479",
-   "at": "2026-10-26T13:30:12.571Z",
-   "result": "fetch-error",
-   "detail": "robots.txt を読めませんでした"
-  },
-  {
-   "id": "791aa80bc1122552",
-   "at": "2026-10-26T13:30:13.280Z",
-   "result": "saved",
-   "neurons": 53
-  },
   {
    "id": "24ddab87a6eacea6",
    "at": "2026-10-26T14:29:49.842Z",
@@ -13550,10 +13514,46 @@
    "at": "2026-11-09T13:26:25.449Z",
    "result": "saved",
    "neurons": 45
+  },
+  {
+   "id": "84fb49421582a68b",
+   "at": "2026-11-09T14:25:50.463Z",
+   "result": "saved",
+   "neurons": 61
+  },
+  {
+   "id": "9027d4202b4378e7",
+   "at": "2026-11-09T14:25:55.782Z",
+   "result": "saved",
+   "neurons": 65
+  },
+  {
+   "id": "8c15feafa8426781",
+   "at": "2026-11-09T14:26:04.766Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "51fb48c9a712ea51",
+   "at": "2026-11-09T14:26:15.222Z",
+   "result": "saved",
+   "neurons": 42
+  },
+  {
+   "id": "1f2faaec48508f21",
+   "at": "2026-11-09T14:26:18.097Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "cb93f7319d8a3d18",
+   "at": "2026-11-09T14:26:22.674Z",
+   "result": "saved",
+   "neurons": 49
   }
  ],
  "lastRun": {
-  "at": "2026-11-09T13:25:58.084Z",
+  "at": "2026-11-09T14:25:48.229Z",
   "saved": 6,
   "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
