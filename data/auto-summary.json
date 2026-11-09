@@ -1,14 +1,8 @@
 {
  "day": "2026-11-09",
- "neurons": 5343,
- "saved": 98,
+ "neurons": 5685,
+ "saved": 105,
  "attempts": [
-  {
-   "id": "36d1afc24f24280c",
-   "at": "2026-10-26T15:30:48.467Z",
-   "result": "saved",
-   "neurons": 38
-  },
   {
    "id": "4f8aa56e18face09",
    "at": "2026-10-27T01:08:43.263Z",
@@ -13557,12 +13551,54 @@
    "result": "quality",
    "neurons": 98,
    "detail": "「先週」は、あとで読むと日付がずれます。記事の公開日をもとに「10月7日」のような日付にしてください"
+  },
+  {
+   "id": "6df7dc5671cf3089",
+   "at": "2026-11-09T16:27:12.527Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "f6928960ee8c2c8f",
+   "at": "2026-11-09T16:27:21.027Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "bba40897974a49da",
+   "at": "2026-11-09T16:27:24.676Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "a37c9e4a03471f14",
+   "at": "2026-11-09T16:27:29.153Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "470fa5f616b6826a",
+   "at": "2026-11-09T16:27:34.719Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "eb22469b6f630610",
+   "at": "2026-11-09T16:27:40.717Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "b10de69bae095da3",
+   "at": "2026-11-09T16:27:48.732Z",
+   "result": "saved",
+   "neurons": 57
   }
  ],
  "lastRun": {
-  "at": "2026-11-09T15:26:23.086Z",
-  "saved": 4,
-  "tried": 5,
+  "at": "2026-11-09T16:27:09.795Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
