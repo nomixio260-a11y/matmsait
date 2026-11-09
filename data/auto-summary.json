@@ -1,32 +1,8 @@
 {
  "day": "2026-11-09",
- "neurons": 1010,
- "saved": 19,
+ "neurons": 1410,
+ "saved": 25,
  "attempts": [
-  {
-   "id": "e96392ddd977ecda",
-   "at": "2026-10-26T02:20:19.593Z",
-   "result": "saved",
-   "neurons": 43
-  },
-  {
-   "id": "18a0ff771713d2db",
-   "at": "2026-10-26T02:20:25.210Z",
-   "result": "saved",
-   "neurons": 43
-  },
-  {
-   "id": "75704ce5ff430bbe",
-   "at": "2026-10-26T02:20:27.533Z",
-   "result": "saved",
-   "neurons": 40
-  },
-  {
-   "id": "bf653198bd81dac2",
-   "at": "2026-10-26T02:20:32.739Z",
-   "result": "saved",
-   "neurons": 83
-  },
   {
    "id": "5f356c9fafca74fd",
    "at": "2026-10-26T03:20:58.019Z",
@@ -13385,11 +13361,54 @@
    "at": "2026-11-09T02:14:37.451Z",
    "result": "saved",
    "neurons": 52
+  },
+  {
+   "id": "0bf889ebdd6635c5",
+   "at": "2026-11-09T03:15:43.881Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "a2ec08b10b2d2dbb",
+   "at": "2026-11-09T03:15:48.022Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "19f2164002a56ae4",
+   "at": "2026-11-09T03:15:56.932Z",
+   "result": "saved",
+   "neurons": 61
+  },
+  {
+   "id": "7ae92ede403a02df",
+   "at": "2026-11-09T03:16:01.162Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "8470acf79cd5654e",
+   "at": "2026-11-09T03:16:04.857Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "4708746be73ee971",
+   "at": "2026-11-09T03:16:11.462Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "a814b611a90ddddd",
+   "at": "2026-11-09T03:16:15.858Z",
+   "result": "quality",
+   "neurons": 101,
+   "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください / 「今日」は、あとで読むと日付がずれます。記事の公開日をもとに「10月7日」のような日付にしてください"
   }
  ],
  "lastRun": {
-  "at": "2026-11-09T02:14:05.983Z",
-  "saved": 7,
+  "at": "2026-11-09T03:15:40.801Z",
+  "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
