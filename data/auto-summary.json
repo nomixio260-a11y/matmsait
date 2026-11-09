@@ -1,38 +1,8 @@
 {
  "day": "2026-11-09",
- "neurons": 1410,
- "saved": 25,
+ "neurons": 1690,
+ "saved": 31,
  "attempts": [
-  {
-   "id": "5f356c9fafca74fd",
-   "at": "2026-10-26T03:20:58.019Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "ed06fe8a0074e9fc",
-   "at": "2026-10-26T03:20:58.779Z",
-   "result": "saved",
-   "neurons": 37
-  },
-  {
-   "id": "4761e8a46430efa5",
-   "at": "2026-10-26T03:21:04.016Z",
-   "result": "saved",
-   "neurons": 37
-  },
-  {
-   "id": "e6a235d1882ae185",
-   "at": "2026-10-26T03:21:09.095Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "d00a325e7d94ac23",
-   "at": "2026-10-26T03:21:15.040Z",
-   "result": "saved",
-   "neurons": 38
-  },
   {
    "id": "4b49403b38944a25",
    "at": "2026-10-26T04:21:59.458Z",
@@ -13404,12 +13374,48 @@
    "result": "quality",
    "neurons": 101,
    "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください / 「今日」は、あとで読むと日付がずれます。記事の公開日をもとに「10月7日」のような日付にしてください"
+  },
+  {
+   "id": "72e26f7b41440451",
+   "at": "2026-11-09T04:16:59.012Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "1f417b07a5189a85",
+   "at": "2026-11-09T04:17:03.557Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "60ca92a6e1762441",
+   "at": "2026-11-09T04:17:06.241Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "ba06bcc52918f1af",
+   "at": "2026-11-09T04:17:09.461Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "9227b7c0aaef4406",
+   "at": "2026-11-09T04:17:14.141Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "482b7da4daba1732",
+   "at": "2026-11-09T04:17:17.973Z",
+   "result": "saved",
+   "neurons": 46
   }
  ],
  "lastRun": {
-  "at": "2026-11-09T03:15:40.801Z",
+  "at": "2026-11-09T04:16:55.787Z",
   "saved": 6,
-  "tried": 7,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
