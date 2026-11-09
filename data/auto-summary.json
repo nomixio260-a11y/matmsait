@@ -1,38 +1,8 @@
 {
  "day": "2026-11-09",
- "neurons": 2342,
- "saved": 42,
+ "neurons": 2686,
+ "saved": 49,
  "attempts": [
-  {
-   "id": "52c33c9f70e929e5",
-   "at": "2026-10-26T06:22:24.770Z",
-   "result": "saved",
-   "neurons": 41
-  },
-  {
-   "id": "d0a5f205b5b84fda",
-   "at": "2026-10-26T06:22:27.759Z",
-   "result": "ai-optout",
-   "detail": "robots.txt で GPTBot を拒否"
-  },
-  {
-   "id": "ca7d9d1a647bf940",
-   "at": "2026-10-26T06:22:29.125Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "31a04765752caa0a",
-   "at": "2026-10-26T06:22:36.537Z",
-   "result": "saved",
-   "neurons": 38
-  },
-  {
-   "id": "6e037c155249dcdd",
-   "at": "2026-10-26T06:22:43.772Z",
-   "result": "saved",
-   "neurons": 38
-  },
   {
    "id": "4de9604488ef36e4",
    "at": "2026-10-26T07:23:39.402Z",
@@ -13429,11 +13399,59 @@
    "at": "2026-11-09T06:19:36.291Z",
    "result": "saved",
    "neurons": 50
+  },
+  {
+   "id": "eb0f7a5689d2c6c3",
+   "at": "2026-11-09T07:20:34.192Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "9a9e7784e6d6dce3",
+   "at": "2026-11-09T07:20:37.688Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "71128dda6e6eed2d",
+   "at": "2026-11-09T07:20:42.388Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "efac1b443d8d2475",
+   "at": "2026-11-09T07:20:46.288Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "86e6987a66aba7b2",
+   "at": "2026-11-09T07:20:51.908Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "011372020104e129",
+   "at": "2026-11-09T07:20:57.586Z",
+   "result": "no-text",
+   "detail": "本文が短いページ（187字）"
+  },
+  {
+   "id": "25417ef7a3fa079a",
+   "at": "2026-11-09T07:20:57.991Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "d159dde987191209",
+   "at": "2026-11-09T07:21:02.977Z",
+   "result": "saved",
+   "neurons": 49
   }
  ],
  "lastRun": {
-  "at": "2026-11-09T06:19:09.551Z",
-  "saved": 6,
+  "at": "2026-11-09T07:20:31.946Z",
+  "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
