@@ -1,56 +1,8 @@
 {
  "day": "2026-11-10",
- "neurons": 3685,
- "saved": 72,
+ "neurons": 4016,
+ "saved": 79,
  "attempts": [
-  {
-   "id": "51218c23a6362120",
-   "at": "2026-10-27T11:35:22.711Z",
-   "result": "saved",
-   "neurons": 65
-  },
-  {
-   "id": "47e09a9038332c82",
-   "at": "2026-10-27T11:35:26.775Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "569c0f87390dc0f1",
-   "at": "2026-10-27T11:35:30.520Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "7ea7b8865898d64c",
-   "at": "2026-10-27T11:35:38.019Z",
-   "result": "saved",
-   "neurons": 61
-  },
-  {
-   "id": "cbbb917e8df15ec7",
-   "at": "2026-10-27T11:35:43.767Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "d6a2ee2de32c1d9b",
-   "at": "2026-10-27T11:35:52.563Z",
-   "result": "saved",
-   "neurons": 101
-  },
-  {
-   "id": "e241014bec3f8601",
-   "at": "2026-10-27T11:36:01.612Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "9687e07980ef5b4d",
-   "at": "2026-10-27T11:36:05.678Z",
-   "result": "saved",
-   "neurons": 48
-  },
   {
    "id": "f6dd68fd86f9f056",
    "at": "2026-10-27T12:36:21.188Z",
@@ -13891,12 +13843,66 @@
    "at": "2026-11-10T10:41:20.311Z",
    "result": "saved",
    "neurons": 41
+  },
+  {
+   "id": "e96f8438d16da556",
+   "at": "2026-11-10T11:41:18.146Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "095046702575283c",
+   "at": "2026-11-10T11:41:23.797Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "c9ceda562cf6b7d8",
+   "at": "2026-11-10T11:41:31.823Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "694290dd7685f54a",
+   "at": "2026-11-10T11:41:33.948Z",
+   "result": "no-text",
+   "detail": "本文が短いページ（0字）"
+  },
+  {
+   "id": "a3be3fd48ab373f5",
+   "at": "2026-11-10T11:41:35.530Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "445af8b912b502da",
+   "at": "2026-11-10T11:41:39.042Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "98d147d40e493bed",
+   "at": "2026-11-10T11:41:44.545Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "2499c262ec577e2e",
+   "at": "2026-11-10T11:41:48.323Z",
+   "result": "ai-optout",
+   "detail": "robots.txt で GPTBot を拒否"
+  },
+  {
+   "id": "fa25e2fcfa8e0a53",
+   "at": "2026-11-10T11:41:58.026Z",
+   "result": "saved",
+   "neurons": 45
   }
  ],
  "lastRun": {
-  "at": "2026-11-10T10:40:45.587Z",
-  "saved": 6,
-  "tried": 6,
+  "at": "2026-11-10T11:41:14.012Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
