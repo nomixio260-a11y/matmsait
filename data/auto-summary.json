@@ -1,50 +1,8 @@
 {
- "day": "2026-11-10",
- "neurons": 7883,
- "saved": 152,
+ "day": "2026-11-11",
+ "neurons": 350,
+ "saved": 6,
  "attempts": [
-  {
-   "id": "0709bf35f670fa7f",
-   "at": "2026-10-28T00:45:15.865Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "a26e13c4bcf96b17",
-   "at": "2026-10-28T00:45:19.938Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "b4a4a70cf0f94d8e",
-   "at": "2026-10-28T00:45:23.104Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "d9846a5f3aa4864e",
-   "at": "2026-10-28T00:45:29.714Z",
-   "result": "saved",
-   "neurons": 57
-  },
-  {
-   "id": "b401634af88c2793",
-   "at": "2026-10-28T00:45:33.234Z",
-   "result": "saved",
-   "neurons": 56
-  },
-  {
-   "id": "2b1c9cfb6e08ba1a",
-   "at": "2026-10-28T00:45:39.524Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "1bda81b4cd432e39",
-   "at": "2026-10-28T00:45:43.084Z",
-   "result": "saved",
-   "neurons": 45
-  },
   {
    "id": "2d911597e57366a0",
    "at": "2026-10-28T01:45:40.839Z",
@@ -13832,14 +13790,50 @@
    "at": "2026-11-10T23:48:15.272Z",
    "result": "saved",
    "neurons": 49
+  },
+  {
+   "id": "28f478080194828a",
+   "at": "2026-11-11T00:48:25.123Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "9ffaa86b66efcd83",
+   "at": "2026-11-11T00:48:38.855Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "4d7d6d5e061ea9f0",
+   "at": "2026-11-11T00:48:44.498Z",
+   "result": "saved",
+   "neurons": 102
+  },
+  {
+   "id": "a09436e9149e39f8",
+   "at": "2026-11-11T00:48:50.679Z",
+   "result": "saved",
+   "neurons": 41
+  },
+  {
+   "id": "4fb13e16791e5fca",
+   "at": "2026-11-11T00:48:53.131Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "45248422a9149775",
+   "at": "2026-11-11T00:48:57.152Z",
+   "result": "saved",
+   "neurons": 53
   }
  ],
  "lastRun": {
-  "at": "2026-11-10T23:48:02.072Z",
-  "saved": 3,
-  "tried": 3,
+  "at": "2026-11-11T00:48:19.107Z",
+  "saved": 6,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
-  "message": "今日（UTC）の使用量の見積もりが上限（8000ニューロン）に近いため止めました"
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
