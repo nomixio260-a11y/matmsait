@@ -1,44 +1,8 @@
 {
  "day": "2026-11-11",
- "neurons": 3017,
- "saved": 57,
+ "neurons": 3409,
+ "saved": 63,
  "attempts": [
-  {
-   "id": "47dd8620fcf4f0f0",
-   "at": "2026-10-28T09:52:04.097Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "468d30c4191910fe",
-   "at": "2026-10-28T09:52:12.581Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "f170b1c5def109c7",
-   "at": "2026-10-28T09:52:17.312Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "5393a17e94e8fd9b",
-   "at": "2026-10-28T09:52:22.739Z",
-   "result": "saved",
-   "neurons": 107
-  },
-  {
-   "id": "57602ddf317aa10c",
-   "at": "2026-10-28T09:52:30.504Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "a4d41330cbf9a3cb",
-   "at": "2026-10-28T09:52:35.881Z",
-   "result": "saved",
-   "neurons": 49
-  },
   {
    "id": "de516da339d15d3f",
    "at": "2026-10-28T10:52:58.711Z",
@@ -13843,10 +13807,53 @@
    "at": "2026-11-11T08:56:30.156Z",
    "result": "saved",
    "neurons": 45
+  },
+  {
+   "id": "402066d05eb724c8",
+   "at": "2026-11-11T09:57:13.290Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "606fdbab88a8fe9d",
+   "at": "2026-11-11T09:57:18.044Z",
+   "result": "saved",
+   "neurons": 42
+  },
+  {
+   "id": "35e8f42651e91790",
+   "at": "2026-11-11T09:57:21.352Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "c30f129a7d18b616",
+   "at": "2026-11-11T09:57:25.285Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "c3c9e3ce7fda9abc",
+   "at": "2026-11-11T09:57:30.655Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "01a2abab624be522",
+   "at": "2026-11-11T09:57:34.571Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "acaf24b853359d1d",
+   "at": "2026-11-11T09:57:38.401Z",
+   "result": "quality",
+   "neurons": 103,
+   "detail": "中身のない定型文・評価「注目される」があります。具体的な予定や事実がなければ削ってください"
   }
  ],
  "lastRun": {
-  "at": "2026-11-11T08:55:58.552Z",
+  "at": "2026-11-11T09:57:11.082Z",
   "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
