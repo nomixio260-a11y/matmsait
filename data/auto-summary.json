@@ -1,44 +1,8 @@
 {
  "day": "2026-11-11",
- "neurons": 2357,
- "saved": 45,
+ "neurons": 2677,
+ "saved": 51,
  "attempts": [
-  {
-   "id": "818f424134d07201",
-   "at": "2026-10-28T07:50:43.404Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "a38d9e669b917b53",
-   "at": "2026-10-28T07:50:48.531Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "1b5c6375be09a19a",
-   "at": "2026-10-28T07:50:52.534Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "05b096083f16b065",
-   "at": "2026-10-28T07:50:56.908Z",
-   "result": "saved",
-   "neurons": 61
-  },
-  {
-   "id": "f8b6a69eea401ebd",
-   "at": "2026-10-28T07:51:01.394Z",
-   "result": "saved",
-   "neurons": 41
-  },
-  {
-   "id": "aa3ebf6992c4e9a9",
-   "at": "2026-10-28T07:51:04.440Z",
-   "result": "saved",
-   "neurons": 49
-  },
   {
    "id": "91efc7748f12e984",
    "at": "2026-10-28T08:51:20.884Z",
@@ -13830,11 +13794,54 @@
    "at": "2026-11-11T06:54:41.108Z",
    "result": "saved",
    "neurons": 44
+  },
+  {
+   "id": "6d862673df43cdb8",
+   "at": "2026-11-11T07:55:32.230Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "0af995d531921b6a",
+   "at": "2026-11-11T07:55:36.582Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "db895f21e68d003d",
+   "at": "2026-11-11T07:55:39.808Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "362e2fbc7504e592",
+   "at": "2026-11-11T07:55:44.186Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "cfa8db4e2e7598e1",
+   "at": "2026-11-11T07:55:48.007Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "5d9c786579d8afa5",
+   "at": "2026-11-11T07:55:51.198Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "31b067a10724c9c0",
+   "at": "2026-11-11T07:55:53.895Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
   }
  ],
  "lastRun": {
-  "at": "2026-11-11T06:54:11.767Z",
-  "saved": 7,
+  "at": "2026-11-11T07:55:29.133Z",
+  "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
