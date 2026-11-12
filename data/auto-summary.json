@@ -1,50 +1,8 @@
 {
  "day": "2026-11-12",
- "neurons": 3389,
- "saved": 67,
+ "neurons": 3710,
+ "saved": 73,
  "attempts": [
-  {
-   "id": "8ad9199d1b56291c",
-   "at": "2026-10-29T09:54:02.974Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "390c46fe667922f3",
-   "at": "2026-10-29T09:54:07.851Z",
-   "result": "saved",
-   "neurons": 62
-  },
-  {
-   "id": "440b82717e8a743f",
-   "at": "2026-10-29T09:54:14.230Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "c65c62738cb3eb11",
-   "at": "2026-10-29T09:54:18.882Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "284336d2c52504f5",
-   "at": "2026-10-29T09:54:22.561Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "6497443e7de6910a",
-   "at": "2026-10-29T09:54:30.590Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "68750193ab627161",
-   "at": "2026-10-29T09:54:39.040Z",
-   "result": "saved",
-   "neurons": 47
-  },
   {
    "id": "361c5acf826928bd",
    "at": "2026-10-29T10:55:21.633Z",
@@ -13687,13 +13645,50 @@
    "at": "2026-11-12T09:05:32.142Z",
    "result": "saved",
    "neurons": 57
+  },
+  {
+   "id": "2c1d5fb12f01e856",
+   "at": "2026-11-12T10:05:44.965Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "68d6240eef413a7c",
+   "at": "2026-11-12T10:05:52.283Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "44b6e89452dd2168",
+   "at": "2026-11-12T10:05:56.403Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "8fc5d15fa7b5f2a3",
+   "at": "2026-11-12T10:06:02.902Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "e3aefc1aee5d8943",
+   "at": "2026-11-12T10:06:06.819Z",
+   "result": "saved",
+   "neurons": 59
+  },
+  {
+   "id": "e7603d6cd5fe8c91",
+   "at": "2026-11-12T10:06:14.527Z",
+   "result": "saved",
+   "neurons": 68
   }
  ],
  "lastRun": {
-  "at": "2026-11-12T09:04:40.302Z",
-  "saved": 8,
-  "tried": 8,
+  "at": "2026-11-12T10:05:41.342Z",
+  "saved": 6,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off"
+  "reasoning": "off",
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
