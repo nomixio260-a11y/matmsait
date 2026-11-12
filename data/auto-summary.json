@@ -1,50 +1,8 @@
 {
  "day": "2026-11-12",
- "neurons": 1408,
- "saved": 27,
+ "neurons": 1799,
+ "saved": 35,
  "attempts": [
-  {
-   "id": "8ef455c5a47d96b5",
-   "at": "2026-10-29T04:50:53.644Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "0477e235bc28d963",
-   "at": "2026-10-29T04:50:57.095Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "01cfa0189cb5a00d",
-   "at": "2026-10-29T04:50:59.832Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "84bf32ce81da3237",
-   "at": "2026-10-29T04:51:05.177Z",
-   "result": "saved",
-   "neurons": 52
-  },
-  {
-   "id": "db8494121f8e14a2",
-   "at": "2026-10-29T04:51:11.554Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "fc460c16e50d491e",
-   "at": "2026-10-29T04:51:20.220Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "d2f1691ce725b83b",
-   "at": "2026-10-29T04:51:22.953Z",
-   "result": "saved",
-   "neurons": 47
-  },
   {
    "id": "1da7142b94d4542c",
    "at": "2026-10-29T05:50:50.725Z",
@@ -13646,10 +13604,58 @@
    "at": "2026-11-12T04:01:19.495Z",
    "result": "saved",
    "neurons": 45
+  },
+  {
+   "id": "5ab6c157cd8c40e6",
+   "at": "2026-11-12T05:00:58.661Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "b0582a6b80695f61",
+   "at": "2026-11-12T05:01:04.589Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "d169418745677bf1",
+   "at": "2026-11-12T05:01:11.107Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "95626056e2ac56de",
+   "at": "2026-11-12T05:01:16.154Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "1bb15d8e6032ea01",
+   "at": "2026-11-12T05:01:19.844Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "b594987a3d9d0111",
+   "at": "2026-11-12T05:01:26.696Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "6e911adeab3ebb7d",
+   "at": "2026-11-12T05:01:30.980Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "048b33c6a9d7bf2b",
+   "at": "2026-11-12T05:01:34.283Z",
+   "result": "saved",
+   "neurons": 52
   }
  ],
  "lastRun": {
-  "at": "2026-11-12T04:00:33.614Z",
+  "at": "2026-11-12T05:00:55.752Z",
   "saved": 8,
   "tried": 8,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
