@@ -1,44 +1,8 @@
 {
  "day": "2026-11-12",
- "neurons": 7040,
- "saved": 141,
+ "neurons": 7363,
+ "saved": 144,
  "attempts": [
-  {
-   "id": "759892640023f3da",
-   "at": "2026-10-29T21:03:24.326Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "752a47e487a0d241",
-   "at": "2026-10-29T21:03:29.275Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "d9137478f35c604a",
-   "at": "2026-10-29T21:03:36.626Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "0e89b2e2cd3f8082",
-   "at": "2026-10-29T21:03:41.155Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "4b594719f79859df",
-   "at": "2026-10-29T21:03:45.171Z",
-   "result": "saved",
-   "neurons": 106
-  },
-  {
-   "id": "32eca291f86c8d8d",
-   "at": "2026-10-29T21:04:03.785Z",
-   "result": "saved",
-   "neurons": 64
-  },
   {
    "id": "f516a1019c510f01",
    "at": "2026-10-29T22:03:52.393Z",
@@ -13650,11 +13614,50 @@
    "result": "quality",
    "neurons": 91,
    "detail": "見出しの言い換えに近い要約です。本文から見出しにない重要な情報（数字・日付・条件・今後の予定など）を加えてください"
+  },
+  {
+   "id": "d76ea030dbffd088",
+   "at": "2026-11-12T21:15:57.316Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "bc2d403145756e50",
+   "at": "2026-11-12T21:15:58.715Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "0c9982b24951e4fe",
+   "at": "2026-11-12T21:16:03.316Z",
+   "result": "quality",
+   "neurons": 103,
+   "detail": "見出しの言い換えに近い要約です。本文から見出しにない重要な情報（数字・日付・条件・今後の予定など）を加えてください"
+  },
+  {
+   "id": "d4feaf69ab396001",
+   "at": "2026-11-12T21:16:14.430Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "76401332defc5d17",
+   "at": "2026-11-12T21:16:21.530Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "57fff58e1fee0f52",
+   "at": "2026-11-12T21:16:27.161Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
   }
  ],
  "lastRun": {
-  "at": "2026-11-12T20:14:55.753Z",
-  "saved": 5,
+  "at": "2026-11-12T21:15:52.558Z",
+  "saved": 3,
   "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
