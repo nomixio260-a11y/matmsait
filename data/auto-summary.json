@@ -1,51 +1,8 @@
 {
  "day": "2026-11-13",
- "neurons": 6670,
- "saved": 136,
+ "neurons": 7030,
+ "saved": 143,
  "attempts": [
-  {
-   "id": "47c12154ca205346",
-   "at": "2026-10-30T20:21:54.332Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "2f882acd986f940c",
-   "at": "2026-10-30T20:21:59.217Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "44ab878edadd1028",
-   "at": "2026-10-30T20:22:04.252Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "7a1292cd67bb1773",
-   "at": "2026-10-30T20:22:17.149Z",
-   "result": "saved",
-   "neurons": 58
-  },
-  {
-   "id": "b8471aa41b2e6535",
-   "at": "2026-10-30T20:22:21.258Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "4b6d253fe0802595",
-   "at": "2026-10-30T20:22:30.398Z",
-   "result": "saved",
-   "neurons": 53
-  },
-  {
-   "id": "aa1a207ea06eeea9",
-   "at": "2026-10-30T20:22:37.141Z",
-   "result": "invalid",
-   "neurons": 44,
-   "detail": "JSON として読み込めません（Expected ',' or ']' after array element in JSON at position 317 (line 8 column 55)）"
-  },
   {
    "id": "708d38674748184c",
    "at": "2026-10-30T21:22:05.411Z",
@@ -13672,12 +13629,60 @@
    "at": "2026-11-13T19:34:30.495Z",
    "result": "saved",
    "neurons": 45
+  },
+  {
+   "id": "a1125d4662c2e6f9",
+   "at": "2026-11-13T20:34:05.645Z",
+   "result": "saved",
+   "neurons": 57
+  },
+  {
+   "id": "94a34b603070b24d",
+   "at": "2026-11-13T20:34:08.770Z",
+   "result": "no-text",
+   "detail": "取り出した本文が見出しの記事と一致しません"
+  },
+  {
+   "id": "13459d897db4bacb",
+   "at": "2026-11-13T20:34:10.381Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "639e2eabf87fba18",
+   "at": "2026-11-13T20:34:13.446Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "e2e26eec0be48ff5",
+   "at": "2026-11-13T20:34:30.815Z",
+   "result": "saved",
+   "neurons": 64
+  },
+  {
+   "id": "bb6670e4bc803b50",
+   "at": "2026-11-13T20:34:41.174Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "08dd2be615975ddf",
+   "at": "2026-11-13T20:34:43.940Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "92124de0235c9da7",
+   "at": "2026-11-13T20:34:48.467Z",
+   "result": "saved",
+   "neurons": 44
   }
  ],
  "lastRun": {
-  "at": "2026-11-13T19:34:00.792Z",
-  "saved": 6,
-  "tried": 6,
+  "at": "2026-11-13T20:34:03.361Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
