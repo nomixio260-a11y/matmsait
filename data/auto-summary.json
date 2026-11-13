@@ -1,44 +1,8 @@
 {
  "day": "2026-11-13",
- "neurons": 3711,
- "saved": 76,
+ "neurons": 4034,
+ "saved": 83,
  "attempts": [
-  {
-   "id": "bf477b031f0cd1e5",
-   "at": "2026-10-30T11:15:29.019Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "8c976a1d927b1efa",
-   "at": "2026-10-30T11:15:32.474Z",
-   "result": "saved",
-   "neurons": 59
-  },
-  {
-   "id": "a62f2a5496c707d9",
-   "at": "2026-10-30T11:15:37.480Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "93d614622d6ff2c4",
-   "at": "2026-10-30T11:15:46.113Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "d9057682b6a60a58",
-   "at": "2026-10-30T11:15:53.807Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "bad7972d5e2ed00c",
-   "at": "2026-10-30T11:15:58.336Z",
-   "result": "saved",
-   "neurons": 45
-  },
   {
    "id": "85944c422fe4007f",
    "at": "2026-10-30T12:16:33.407Z",
@@ -13666,11 +13630,53 @@
    "at": "2026-11-13T10:25:44.976Z",
    "result": "saved",
    "neurons": 51
+  },
+  {
+   "id": "1c6e990a1377c763",
+   "at": "2026-11-13T11:26:32.625Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "ffbfbcf5ce4553d0",
+   "at": "2026-11-13T11:26:38.974Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "8ccc7050e8cb65a2",
+   "at": "2026-11-13T11:26:42.511Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "a093d273c8796896",
+   "at": "2026-11-13T11:26:45.117Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "2169be7816636961",
+   "at": "2026-11-13T11:26:49.047Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "f2ef20c7fc10b19a",
+   "at": "2026-11-13T11:26:53.303Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "b0a9677edac44d0e",
+   "at": "2026-11-13T11:26:56.830Z",
+   "result": "saved",
+   "neurons": 46
   }
  ],
  "lastRun": {
-  "at": "2026-11-13T10:25:10.880Z",
-  "saved": 6,
+  "at": "2026-11-13T11:26:29.089Z",
+  "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
