@@ -1,44 +1,8 @@
 {
  "day": "2026-11-14",
- "neurons": 2026,
- "saved": 38,
+ "neurons": 2362,
+ "saved": 45,
  "attempts": [
-  {
-   "id": "66f34a6829db8c4b",
-   "at": "2026-10-31T06:30:27.728Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "4a1b3c13879e48e0",
-   "at": "2026-10-31T06:30:31.015Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "c1087936b35cc5e3",
-   "at": "2026-10-31T06:30:38.386Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "99443e3ec2c1a99d",
-   "at": "2026-10-31T06:30:41.272Z",
-   "result": "saved",
-   "neurons": 123
-  },
-  {
-   "id": "7d49492ec4778520",
-   "at": "2026-10-31T06:30:48.685Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "c1dd69ea0cd9e8ca",
-   "at": "2026-10-31T06:30:56.811Z",
-   "result": "saved",
-   "neurons": 53
-  },
   {
    "id": "0044da5197477811",
    "at": "2026-10-31T07:31:20.655Z",
@@ -13715,11 +13679,53 @@
    "at": "2026-11-14T05:40:08.279Z",
    "result": "saved",
    "neurons": 56
+  },
+  {
+   "id": "bf485a2a5e0ec9ab",
+   "at": "2026-11-14T06:40:04.318Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "ea148eef672b1a8e",
+   "at": "2026-11-14T06:40:09.519Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "cb694679318a2f3b",
+   "at": "2026-11-14T06:40:18.031Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "77d11d01604da956",
+   "at": "2026-11-14T06:40:24.081Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "cb8d159bb42a2400",
+   "at": "2026-11-14T06:40:27.811Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "d01c01f2d6875721",
+   "at": "2026-11-14T06:40:31.970Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "615334600c606106",
+   "at": "2026-11-14T06:40:48.160Z",
+   "result": "saved",
+   "neurons": 56
   }
  ],
  "lastRun": {
-  "at": "2026-11-14T05:39:35.090Z",
-  "saved": 6,
+  "at": "2026-11-14T06:40:00.596Z",
+  "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
