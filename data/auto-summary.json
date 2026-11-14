@@ -1,50 +1,8 @@
 {
- "day": "2026-11-13",
- "neurons": 7890,
- "saved": 159,
+ "day": "2026-11-14",
+ "neurons": 378,
+ "saved": 7,
  "attempts": [
-  {
-   "id": "4ebf5229ec8fa424",
-   "at": "2026-10-31T00:25:17.680Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "4241fda5ea8b4105",
-   "at": "2026-10-31T00:25:21.057Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "283d940ca057ed81",
-   "at": "2026-10-31T00:25:25.052Z",
-   "result": "saved",
-   "neurons": 52
-  },
-  {
-   "id": "0f459bd4832d4b05",
-   "at": "2026-10-31T00:25:30.242Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "2609d246bc68b243",
-   "at": "2026-10-31T00:25:36.890Z",
-   "result": "saved",
-   "neurons": 52
-  },
-  {
-   "id": "6db4a66c885704c8",
-   "at": "2026-10-31T00:25:42.076Z",
-   "result": "saved",
-   "neurons": 43
-  },
-  {
-   "id": "5209966020c56676",
-   "at": "2026-10-31T00:25:44.651Z",
-   "result": "saved",
-   "neurons": 46
-  },
   {
    "id": "8b0d3a404e64ed12",
    "at": "2026-10-31T01:26:46.466Z",
@@ -13696,14 +13654,62 @@
    "result": "quality",
    "neurons": 47,
    "detail": "中身のない定型文・評価「注目される」があります。具体的な予定や事実がなければ削ってください（使う量の上限に近いため、直しは頼まなかった）"
+  },
+  {
+   "id": "fbe2c46450ea7405",
+   "at": "2026-11-14T00:36:20.015Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "ce07ff63af51856a",
+   "at": "2026-11-14T00:36:24.302Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "dc6d5b43fc3b15e0",
+   "at": "2026-11-14T00:36:32.418Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "ea1acd6a4bb39a97",
+   "at": "2026-11-14T00:36:38.902Z",
+   "result": "invalid",
+   "neurons": 43,
+   "detail": "要約が見出しの記事の内容と一致しません"
+  },
+  {
+   "id": "5c15afe7e3f2c6f0",
+   "at": "2026-11-14T00:36:40.793Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "96a61b53ae4c3b8e",
+   "at": "2026-11-14T00:36:48.652Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "08e3d4dd5a80d617",
+   "at": "2026-11-14T00:36:52.695Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "402b8111c8f84210",
+   "at": "2026-11-14T00:36:58.116Z",
+   "result": "saved",
+   "neurons": 50
   }
  ],
  "lastRun": {
-  "at": "2026-11-13T23:36:11.099Z",
-  "saved": 3,
-  "tried": 4,
+  "at": "2026-11-14T00:36:16.308Z",
+  "saved": 7,
+  "tried": 8,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off",
-  "message": "今日（UTC）の使用量の見積もりが上限（8000ニューロン）に近いため止めました"
+  "reasoning": "off"
  }
 }
