@@ -1,45 +1,8 @@
 {
  "day": "2026-11-14",
- "neurons": 4025,
- "saved": 79,
+ "neurons": 4351,
+ "saved": 86,
  "attempts": [
-  {
-   "id": "8c5aaaa1c36246aa",
-   "at": "2026-10-31T12:35:04.970Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "33af0cf1dd39432c",
-   "at": "2026-10-31T12:35:14.110Z",
-   "result": "quality",
-   "neurons": 100,
-   "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください"
-  },
-  {
-   "id": "8f6099a39c774180",
-   "at": "2026-10-31T12:35:20.919Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "ec3877cbc25cba47",
-   "at": "2026-10-31T12:35:24.413Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "c5781607c92df81f",
-   "at": "2026-10-31T12:35:30.468Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "f388cb707cad3d09",
-   "at": "2026-10-31T12:35:38.613Z",
-   "result": "saved",
-   "neurons": 45
-  },
   {
    "id": "33b14574b025d2e9",
    "at": "2026-10-31T13:36:41.926Z",
@@ -13717,12 +13680,54 @@
    "at": "2026-11-14T11:44:16.520Z",
    "result": "saved",
    "neurons": 59
+  },
+  {
+   "id": "cc2db86cd25189db",
+   "at": "2026-11-14T12:44:17.909Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "ef8c4e2ddf50aac6",
+   "at": "2026-11-14T12:44:20.910Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "0ddc28a4cc4b2274",
+   "at": "2026-11-14T12:44:25.096Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "88d13c95d471190a",
+   "at": "2026-11-14T12:44:29.740Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "a38aed9fa716736f",
+   "at": "2026-11-14T12:44:33.867Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "1ad8b302b00b25de",
+   "at": "2026-11-14T12:44:37.266Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "10fbedb2ab609527",
+   "at": "2026-11-14T12:44:44.552Z",
+   "result": "saved",
+   "neurons": 43
   }
  ],
  "lastRun": {
-  "at": "2026-11-14T11:43:45.412Z",
-  "saved": 6,
-  "tried": 6,
+  "at": "2026-11-14T12:44:13.458Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
