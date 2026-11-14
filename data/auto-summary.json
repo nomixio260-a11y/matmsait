@@ -1,51 +1,8 @@
 {
  "day": "2026-11-14",
- "neurons": 1002,
- "saved": 18,
+ "neurons": 1335,
+ "saved": 25,
  "attempts": [
-  {
-   "id": "a28fff463a08eba7",
-   "at": "2026-10-31T03:28:07.625Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "017ccacdcf3b3911",
-   "at": "2026-10-31T03:28:10.585Z",
-   "result": "saved",
-   "neurons": 53
-  },
-  {
-   "id": "4a7a98cea4e6a12d",
-   "at": "2026-10-31T03:28:15.407Z",
-   "result": "no-text",
-   "detail": "動画が中心のページ（63字）"
-  },
-  {
-   "id": "0662449285af8383",
-   "at": "2026-10-31T03:28:15.502Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "233a7f263f4d31ec",
-   "at": "2026-10-31T03:28:22.565Z",
-   "result": "saved",
-   "neurons": 62
-  },
-  {
-   "id": "033194ab68121b88",
-   "at": "2026-10-31T03:28:26.823Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "fc6223e4de07a2f6",
-   "at": "2026-10-31T03:28:30.312Z",
-   "result": "unavailable",
-   "neurons": 34,
-   "detail": "AI が記事を読めなかったため要約がありません"
-  },
   {
    "id": "ec650c39f1206d61",
    "at": "2026-10-31T04:29:22.260Z",
@@ -13716,11 +13673,53 @@
    "at": "2026-11-14T02:38:25.863Z",
    "result": "saved",
    "neurons": 50
+  },
+  {
+   "id": "9fd9b89a15cb43df",
+   "at": "2026-11-14T03:39:08.323Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "94ad3f25db88c8d5",
+   "at": "2026-11-14T03:39:13.510Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "7e39cfb2bd1a0564",
+   "at": "2026-11-14T03:39:17.047Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "1bf1a75b076903c2",
+   "at": "2026-11-14T03:39:21.326Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "04927276f84f874b",
+   "at": "2026-11-14T03:39:27.922Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "eee77d1cbb2bb100",
+   "at": "2026-11-14T03:39:32.420Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "eff9b818a8449303",
+   "at": "2026-11-14T03:39:36.527Z",
+   "result": "saved",
+   "neurons": 44
   }
  ],
  "lastRun": {
-  "at": "2026-11-14T02:37:47.014Z",
-  "saved": 6,
+  "at": "2026-11-14T03:39:05.351Z",
+  "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
