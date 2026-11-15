@@ -1,56 +1,8 @@
 {
  "day": "2026-11-15",
- "neurons": 1348,
- "saved": 27,
+ "neurons": 1722,
+ "saved": 32,
  "attempts": [
-  {
-   "id": "477eda004e2bea13",
-   "at": "2026-11-01T04:49:07.801Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "2dc4d5e7ffd64de6",
-   "at": "2026-11-01T04:49:10.480Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "b2376144810d72c1",
-   "at": "2026-11-01T04:49:15.636Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "d28ef4d558e37f71",
-   "at": "2026-11-01T04:49:19.535Z",
-   "result": "no-text",
-   "detail": "取り出した本文が見出しの記事と一致しません"
-  },
-  {
-   "id": "410d6f4984ae9f62",
-   "at": "2026-11-01T04:49:20.393Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "0cb1b6d83b49c619",
-   "at": "2026-11-01T04:49:30.136Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "795f3202e3f0e033",
-   "at": "2026-11-01T04:49:36.412Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "5443fa2c0009804d",
-   "at": "2026-11-01T04:49:39.938Z",
-   "result": "saved",
-   "neurons": 47
-  },
   {
    "id": "c2c150ce319bbe36",
    "at": "2026-11-01T05:50:30.237Z",
@@ -13699,12 +13651,42 @@
    "at": "2026-11-15T03:57:23.626Z",
    "result": "saved",
    "neurons": 46
+  },
+  {
+   "id": "4c0c8d47a083539f",
+   "at": "2026-11-15T04:57:24.775Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "0bd50c8b9d2cfb6f",
+   "at": "2026-11-15T04:57:28.730Z",
+   "result": "saved",
+   "neurons": 110
+  },
+  {
+   "id": "690c3bd661431f63",
+   "at": "2026-11-15T04:57:34.999Z",
+   "result": "saved",
+   "neurons": 104
+  },
+  {
+   "id": "e41ef35959573bf2",
+   "at": "2026-11-15T04:57:40.852Z",
+   "result": "saved",
+   "neurons": 56
+  },
+  {
+   "id": "4ba4d82b8291a5c5",
+   "at": "2026-11-15T04:57:44.345Z",
+   "result": "saved",
+   "neurons": 61
   }
  ],
  "lastRun": {
-  "at": "2026-11-15T03:57:00.588Z",
-  "saved": 6,
-  "tried": 6,
+  "at": "2026-11-15T04:57:21.475Z",
+  "saved": 5,
+  "tried": 5,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
