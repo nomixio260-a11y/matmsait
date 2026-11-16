@@ -1,45 +1,8 @@
 {
  "day": "2026-11-16",
- "neurons": 1768,
- "saved": 33,
+ "neurons": 2004,
+ "saved": 38,
  "attempts": [
-  {
-   "id": "b9acce76552ada9b",
-   "at": "2026-11-02T05:04:47.306Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "273414b3cabf9d21",
-   "at": "2026-11-02T05:04:53.981Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "268da93db88b44f2",
-   "at": "2026-11-02T05:04:58.822Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "d39321cff41ca476",
-   "at": "2026-11-02T05:05:01.972Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "ada99e203b83f7e4",
-   "at": "2026-11-02T05:05:06.385Z",
-   "result": "quality",
-   "neurons": 102,
-   "detail": "見出しの言い換えに近い要約です。本文から見出しにない重要な情報（数字・日付・条件・今後の予定など）を加えてください"
-  },
-  {
-   "id": "4a09914688bb7785",
-   "at": "2026-11-02T05:05:13.670Z",
-   "result": "saved",
-   "neurons": 48
-  },
   {
    "id": "0671e7fdc2490a7b",
    "at": "2026-11-02T06:05:34.327Z",
@@ -13709,13 +13672,44 @@
    "result": "quality",
    "neurons": 102,
    "detail": "「今日」は、あとで読むと日付がずれます。記事の公開日をもとに「10月7日」のような日付にしてください"
+  },
+  {
+   "id": "a652cc4e3d023feb",
+   "at": "2026-11-16T05:19:15.511Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "f7464d3b1a32bd46",
+   "at": "2026-11-16T05:19:20.373Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "43c4f1d11981af14",
+   "at": "2026-11-16T05:19:25.404Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "076d41c1bcb28f14",
+   "at": "2026-11-16T05:19:28.590Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "40b46acdcdf32f5c",
+   "at": "2026-11-16T05:19:33.255Z",
+   "result": "saved",
+   "neurons": 44
   }
  ],
  "lastRun": {
-  "at": "2026-11-16T04:19:08.266Z",
-  "saved": 7,
-  "tried": 8,
+  "at": "2026-11-16T05:19:11.809Z",
+  "saved": 5,
+  "tried": 5,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "reasoning": "off"
+  "reasoning": "off",
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
