@@ -1,44 +1,8 @@
 {
  "day": "2026-11-16",
- "neurons": 7427,
- "saved": 137,
+ "neurons": 7712,
+ "saved": 142,
  "attempts": [
-  {
-   "id": "5c49c193dc707967",
-   "at": "2026-11-02T22:18:34.099Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "496cfb5fb1ebb94e",
-   "at": "2026-11-02T22:18:39.214Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "544d81087b0dafd6",
-   "at": "2026-11-02T22:18:41.502Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "f3618ccacdf07221",
-   "at": "2026-11-02T22:18:44.929Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "41846567b92b8adb",
-   "at": "2026-11-02T22:18:49.094Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "d768ef39ba356f13",
-   "at": "2026-11-02T22:18:52.411Z",
-   "result": "saved",
-   "neurons": 55
-  },
   {
    "id": "d18e2c7fa69c3287",
    "at": "2026-11-02T23:19:51.542Z",
@@ -13703,12 +13667,49 @@
    "result": "quality",
    "neurons": 104,
    "detail": "見出しの言い換えに近い要約です。本文から見出しにない重要な情報（数字・日付・条件・今後の予定など）を加えてください"
+  },
+  {
+   "id": "996b41237ab277a5",
+   "at": "2026-11-16T22:34:49.515Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "c152242bb794333a",
+   "at": "2026-11-16T22:34:52.528Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "5b6e360a4739fdf5",
+   "at": "2026-11-16T22:34:56.454Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "b71bb4a1d021b9ea",
+   "at": "2026-11-16T22:35:02.147Z",
+   "result": "saved",
+   "neurons": 55
+  },
+  {
+   "id": "e8c4f48467b66bf1",
+   "at": "2026-11-16T22:35:05.958Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "7b7ef7f4de365f33",
+   "at": "2026-11-16T22:35:09.957Z",
+   "result": "saved",
+   "neurons": 47
   }
  ],
  "lastRun": {
-  "at": "2026-11-16T21:34:13.297Z",
-  "saved": 6,
-  "tried": 7,
+  "at": "2026-11-16T22:34:47.815Z",
+  "saved": 5,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
