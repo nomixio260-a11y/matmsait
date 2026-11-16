@@ -1,51 +1,8 @@
 {
- "day": "2026-11-15",
- "neurons": 7873,
- "saved": 150,
+ "day": "2026-11-16",
+ "neurons": 340,
+ "saved": 7,
  "attempts": [
-  {
-   "id": "efc561ebb66c0d06",
-   "at": "2026-11-02T00:02:16.732Z",
-   "result": "saved",
-   "neurons": 99
-  },
-  {
-   "id": "2cba90bc1d3db5ae",
-   "at": "2026-11-02T00:02:24.392Z",
-   "result": "saved",
-   "neurons": 62
-  },
-  {
-   "id": "e3ae0ed2982497bd",
-   "at": "2026-11-02T00:02:30.008Z",
-   "result": "unavailable",
-   "neurons": 34,
-   "detail": "AI が記事を読めなかったため要約がありません"
-  },
-  {
-   "id": "bf6f0d7fff377c52",
-   "at": "2026-11-02T00:02:35.168Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "1ec38c13286e51e3",
-   "at": "2026-11-02T00:03:11.016Z",
-   "result": "fetch-error",
-   "detail": "robots.txt を読めませんでした"
-  },
-  {
-   "id": "b70b62912623c5f8",
-   "at": "2026-11-02T00:03:23.199Z",
-   "result": "saved",
-   "neurons": 56
-  },
-  {
-   "id": "aa072d7384437e43",
-   "at": "2026-11-02T00:03:27.331Z",
-   "result": "saved",
-   "neurons": 44
-  },
   {
    "id": "68f12fa68f254c76",
    "at": "2026-11-02T01:02:41.591Z",
@@ -13707,14 +13664,56 @@
    "at": "2026-11-15T23:13:33.617Z",
    "result": "saved",
    "neurons": 48
+  },
+  {
+   "id": "4bfe667df92ffedc",
+   "at": "2026-11-16T00:14:46.783Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "cc1ae9f89d80f9b1",
+   "at": "2026-11-16T00:14:50.806Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "5cf5404ce90480f6",
+   "at": "2026-11-16T00:14:53.755Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "8d5581c6bab74191",
+   "at": "2026-11-16T00:14:57.796Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "8a4ab10137843919",
+   "at": "2026-11-16T00:15:01.304Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "1c879cac4fdaa196",
+   "at": "2026-11-16T00:15:12.339Z",
+   "result": "saved",
+   "neurons": 56
+  },
+  {
+   "id": "a99c659de299b421",
+   "at": "2026-11-16T00:15:17.451Z",
+   "result": "saved",
+   "neurons": 46
   }
  ],
  "lastRun": {
-  "at": "2026-11-15T23:13:20.740Z",
-  "saved": 4,
-  "tried": 4,
+  "at": "2026-11-16T00:14:43.682Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
-  "message": "今日（UTC）の使用量の見積もりが上限（8000ニューロン）に近いため止めました"
+  "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  }
 }
