@@ -1,50 +1,8 @@
 {
  "day": "2026-11-16",
- "neurons": 2352,
- "saved": 45,
+ "neurons": 2747,
+ "saved": 50,
  "attempts": [
-  {
-   "id": "ae861876bdce0da9",
-   "at": "2026-11-02T07:06:52.137Z",
-   "result": "saved",
-   "neurons": 43
-  },
-  {
-   "id": "a6d27ad81a6ab8d6",
-   "at": "2026-11-02T07:06:55.758Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "7be9b953168ce14b",
-   "at": "2026-11-02T07:07:08.412Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "c314268cadc70df9",
-   "at": "2026-11-02T07:07:14.555Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "cf4f13452e3c5806",
-   "at": "2026-11-02T07:07:20.048Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "b1312aed23b4855a",
-   "at": "2026-11-02T07:07:27.542Z",
-   "result": "saved",
-   "neurons": 58
-  },
-  {
-   "id": "765daa12f841f476",
-   "at": "2026-11-02T07:07:39.057Z",
-   "result": "saved",
-   "neurons": 52
-  },
   {
    "id": "f0d12c989b452a0e",
    "at": "2026-11-02T08:07:44.839Z",
@@ -13701,11 +13659,55 @@
    "at": "2026-11-16T06:19:50.254Z",
    "result": "saved",
    "neurons": 62
+  },
+  {
+   "id": "378c4fb962215053",
+   "at": "2026-11-16T07:20:39.302Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "42e22adb10749210",
+   "at": "2026-11-16T07:20:42.335Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "5667e19079f6e118",
+   "at": "2026-11-16T07:20:47.549Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "0435692b9d6d7639",
+   "at": "2026-11-16T07:20:55.244Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "7cfb52befe6a9f0f",
+   "at": "2026-11-16T07:21:02.287Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "ee40a359f3c8e7d2",
+   "at": "2026-11-16T07:21:03.434Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "04f7fbfe5ac5906f",
+   "at": "2026-11-16T07:21:13.149Z",
+   "result": "quality",
+   "neurons": 123,
+   "detail": "「〜を紹介している」のように、記事が何をしているかを書いています。記事に書かれている中身（方法・手順・結果・数字）を書いてください"
   }
  ],
  "lastRun": {
-  "at": "2026-11-16T06:19:20.501Z",
-  "saved": 7,
+  "at": "2026-11-16T07:20:35.852Z",
+  "saved": 5,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
