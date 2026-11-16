@@ -1,44 +1,8 @@
 {
  "day": "2026-11-16",
- "neurons": 4004,
- "saved": 71,
+ "neurons": 4339,
+ "saved": 78,
  "attempts": [
-  {
-   "id": "c941822309613799",
-   "at": "2026-11-02T12:11:07.844Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "dbfa13321d22ee49",
-   "at": "2026-11-02T12:11:13.382Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "7d28a3d49064aeb9",
-   "at": "2026-11-02T12:11:22.089Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "c902a4428cc2a00d",
-   "at": "2026-11-02T12:11:27.120Z",
-   "result": "saved",
-   "neurons": 57
-  },
-  {
-   "id": "72f9f9b39c6aa30c",
-   "at": "2026-11-02T12:11:38.537Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "79e6a5ec0df446ae",
-   "at": "2026-11-02T12:11:43.251Z",
-   "result": "saved",
-   "neurons": 107
-  },
   {
    "id": "d244c91a30fc3c84",
    "at": "2026-11-02T13:12:20.765Z",
@@ -13706,11 +13670,53 @@
    "result": "unavailable",
    "neurons": 35,
    "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "b1e187b08ad920dd",
+   "at": "2026-11-16T12:25:45.417Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "8945a69c6c720f10",
+   "at": "2026-11-16T12:25:49.812Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "791c32ce5fd77550",
+   "at": "2026-11-16T12:25:53.679Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "3d6d145eaf89a361",
+   "at": "2026-11-16T12:25:57.183Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "1edf2db9f447bd02",
+   "at": "2026-11-16T12:26:05.659Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "f96c4b1fc16b4845",
+   "at": "2026-11-16T12:26:09.308Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "09cf541f5e514bdd",
+   "at": "2026-11-16T12:26:17.223Z",
+   "result": "saved",
+   "neurons": 56
   }
  ],
  "lastRun": {
-  "at": "2026-11-16T11:24:16.277Z",
-  "saved": 6,
+  "at": "2026-11-16T12:25:42.552Z",
+  "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
