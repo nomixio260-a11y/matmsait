@@ -1,50 +1,8 @@
 {
  "day": "2026-11-16",
- "neurons": 340,
- "saved": 7,
+ "neurons": 689,
+ "saved": 14,
  "attempts": [
-  {
-   "id": "68f12fa68f254c76",
-   "at": "2026-11-02T01:02:41.591Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "402a4944e965037b",
-   "at": "2026-11-02T01:02:44.838Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "faeb2496d23c8e36",
-   "at": "2026-11-02T01:02:49.933Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "6da58489cf98ab41",
-   "at": "2026-11-02T01:02:55.060Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "ec4ab1bab196a93f",
-   "at": "2026-11-02T01:03:00.554Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "c9d22a0aba090be8",
-   "at": "2026-11-02T01:03:03.181Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "d713588ae80edfb2",
-   "at": "2026-11-02T01:03:09.479Z",
-   "result": "saved",
-   "neurons": 51
-  },
   {
    "id": "97725a56ec98f42e",
    "at": "2026-11-02T02:03:10.636Z",
@@ -13706,10 +13664,52 @@
    "at": "2026-11-16T00:15:17.451Z",
    "result": "saved",
    "neurons": 46
+  },
+  {
+   "id": "35b9b6bc9dcff25e",
+   "at": "2026-11-16T01:15:15.139Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "e5468e37036721bf",
+   "at": "2026-11-16T01:15:20.315Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "06ce3ec25d34cd4c",
+   "at": "2026-11-16T01:15:25.235Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "947090d8cbd80714",
+   "at": "2026-11-16T01:15:29.983Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "1100998e3f8355fa",
+   "at": "2026-11-16T01:15:34.138Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "d025063eac1893ae",
+   "at": "2026-11-16T01:15:43.083Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "053e81b3c9976f65",
+   "at": "2026-11-16T01:15:47.157Z",
+   "result": "saved",
+   "neurons": 60
   }
  ],
  "lastRun": {
-  "at": "2026-11-16T00:14:43.682Z",
+  "at": "2026-11-16T01:15:12.438Z",
   "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
