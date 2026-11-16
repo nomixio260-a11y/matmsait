@@ -1,51 +1,8 @@
 {
  "day": "2026-11-16",
- "neurons": 2004,
- "saved": 38,
+ "neurons": 2352,
+ "saved": 45,
  "attempts": [
-  {
-   "id": "0671e7fdc2490a7b",
-   "at": "2026-11-02T06:05:34.327Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "73441b4ed00c7058",
-   "at": "2026-11-02T06:05:42.143Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "1ed7f0e8d157ab9e",
-   "at": "2026-11-02T06:05:46.182Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "c7d0f6b4fcede8d8",
-   "at": "2026-11-02T06:05:51.130Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "5ee5e2ebb76f5e59",
-   "at": "2026-11-02T06:05:56.051Z",
-   "result": "invalid",
-   "neurons": 54,
-   "detail": "回答に要約がありません"
-  },
-  {
-   "id": "550fd37134fa4317",
-   "at": "2026-11-02T06:06:06.353Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "ee5b37ef87867194",
-   "at": "2026-11-02T06:06:17.451Z",
-   "result": "saved",
-   "neurons": 46
-  },
   {
    "id": "ae861876bdce0da9",
    "at": "2026-11-02T07:06:52.137Z",
@@ -13702,12 +13659,54 @@
    "at": "2026-11-16T05:19:33.255Z",
    "result": "saved",
    "neurons": 44
+  },
+  {
+   "id": "97ecb9ea206b5ca9",
+   "at": "2026-11-16T06:19:23.286Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "a8b093e1c9bed87d",
+   "at": "2026-11-16T06:19:26.109Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "7bfcbd4b8faea960",
+   "at": "2026-11-16T06:19:31.120Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "cd4bf815c836b8d0",
+   "at": "2026-11-16T06:19:34.806Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "b8a69f49e99d7190",
+   "at": "2026-11-16T06:19:37.731Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "cd708469753cab09",
+   "at": "2026-11-16T06:19:45.348Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "787b9bb42986f04e",
+   "at": "2026-11-16T06:19:50.254Z",
+   "result": "saved",
+   "neurons": 62
   }
  ],
  "lastRun": {
-  "at": "2026-11-16T05:19:11.809Z",
-  "saved": 5,
-  "tried": 5,
+  "at": "2026-11-16T06:19:20.501Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
