@@ -1,56 +1,8 @@
 {
  "day": "2026-11-18",
- "neurons": 5710,
- "saved": 110,
+ "neurons": 6061,
+ "saved": 117,
  "attempts": [
-  {
-   "id": "7073e75a16c57615",
-   "at": "2026-11-04T16:50:54.347Z",
-   "result": "saved",
-   "neurons": 53
-  },
-  {
-   "id": "e210910e27283eb0",
-   "at": "2026-11-04T16:51:01.024Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "249464adb8ddcdf0",
-   "at": "2026-11-04T16:51:06.262Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "1daa0a9e5c57b3ae",
-   "at": "2026-11-04T16:51:10.193Z",
-   "result": "no-text",
-   "detail": "動画が中心のページ（108字）"
-  },
-  {
-   "id": "559dd124f2249703",
-   "at": "2026-11-04T16:51:11.389Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "930b440f839447f7",
-   "at": "2026-11-04T16:51:19.784Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "810184aeb9f0592c",
-   "at": "2026-11-04T16:51:29.500Z",
-   "result": "saved",
-   "neurons": 43
-  },
-  {
-   "id": "10f5ae8c38bbf1e1",
-   "at": "2026-11-04T16:51:49.665Z",
-   "result": "saved",
-   "neurons": 63
-  },
   {
    "id": "75d57b123115b50d",
    "at": "2026-11-04T17:51:59.609Z",
@@ -13739,10 +13691,58 @@
    "at": "2026-11-18T16:09:00.438Z",
    "result": "saved",
    "neurons": 47
+  },
+  {
+   "id": "02f96c7c1d63130c",
+   "at": "2026-11-18T17:08:50.375Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "2fc7eaf6d26f6f04",
+   "at": "2026-11-18T17:08:54.920Z",
+   "result": "no-text",
+   "detail": "本文が短いページ（145字）"
+  },
+  {
+   "id": "f7ace6e29f257adf",
+   "at": "2026-11-18T17:08:56.134Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "3b6324eb4b90fbe2",
+   "at": "2026-11-18T17:08:59.011Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "78dcde889c2ff7a6",
+   "at": "2026-11-18T17:09:02.730Z",
+   "result": "saved",
+   "neurons": 44
+  },
+  {
+   "id": "8b77df02552908d9",
+   "at": "2026-11-18T17:09:05.590Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "e01e6732cef5a8f1",
+   "at": "2026-11-18T17:09:12.816Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "1d640b4a2c9cf728",
+   "at": "2026-11-18T17:09:25.023Z",
+   "result": "saved",
+   "neurons": 70
   }
  ],
  "lastRun": {
-  "at": "2026-11-18T16:08:23.096Z",
+  "at": "2026-11-18T17:08:47.725Z",
   "saved": 7,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
