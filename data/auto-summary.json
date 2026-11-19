@@ -1,63 +1,8 @@
 {
  "day": "2026-11-19",
- "neurons": 408,
- "saved": 7,
+ "neurons": 704,
+ "saved": 13,
  "attempts": [
-  {
-   "id": "2d0422e1e9190a2d",
-   "at": "2026-11-05T00:58:49.663Z",
-   "result": "saved",
-   "neurons": 42
-  },
-  {
-   "id": "79e277e7b6f0ca3c",
-   "at": "2026-11-05T00:58:55.672Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "d53260a72fa3f53b",
-   "at": "2026-11-05T00:58:58.628Z",
-   "result": "saved",
-   "neurons": 52
-  },
-  {
-   "id": "b1256631ec1881a9",
-   "at": "2026-11-05T00:59:04.928Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "78db795c22cbc34c",
-   "at": "2026-11-05T00:59:12.374Z",
-   "result": "no-text",
-   "detail": "取り出した本文が見出しの記事と一致しません"
-  },
-  {
-   "id": "1a075d7ee67185df",
-   "at": "2026-11-05T00:59:13.097Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "37c6b166ecb6c65c",
-   "at": "2026-11-05T00:59:16.591Z",
-   "result": "unavailable",
-   "neurons": 34,
-   "detail": "AI が記事を読めなかったため要約がありません"
-  },
-  {
-   "id": "3d1d547bbfdef374",
-   "at": "2026-11-05T00:59:20.110Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "2e629d1b21a57904",
-   "at": "2026-11-05T00:59:27.835Z",
-   "result": "saved",
-   "neurons": 53
-  },
   {
    "id": "3251fd157d222e5b",
    "at": "2026-11-05T01:59:02.561Z",
@@ -13744,12 +13689,48 @@
    "at": "2026-11-19T00:16:11.554Z",
    "result": "saved",
    "neurons": 109
+  },
+  {
+   "id": "cdf3564d9e8f6fd3",
+   "at": "2026-11-19T01:16:48.479Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "1d0b53bc5736192c",
+   "at": "2026-11-19T01:16:52.247Z",
+   "result": "saved",
+   "neurons": 43
+  },
+  {
+   "id": "8c8977475226cfc6",
+   "at": "2026-11-19T01:16:59.072Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "582e5d88f465f46f",
+   "at": "2026-11-19T01:17:04.616Z",
+   "result": "saved",
+   "neurons": 48
+  },
+  {
+   "id": "3a9a4d91c4131018",
+   "at": "2026-11-19T01:17:10.252Z",
+   "result": "saved",
+   "neurons": 58
+  },
+  {
+   "id": "5f95eb425ee83679",
+   "at": "2026-11-19T01:17:15.092Z",
+   "result": "saved",
+   "neurons": 49
   }
  ],
  "lastRun": {
-  "at": "2026-11-19T00:15:43.781Z",
-  "saved": 7,
-  "tried": 7,
+  "at": "2026-11-19T01:16:46.133Z",
+  "saved": 6,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
