@@ -1,44 +1,8 @@
 {
  "day": "2026-11-19",
- "neurons": 6685,
- "saved": 124,
+ "neurons": 7029,
+ "saved": 130,
  "attempts": [
-  {
-   "id": "339fd0f118928990",
-   "at": "2026-11-05T20:13:29.128Z",
-   "result": "saved",
-   "neurons": 54
-  },
-  {
-   "id": "769cc46462ba910b",
-   "at": "2026-11-05T20:13:33.762Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "34f9db841e4f52ee",
-   "at": "2026-11-05T20:13:38.601Z",
-   "result": "saved",
-   "neurons": 49
-  },
-  {
-   "id": "acb2f1f80f75fdc7",
-   "at": "2026-11-05T20:13:48.971Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "4ddd8dc60c955dbe",
-   "at": "2026-11-05T20:14:08.571Z",
-   "result": "saved",
-   "neurons": 60
-  },
-  {
-   "id": "877e2b057e213489",
-   "at": "2026-11-05T20:14:11.878Z",
-   "result": "saved",
-   "neurons": 48
-  },
   {
    "id": "021752738847e603",
    "at": "2026-11-05T21:14:23.610Z",
@@ -13698,10 +13662,59 @@
    "at": "2026-11-19T19:32:37.041Z",
    "result": "saved",
    "neurons": 44
+  },
+  {
+   "id": "a944a435efeeaeab",
+   "at": "2026-11-19T20:32:39.905Z",
+   "result": "no-text",
+   "detail": "本文が短いページ（0字）"
+  },
+  {
+   "id": "4225af9875436485",
+   "at": "2026-11-19T20:32:41.099Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "927c6620dae85141",
+   "at": "2026-11-19T20:32:47.695Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "123948fd29289404",
+   "at": "2026-11-19T20:32:50.330Z",
+   "result": "saved",
+   "neurons": 54
+  },
+  {
+   "id": "bf2fbcc7ae77cd71",
+   "at": "2026-11-19T20:32:56.335Z",
+   "result": "invalid",
+   "neurons": 49,
+   "detail": "回答に要約がありません"
+  },
+  {
+   "id": "e573b621b3313163",
+   "at": "2026-11-19T20:32:59.664Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "2ddba2c02909e6b9",
+   "at": "2026-11-19T20:33:09.367Z",
+   "result": "saved",
+   "neurons": 45
+  },
+  {
+   "id": "39db86299913f1d8",
+   "at": "2026-11-19T20:33:14.262Z",
+   "result": "saved",
+   "neurons": 47
   }
  ],
  "lastRun": {
-  "at": "2026-11-19T19:32:04.703Z",
+  "at": "2026-11-19T20:32:37.002Z",
   "saved": 6,
   "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
