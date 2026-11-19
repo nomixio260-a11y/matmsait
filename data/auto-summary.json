@@ -1,51 +1,8 @@
 {
  "day": "2026-11-19",
- "neurons": 3334,
- "saved": 65,
+ "neurons": 3708,
+ "saved": 69,
  "attempts": [
-  {
-   "id": "1873e505f4a0e4b6",
-   "at": "2026-11-05T10:06:02.902Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "ceb93810afb6b5fa",
-   "at": "2026-11-05T10:06:06.703Z",
-   "result": "unavailable",
-   "neurons": 35,
-   "detail": "AI が記事を読めなかったため要約がありません"
-  },
-  {
-   "id": "55d91b8ff376ad76",
-   "at": "2026-11-05T10:06:11.873Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "e88911cba414c9c8",
-   "at": "2026-11-05T10:06:19.151Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "ed86741d5c86d14f",
-   "at": "2026-11-05T10:06:22.428Z",
-   "result": "saved",
-   "neurons": 53
-  },
-  {
-   "id": "99e7a8647ccdb9b0",
-   "at": "2026-11-05T10:06:26.771Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "ff99520ee42404f5",
-   "at": "2026-11-05T10:06:35.814Z",
-   "result": "saved",
-   "neurons": 49
-  },
   {
    "id": "278c28f86d9da884",
    "at": "2026-11-05T11:07:42.677Z",
@@ -13698,12 +13655,57 @@
    "at": "2026-11-19T09:24:54.242Z",
    "result": "saved",
    "neurons": 47
+  },
+  {
+   "id": "388a13fb91dcb6fd",
+   "at": "2026-11-19T10:24:34.094Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "42b6e83210dc8b4e",
+   "at": "2026-11-19T10:24:37.677Z",
+   "result": "unavailable",
+   "neurons": 35,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "ec59d4e242ea0b31",
+   "at": "2026-11-19T10:24:39.720Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "85df83968adc6fe8",
+   "at": "2026-11-19T10:24:44.078Z",
+   "result": "saved",
+   "neurons": 53
+  },
+  {
+   "id": "449c78743f94f0d6",
+   "at": "2026-11-19T10:24:52.452Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "26a220af492f4210",
+   "at": "2026-11-19T10:25:00.067Z",
+   "result": "unavailable",
+   "neurons": 34,
+   "detail": "AI が記事を読めなかったため要約がありません"
+  },
+  {
+   "id": "83c0d1e0ea13deff",
+   "at": "2026-11-19T10:25:01.076Z",
+   "result": "quality",
+   "neurons": 104,
+   "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください"
   }
  ],
  "lastRun": {
-  "at": "2026-11-19T09:24:26.601Z",
-  "saved": 6,
-  "tried": 6,
+  "at": "2026-11-19T10:24:31.928Z",
+  "saved": 4,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
