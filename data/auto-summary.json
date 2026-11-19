@@ -1,45 +1,8 @@
 {
  "day": "2026-11-19",
- "neurons": 3042,
- "saved": 59,
+ "neurons": 3334,
+ "saved": 65,
  "attempts": [
-  {
-   "id": "daef59c4164fe696",
-   "at": "2026-11-05T09:05:39.374Z",
-   "result": "quality",
-   "neurons": 107,
-   "detail": "SNS・ネットの反応を大きく書いていないか、一部の意見を一般化していないか確かめてください（「大きな反響」）"
-  },
-  {
-   "id": "9203658ab6fb3ac3",
-   "at": "2026-11-05T09:05:44.534Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "6ded06af7d452d0a",
-   "at": "2026-11-05T09:05:48.120Z",
-   "result": "saved",
-   "neurons": 44
-  },
-  {
-   "id": "dc49b22c14e4a510",
-   "at": "2026-11-05T09:05:52.102Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "3222039936cf658e",
-   "at": "2026-11-05T09:05:56.212Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "c84b551e6a3d7b18",
-   "at": "2026-11-05T09:06:02.036Z",
-   "result": "saved",
-   "neurons": 52
-  },
   {
    "id": "1873e505f4a0e4b6",
    "at": "2026-11-05T10:06:02.902Z",
@@ -13699,12 +13662,48 @@
    "at": "2026-11-19T08:24:13.958Z",
    "result": "saved",
    "neurons": 47
+  },
+  {
+   "id": "921e4c0db2cb43df",
+   "at": "2026-11-19T09:24:30.067Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "ccefc7d3ae4fb8bd",
+   "at": "2026-11-19T09:24:33.388Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "8541ebf6646d81d2",
+   "at": "2026-11-19T09:24:38.911Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "92e451aa72b71061",
+   "at": "2026-11-19T09:24:47.107Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "e65183f1e9ead6ba",
+   "at": "2026-11-19T09:24:50.179Z",
+   "result": "saved",
+   "neurons": 58
+  },
+  {
+   "id": "1fdc06c0f06a3473",
+   "at": "2026-11-19T09:24:54.242Z",
+   "result": "saved",
+   "neurons": 47
   }
  ],
  "lastRun": {
-  "at": "2026-11-19T08:23:32.212Z",
-  "saved": 7,
-  "tried": 7,
+  "at": "2026-11-19T09:24:26.601Z",
+  "saved": 6,
+  "tried": 6,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
