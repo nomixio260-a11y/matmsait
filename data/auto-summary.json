@@ -1,51 +1,8 @@
 {
  "day": "2026-11-19",
- "neurons": 1002,
- "saved": 17,
+ "neurons": 1343,
+ "saved": 24,
  "attempts": [
-  {
-   "id": "67da72144575d511",
-   "at": "2026-11-05T02:59:40.737Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "fd087e2aa247f335",
-   "at": "2026-11-05T02:59:45.508Z",
-   "result": "saved",
-   "neurons": 51
-  },
-  {
-   "id": "5d3d53271e6f224b",
-   "at": "2026-11-05T02:59:50.196Z",
-   "result": "unavailable",
-   "neurons": 35,
-   "detail": "AI が記事を読めなかったため要約がありません"
-  },
-  {
-   "id": "fe1d586195e32f0a",
-   "at": "2026-11-05T02:59:51.921Z",
-   "result": "saved",
-   "neurons": 43
-  },
-  {
-   "id": "c8f3276a753fabfe",
-   "at": "2026-11-05T02:59:56.636Z",
-   "result": "saved",
-   "neurons": 52
-  },
-  {
-   "id": "56b9569bc4e193b8",
-   "at": "2026-11-05T03:00:01.184Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "ea66a74d8f4fa818",
-   "at": "2026-11-05T03:00:04.162Z",
-   "result": "saved",
-   "neurons": 95
-  },
   {
    "id": "87bd4892d688c565",
    "at": "2026-11-05T04:00:42.791Z",
@@ -13714,12 +13671,54 @@
    "result": "quality",
    "neurons": 94,
    "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください"
+  },
+  {
+   "id": "5a7f1965ea8f0a43",
+   "at": "2026-11-19T03:19:22.237Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "e077ee10dc33761b",
+   "at": "2026-11-19T03:19:25.608Z",
+   "result": "saved",
+   "neurons": 47
+  },
+  {
+   "id": "256a85791325f087",
+   "at": "2026-11-19T03:19:30.161Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "ce1b5071d915f460",
+   "at": "2026-11-19T03:19:35.947Z",
+   "result": "saved",
+   "neurons": 46
+  },
+  {
+   "id": "0fa3b71fcb68100b",
+   "at": "2026-11-19T03:19:40.839Z",
+   "result": "saved",
+   "neurons": 51
+  },
+  {
+   "id": "d088cd62c7244549",
+   "at": "2026-11-19T03:19:43.747Z",
+   "result": "saved",
+   "neurons": 49
+  },
+  {
+   "id": "5063d8e78464e342",
+   "at": "2026-11-19T03:19:50.354Z",
+   "result": "saved",
+   "neurons": 46
   }
  ],
  "lastRun": {
-  "at": "2026-11-19T02:18:05.954Z",
-  "saved": 4,
-  "tried": 5,
+  "at": "2026-11-19T03:19:19.853Z",
+  "saved": 7,
+  "tried": 7,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
