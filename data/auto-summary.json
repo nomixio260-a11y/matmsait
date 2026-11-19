@@ -1,50 +1,8 @@
 {
  "day": "2026-11-19",
- "neurons": 704,
- "saved": 13,
+ "neurons": 1002,
+ "saved": 17,
  "attempts": [
-  {
-   "id": "3251fd157d222e5b",
-   "at": "2026-11-05T01:59:02.561Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "d8af9f7380999761",
-   "at": "2026-11-05T01:59:07.394Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "c521828a3622a228",
-   "at": "2026-11-05T01:59:10.704Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "e1e5f1de5c7fcffa",
-   "at": "2026-11-05T01:59:18.656Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "76959aae50a329b7",
-   "at": "2026-11-05T01:59:21.681Z",
-   "result": "saved",
-   "neurons": 50
-  },
-  {
-   "id": "513b8a734bb150ff",
-   "at": "2026-11-05T01:59:25.272Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "fa8a4c12a33dd23d",
-   "at": "2026-11-05T01:59:33.220Z",
-   "result": "saved",
-   "neurons": 47
-  },
   {
    "id": "67da72144575d511",
    "at": "2026-11-05T02:59:40.737Z",
@@ -13725,12 +13683,43 @@
    "at": "2026-11-19T01:17:15.092Z",
    "result": "saved",
    "neurons": 49
+  },
+  {
+   "id": "037e73d271c8dd1d",
+   "at": "2026-11-19T02:18:09.585Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "7e0d3419175eab9b",
+   "at": "2026-11-19T02:18:12.790Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "10fe7ad05eb26e4e",
+   "at": "2026-11-19T02:18:15.627Z",
+   "result": "saved",
+   "neurons": 52
+  },
+  {
+   "id": "9a98e3b09be4ce05",
+   "at": "2026-11-19T02:18:19.339Z",
+   "result": "saved",
+   "neurons": 50
+  },
+  {
+   "id": "ea3b7e31c938c9c6",
+   "at": "2026-11-19T02:18:23.248Z",
+   "result": "quality",
+   "neurons": 94,
+   "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください"
   }
  ],
  "lastRun": {
-  "at": "2026-11-19T01:16:46.133Z",
-  "saved": 6,
-  "tried": 6,
+  "at": "2026-11-19T02:18:05.954Z",
+  "saved": 4,
+  "tried": 5,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
