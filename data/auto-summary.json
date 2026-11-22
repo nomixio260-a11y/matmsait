@@ -12070,25 +12070,25 @@
   },
   {
    "id": "fa8292a2d7f0570c",
-   "at": "2026-11-22T14:21:23.911Z",
+   "at": "2026-11-22T14:31:27.522Z",
    "result": "ai-error",
-   "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (64aec824-b9ed-4fec-ada4-df55a7f41e57)）"
+   "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (bde5a117-c594-4319-9db4-cce83126bfea)）"
   },
   {
    "id": "855a5e894fd8b52d",
-   "at": "2026-11-22T14:21:24.911Z",
+   "at": "2026-11-22T14:31:28.597Z",
    "result": "no-text",
    "detail": "本文が短いページ（0字）"
   },
   {
    "id": "7abfb01733488e08",
-   "at": "2026-11-22T14:21:28.068Z",
+   "at": "2026-11-22T14:31:31.395Z",
    "result": "ai-error",
-   "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (2c0373a8-fe27-4d1d-9f37-1642139871ca)）"
+   "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (ec11e95c-6098-46a8-ad50-e7f918be4601)）"
   }
  ],
  "lastRun": {
-  "at": "2026-11-22T14:21:21.540Z",
+  "at": "2026-11-22T14:31:25.807Z",
   "saved": 0,
   "tried": 2,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
@@ -12096,7 +12096,7 @@
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  },
  "problem": {
-  "at": "2026-11-22T14:21:21.540Z",
+  "at": "2026-11-22T14:31:25.807Z",
   "kind": "other",
   "message": "AI への依頼が続けて失敗しました（Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.）"
  }
