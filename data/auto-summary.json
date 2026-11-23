@@ -1,51 +1,8 @@
 {
  "day": "2026-11-23",
- "neurons": 1096,
+ "neurons": 1370,
  "saved": 0,
  "attempts": [
-  {
-   "id": "0bf889ebdd6635c5",
-   "at": "2026-11-09T03:15:43.881Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "a2ec08b10b2d2dbb",
-   "at": "2026-11-09T03:15:48.022Z",
-   "result": "saved",
-   "neurons": 43
-  },
-  {
-   "id": "19f2164002a56ae4",
-   "at": "2026-11-09T03:15:56.932Z",
-   "result": "saved",
-   "neurons": 61
-  },
-  {
-   "id": "7ae92ede403a02df",
-   "at": "2026-11-09T03:16:01.162Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "8470acf79cd5654e",
-   "at": "2026-11-09T03:16:04.857Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "4708746be73ee971",
-   "at": "2026-11-09T03:16:11.462Z",
-   "result": "saved",
-   "neurons": 53
-  },
-  {
-   "id": "a814b611a90ddddd",
-   "at": "2026-11-09T03:16:15.858Z",
-   "result": "quality",
-   "neurons": 101,
-   "detail": "中身のない定型文・評価「注目されている」があります。具体的な予定や事実がなければ削ってください / 「今日」は、あとで読むと日付がずれます。記事の公開日をもとに「10月7日」のような日付にしてください"
-  },
   {
    "id": "72e26f7b41440451",
    "at": "2026-11-09T04:16:59.012Z",
@@ -11811,18 +11768,30 @@
    "at": "2026-11-23T02:31:50.122Z",
    "result": "ai-error",
    "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (f4480599-632e-4153-8a41-b1c459937abe)）"
+  },
+  {
+   "id": "14cd3a26ac612776",
+   "at": "2026-11-23T03:33:02.824Z",
+   "result": "ai-error",
+   "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (266c8fd9-4b53-41cd-8d11-f4eeeb872e79)）"
+  },
+  {
+   "id": "335ea96977824146",
+   "at": "2026-11-23T03:33:03.505Z",
+   "result": "ai-error",
+   "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (2c90ed1d-5076-4975-8ab4-bc1a47144c68)）"
   }
  ],
  "lastRun": {
-  "at": "2026-11-23T02:31:42.598Z",
+  "at": "2026-11-23T03:32:56.923Z",
   "saved": 0,
-  "tried": 3,
+  "tried": 2,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  },
  "problem": {
-  "at": "2026-11-23T02:31:42.598Z",
+  "at": "2026-11-23T03:32:56.923Z",
   "kind": "other",
   "message": "AI への依頼が続けて失敗しました（Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.）"
  }
