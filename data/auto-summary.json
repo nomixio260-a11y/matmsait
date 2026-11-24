@@ -1,44 +1,8 @@
 {
  "day": "2026-11-24",
- "neurons": 6713,
+ "neurons": 7124,
  "saved": 0,
  "attempts": [
-  {
-   "id": "2a08a4b5e0627ad7",
-   "at": "2026-11-10T19:45:20.301Z",
-   "result": "saved",
-   "neurons": 47
-  },
-  {
-   "id": "87ce98895af9e19c",
-   "at": "2026-11-10T19:45:23.674Z",
-   "result": "saved",
-   "neurons": 48
-  },
-  {
-   "id": "c765d0af5a9d76dd",
-   "at": "2026-11-10T19:45:28.113Z",
-   "result": "saved",
-   "neurons": 46
-  },
-  {
-   "id": "2c9cdd7bb2ae05bc",
-   "at": "2026-11-10T19:45:34.195Z",
-   "result": "saved",
-   "neurons": 57
-  },
-  {
-   "id": "1eb9019d163b73a4",
-   "at": "2026-11-10T19:45:38.608Z",
-   "result": "saved",
-   "neurons": 45
-  },
-  {
-   "id": "b175ef3f92722e49",
-   "at": "2026-11-10T19:45:47.100Z",
-   "result": "saved",
-   "neurons": 53
-  },
   {
    "id": "8486fbecb35061d7",
    "at": "2026-11-10T20:46:13.926Z",
@@ -10812,18 +10776,36 @@
    "at": "2026-11-24T19:05:33.360Z",
    "result": "ai-error",
    "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (6688aba7-6ece-4228-a5aa-b05410ab2933)）"
+  },
+  {
+   "id": "2f8866d159f7582b",
+   "at": "2026-11-24T20:06:07.019Z",
+   "result": "ai-error",
+   "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (7098f1d2-1275-4f99-ac44-f6a8f884ff90)）"
+  },
+  {
+   "id": "225bbf6ee3883974",
+   "at": "2026-11-24T20:06:09.444Z",
+   "result": "ai-error",
+   "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (9f9100c1-c143-4d74-a5e1-634d16614f0b)）"
+  },
+  {
+   "id": "0f35e55f2f8d4d7c",
+   "at": "2026-11-24T20:06:10.596Z",
+   "result": "ai-error",
+   "detail": "Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.com/workers-ai/models/ (d3f95c3f-ee8e-4971-8f71-64e1312222b2)）"
   }
  ],
  "lastRun": {
-  "at": "2026-11-24T19:05:22.766Z",
+  "at": "2026-11-24T20:06:04.844Z",
   "saved": 0,
-  "tried": 2,
+  "tried": 3,
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "reasoning": "off",
   "message": "1日の使う量を時間で均すため、残りは次の実行に回します"
  },
  "problem": {
-  "at": "2026-11-24T19:05:22.766Z",
+  "at": "2026-11-24T20:06:04.844Z",
   "kind": "other",
   "message": "AI への依頼が続けて失敗しました（Workers AI がエラーを返しました（HTTP 410: 5028 AiError: Model has been deprecated: @cf/qwen/qwen3-30b-a3b-fp8 was deprecated on 2026-11-20. See the model catalog for alternatives: https://developers.cloudflare.）"
  }
